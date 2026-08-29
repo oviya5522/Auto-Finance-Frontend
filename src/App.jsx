@@ -9,7 +9,7 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import SideBar from "./components/SideBar";
+import SideBar from "./SideBar";
 
 import CustomerPage from "./pages/customers/CustomerPage";
 import CustomerOnboarding from "./pages/customers/CustomerOnboarding";
