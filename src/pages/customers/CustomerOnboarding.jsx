@@ -16,7 +16,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 
-import CustomerInfoStep from "../../Components/customers/onboarding/CustomerInfoStep";
+import CustomerInfoStep from "../../components/customers/onboarding/CustomerInfoStep";
 import KycDocumentsStep from "../../components/customers/onboarding/KycDocumentsStep";
 import VehicleRcStep from "../../components/customers/onboarding/VehicleRcStep";
 import GuarantorStep from "../../components/customers/onboarding/GuarantorStep";
