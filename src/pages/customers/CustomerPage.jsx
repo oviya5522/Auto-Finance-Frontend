@@ -12,8 +12,17 @@ import {
   Eye,
   MoreVertical,
   SlidersHorizontal,
-  ArrowUpDown,
-  UserRound,
+  Download,
+  History,
+  RotateCcw,
+  ShieldCheck,
+  Grid2X2,
+  ListFilter,
+  ChevronDown,
+  Pencil,
+  CalendarDays,
+  Clock3,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -21,18 +30,159 @@ import {
   getOutstandingAmount,
 } from "../../services/customerStorage";
 
+const getPersonal = (customer) =>
+  customer?.customer?.personal || {};
+
+const getVehicle = (customer) =>
+  customer?.vehicle || {};
+
+const getLoan = (customer) =>
+  customer?.loan || {};
+
+const getRc = (customer) =>
+  customer?.rc || {};
+
+const getVehicleName = (customer) => {
+  const vehicle = getVehicle(customer);
+
+  return (
+    [
+      vehicle.brand,
+      vehicle.model,
+      vehicle.variant,
+    ]
+      .filter(Boolean)
+      .join(" ") || "Not assigned"
+  );
+};
+
+const getRegistration = (customer) =>
+  getRc(customer).registrationNumber || "";
+
+const getOutstanding = (customer) =>
+  getOutstandingAmount(getLoan(customer));
+
+const getInitials = (name) => {
+  if (!name) return "C";
+
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+
+  return (
+    parts[0].charAt(0) +
+    parts[1].charAt(0)
+  ).toUpperCase();
+};
+
+const getDueStatus = (customer) => {
+  const schedule =
+    getLoan(customer).repaymentSchedule || [];
+
+  if (
+    schedule.some(
+      (row) => row.status === "Overdue"
+    )
+  ) {
+    return "Overdue";
+  }
+
+  if (
+    schedule.some(
+      (row) => row.status === "Pending"
+    )
+  ) {
+    return "Due";
+  }
+
+  return "Completed";
+};
+
+const getNextDueDate = (customer) => {
+  const schedule =
+    getLoan(customer).repaymentSchedule || [];
+
+  const nextPayment = schedule.find(
+    (row) =>
+      row.status === "Pending" ||
+      row.status === "Overdue"
+  );
+
+  return nextPayment?.dueDate || "";
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const getLoanStatus = (customer) => {
+  const loan = getLoan(customer);
+
+  return (
+    loan.status ||
+    customer?.customer?.status ||
+    "Draft"
+  );
+};
 const CustomerPage = () => {
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("name");
-  const [sortOrder, setSortOrder] = useState("asc");
+  /* =====================================================
+     SEARCH / FILTER STATE
+  ====================================================== */
 
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [search, setSearch] = useState("");
+
+  const [showFilters, setShowFilters] =
+    useState(false);
+
+  const [viewMode, setViewMode] =
+    useState("list");
+
+ 
+
+  const [activeTab, setActiveTab] =
+    useState("all");
+
+  const [filters, setFilters] = useState({
+    customerStatus: "All Status",
+    loanStatus: "All Loan Status",
+    loanType: "All Loan Types",
+    dueStatus: "All Due Status",
+    dateRange: "",
+    branch: "All Branches",
+    vehicleType: "All Vehicle Types",
+    brand: "All Brands",
+    city: "All Cities",
+    minLoan: "",
+    maxLoan: "",
+    minOutstanding: "",
+    maxOutstanding: "",
+  });
+
+  const [openMenuId, setOpenMenuId] =
+    useState(null);
+
 
   /* =====================================================
      LOAD CUSTOMERS
@@ -40,7 +190,8 @@ const CustomerPage = () => {
 
   const loadCustomers = () => {
     try {
-      const storedCustomers = getCustomers();
+      const storedCustomers =
+        getCustomers();
 
       setCustomers(
         Array.isArray(storedCustomers)
@@ -58,6 +209,7 @@ const CustomerPage = () => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadCustomers();
@@ -89,6 +241,7 @@ const CustomerPage = () => {
     };
   }, []);
 
+
   /* =====================================================
      HELPERS
   ====================================================== */
@@ -103,31 +256,74 @@ const CustomerPage = () => {
     );
   };
 
-  const getVehicleName = (customer) => {
-    const vehicle = customer?.vehicle || {};
 
-    return (
-      [
-        vehicle.brand,
-        vehicle.model,
-        vehicle.variant,
-      ]
-        .filter(Boolean)
-        .join(" ") || "Not assigned"
-    );
-  };
+  
+const getNextDueDate = (customer) => {
+  const schedule =
+    getLoan(customer)
+      .repaymentSchedule || [];
 
-  const getRegistrationNumber = (
-    customer
+  const nextPayment = schedule.find(
+    (row) =>
+      row.status === "Pending" ||
+      row.status === "Overdue"
+  );
+
+  return nextPayment?.dueDate || "";
+};
+const formatDate = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+  const updateFilter = (
+    field,
+    value
   ) => {
-    return (
-      customer?.rc?.registrationNumber ||
-      ""
-    );
+    setFilters((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
   };
+
+
+const resetFilters = () => {
+  setFilters({
+    customerStatus: "All Status",
+    loanStatus: "All Loan Status",
+    loanType: "All Loan Types",
+    dueStatus: "All Due Status",
+    dateRange: "",
+    branch: "All Branches",
+    vehicleType: "All Vehicle Types",
+    brand: "All Brands",
+    city: "All Cities",
+    minLoan: "",
+    maxLoan: "",
+    minOutstanding: "",
+    maxOutstanding: "",
+  });
+
+  setSearch("");
+  setActiveTab("all");
+};
+
 
   /* =====================================================
-     STATS
+     SUMMARY
   ====================================================== */
 
   const stats = useMemo(() => {
@@ -141,156 +337,404 @@ const CustomerPage = () => {
           "Active"
       ).length;
 
-    const totalOutstanding =
+    const totalDisbursed =
       customers.reduce(
         (total, customer) =>
           total +
-          getOutstandingAmount(
-            customer.loan
+          Number(
+            customer.loan?.loanAmount || 0
           ),
         0
       );
 
+    const totalOutstanding =
+      customers.reduce(
+        (total, customer) =>
+          total +
+          getOutstanding(customer),
+        0
+      );
+
+    const closedLoans =
+      customers.filter(
+        (customer) =>
+          getLoanStatus(customer) ===
+          "Closed"
+      ).length;
+
     return {
       totalCustomers,
       activeCustomers,
+      totalDisbursed,
       totalOutstanding,
+      closedLoans,
     };
   }, [customers]);
+/* =====================================================
+   FILTERED CUSTOMERS
+===================================================== */
+
+const filteredCustomers = useMemo(() => {
+  const query =
+    search.trim().toLowerCase();
+
+  let result = customers.filter(
+    (customer) => {
+      const personal =
+        getPersonal(customer);
+
+      const vehicle =
+        getVehicle(customer);
+
+      const loan =
+        getLoan(customer);
+
+      const rc =
+        getRc(customer);
+
+      const vehicleName =
+        getVehicleName(customer);
+
+      const outstanding =
+        getOutstanding(customer);
+
+      const loanAmount =
+        Number(
+          loan.loanAmount || 0
+        );
+
+      /* -----------------------------------------
+         SEARCH
+      ----------------------------------------- */
+
+      const searchableText = [
+        personal.name,
+        personal.mobileNumber,
+        personal.alternateMobileNumber,
+        customer.customer?.id,
+        customer.customer?.customerNumber,
+        vehicle.brand,
+        vehicle.model,
+        vehicle.variant,
+        rc.registrationNumber,
+        loan.loanNumber,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        searchableText.includes(query);
+
+
+      /* -----------------------------------------
+         CUSTOMER STATUS
+      ----------------------------------------- */
+
+      const matchesCustomerStatus =
+        filters.customerStatus ===
+          "All Status" ||
+        customer.customer?.status ===
+          filters.customerStatus;
+
+
+      /* -----------------------------------------
+         LOAN STATUS
+      ----------------------------------------- */
+
+      const matchesLoanStatus =
+        filters.loanStatus ===
+          "All Loan Status" ||
+        getLoanStatus(customer) ===
+          filters.loanStatus;
+
+
+      /* -----------------------------------------
+         LOAN TYPE
+      ----------------------------------------- */
+
+      const matchesLoanType =
+        filters.loanType ===
+          "All Loan Types" ||
+        getLoanType(customer) ===
+          filters.loanType;
+
+
+      /* -----------------------------------------
+         DUE STATUS
+      ----------------------------------------- */
+
+      const matchesDueStatus =
+        filters.dueStatus ===
+          "All Due Status" ||
+        getDueStatus(customer) ===
+          filters.dueStatus;
+
+
+      /* -----------------------------------------
+         VEHICLE TYPE
+      ----------------------------------------- */
+
+      const matchesVehicleType =
+        filters.vehicleType ===
+          "All Vehicle Types" ||
+        vehicle.vehicleType ===
+          filters.vehicleType;
+
+
+      /* -----------------------------------------
+         BRAND
+      ----------------------------------------- */
+
+      const matchesBrand =
+        filters.brand ===
+          "All Brands" ||
+        vehicle.brand ===
+          filters.brand;
+
+
+      /* -----------------------------------------
+         CITY
+      ----------------------------------------- */
+
+      const matchesCity =
+        filters.city ===
+          "All Cities" ||
+        personal.area ===
+          filters.city ||
+        rc.location ===
+          filters.city;
+
+
+      /* -----------------------------------------
+         BRANCH
+      ----------------------------------------- */
+
+      const matchesBranch =
+        filters.branch ===
+          "All Branches" ||
+        rc.location ===
+          filters.branch ||
+        personal.area ===
+          filters.branch;
+
+
+      /* -----------------------------------------
+         LOAN RANGE
+      ----------------------------------------- */
+
+      const minLoan =
+        filters.minLoan === ""
+          ? 0
+          : Number(
+              filters.minLoan
+            );
+
+      const maxLoan =
+        filters.maxLoan === ""
+          ? Infinity
+          : Number(
+              filters.maxLoan
+            );
+
+      const matchesLoanRange =
+        loanAmount >= minLoan &&
+        loanAmount <= maxLoan;
+
+
+      /* -----------------------------------------
+         OUTSTANDING RANGE
+      ----------------------------------------- */
+
+      const minOutstanding =
+        filters.minOutstanding === ""
+          ? 0
+          : Number(
+              filters.minOutstanding
+            );
+
+      const maxOutstanding =
+        filters.maxOutstanding === ""
+          ? Infinity
+          : Number(
+              filters.maxOutstanding
+            );
+
+      const matchesOutstandingRange =
+        outstanding >=
+          minOutstanding &&
+        outstanding <=
+          maxOutstanding;
+
+
+      return (
+        matchesSearch &&
+        matchesCustomerStatus &&
+        matchesLoanStatus &&
+        matchesLoanType &&
+        matchesDueStatus &&
+        matchesVehicleType &&
+        matchesBrand &&
+        matchesCity &&
+        matchesBranch &&
+        matchesLoanRange &&
+        matchesOutstandingRange
+      );
+    }
+  );
+
+
+  /* ===================================================
+     TABS
+  =================================================== */
+
+  if (activeTab === "active") {
+    result = result.filter(
+      (customer) =>
+        customer.customer?.status ===
+        "Active"
+    );
+  }
+
+
+  if (activeTab === "overdue") {
+    result = result.filter(
+      (customer) =>
+        getDueStatus(customer) ===
+        "Overdue"
+    );
+  }
+
+
+  if (activeTab === "recent") {
+    result = [...result]
+      .sort((a, b) => {
+        const aDate =
+          new Date(
+            a.customer?.createdAt ||
+              0
+          ).getTime();
+
+        const bDate =
+          new Date(
+            b.customer?.createdAt ||
+              0
+          ).getTime();
+
+        return bDate - aDate;
+      })
+      .slice(0, 25);
+  }
+
+
+  return result;
+}, [
+  customers,
+  search,
+  filters,
+  activeTab,
+]);
 
   /* =====================================================
-     FILTER + SEARCH + SORT
+     EXPORT
   ====================================================== */
 
-  const filteredCustomers = useMemo(() => {
-    const query =
-      search.trim().toLowerCase();
+  const handleExport = () => {
+    if (!filteredCustomers.length) {
+      return;
+    }
 
-    const filtered = customers.filter(
+    const rows = [
+      [
+        "Customer",
+        "Customer ID",
+        "Mobile",
+        "Vehicle",
+        "Registration",
+        "Loan Amount",
+        "Outstanding",
+        "Status",
+      ],
+    ];
+
+    filteredCustomers.forEach(
       (customer) => {
         const personal =
-          customer.customer?.personal ||
-          {};
+          getPersonal(customer);
 
         const loan =
-          customer.loan || {};
+          getLoan(customer);
 
-        const registration =
-          getRegistrationNumber(
-            customer
-          );
-
-        const vehicleName =
+        rows.push([
+          personal.name || "",
+          customer.customer
+            ?.customerNumber ||
+            customer.customer?.id ||
+            "",
+          personal.mobileNumber ||
+            "",
           getVehicleName(
             customer
-          );
-
-        const matchesSearch =
-          !query ||
-          personal.name
-            ?.toLowerCase()
-            .includes(query) ||
-          personal.mobileNumber
-            ?.toLowerCase()
-            .includes(query) ||
-          customer.customer?.id
-            ?.toLowerCase()
-            .includes(query) ||
+          ),
+          getRegistration(
+            customer
+          ),
+          Number(
+            loan.loanAmount || 0
+          ),
+          getOutstanding(
+            customer
+          ),
           customer.customer
-            ?.customerNumber
-            ?.toLowerCase()
-            .includes(query) ||
-          vehicleName
-            .toLowerCase()
-            .includes(query) ||
-          registration
-            .toLowerCase()
-            .includes(query) ||
-          loan.loanNumber
-            ?.toLowerCase()
-            .includes(query);
-
-        const matchesStatus =
-          statusFilter === "All" ||
-          customer.customer?.status ===
-            statusFilter;
-
-        return (
-          matchesSearch &&
-          matchesStatus
-        );
+            ?.status || "",
+        ]);
       }
     );
 
-    return [...filtered].sort(
-      (a, b) => {
-        const aPersonal =
-          a.customer?.personal || {};
-
-        const bPersonal =
-          b.customer?.personal || {};
-
-        let aValue = "";
-        let bValue = "";
-
-        switch (sortBy) {
-          case "outstanding":
-            aValue =
-              getOutstandingAmount(
-                a.loan
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => {
+            const text =
+              String(
+                value ?? ""
               );
-            bValue =
-              getOutstandingAmount(
-                b.loan
-              );
-            break;
 
-          case "loan":
-            aValue =
-              Number(
-                a.loan?.loanAmount || 0
-              );
-            bValue =
-              Number(
-                b.loan?.loanAmount || 0
-              );
-            break;
+            return `"${text.replace(
+              /"/g,
+              '""'
+            )}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
 
-          default:
-            aValue = (
-              aPersonal.name || ""
-            ).toLowerCase();
-
-            bValue = (
-              bPersonal.name || ""
-            ).toLowerCase();
-        }
-
-        if (
-          typeof aValue === "number" &&
-          typeof bValue === "number"
-        ) {
-          return sortOrder === "asc"
-            ? aValue - bValue
-            : bValue - aValue;
-        }
-
-        return sortOrder === "asc"
-          ? String(aValue).localeCompare(
-              String(bValue)
-            )
-          : String(bValue).localeCompare(
-              String(aValue)
-            );
+    const blob = new Blob(
+      [csv],
+      {
+        type: "text/csv;charset=utf-8;",
       }
     );
-  }, [
-    customers,
-    search,
-    statusFilter,
-    sortBy,
-    sortOrder,
-  ]);
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+    link.href = url;
+
+    link.download =
+      "customers.csv";
+
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
 
   /* =====================================================
      NAVIGATION
@@ -302,19 +746,15 @@ const CustomerPage = () => {
     );
   };
 
-  const handleSort = (value) => {
-    if (sortBy === value) {
-      setSortOrder((previous) =>
-        previous === "asc"
-          ? "desc"
-          : "asc"
-      );
-      return;
-    }
 
-    setSortBy(value);
-    setSortOrder("asc");
+  const handleView = (
+    customer
+  ) => {
+    navigate(
+      `/customers/${customer.customer?.id}`
+    );
   };
+
 
   /* =====================================================
      LOADING
@@ -322,7 +762,7 @@ const CustomerPage = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-[#F8FAF9]">
+      <div className="flex min-h-full items-center justify-center bg-[#F8FAF9] px-4 text-center">
         <p className="text-sm text-slate-500">
           Loading customers...
         </p>
@@ -330,96 +770,201 @@ const CustomerPage = () => {
     );
   }
 
+
+  /* =====================================================
+     RENDER
+  ====================================================== */
+
   return (
-    <div className="min-h-full bg-[#F8FAF9] p-4 sm:p-5 lg:p-6">
+    <div
+      className="
+        min-h-full
+        w-full
+        max-w-full
+        overflow-x-hidden
+        bg-[#F8FAF9]
+        px-3
+        py-3
+        sm:px-5
+        sm:py-4
+        lg:px-6
+      "
+    >
 
       {/* =================================================
-          PAGE HEADER
-      ================================================== */}
+          HEADER
+      ================================================= */}
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
-        <div className="min-w-0">
-
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#17221D] sm:text-[24px]">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-[#17221D] sm:text-[22px] md:text-[24px]">
             Customers
           </h1>
 
-          <p className="mt-0.5 text-xs text-[#68756E] sm:text-sm">
+          <p className="mt-0.5 text-[11px] text-[#68756E] sm:text-xs sm:text-sm">
             Manage customer information and vehicle finance records
           </p>
+        </div>
+
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+
+          <button
+            type="button"
+            className="
+              col-span-1
+              inline-flex
+              h-9
+              w-full
+              items-center
+              justify-center
+              gap-1.5
+              rounded-lg
+              border
+              border-slate-200
+              bg-white
+              px-3
+              text-[11px]
+              font-medium
+              text-slate-600
+              hover:border-slate-300
+              sm:w-auto
+              sm:justify-start
+            "
+          >
+            <History size={14} className="shrink-0" />
+            <span className="truncate">Activity History</span>
+          </button>
+
+
+          <button
+            type="button"
+            onClick={handleExport}
+            className="
+              col-span-1
+              inline-flex
+              h-9
+              w-full
+              items-center
+              justify-center
+              gap-1.5
+              rounded-lg
+              border
+              border-slate-200
+              bg-white
+              px-3
+              text-[11px]
+              font-medium
+              text-slate-600
+              hover:border-slate-300
+              sm:w-auto
+              sm:justify-start
+            "
+          >
+            <Download size={14} className="shrink-0" />
+            Export
+            <ChevronDown size={13} className="shrink-0" />
+          </button>
+
+
+          <button
+            type="button"
+            onClick={handleAddCustomer}
+            className="
+              col-span-2
+              inline-flex
+              h-9
+              w-full
+              items-center
+              justify-center
+              gap-1.5
+              rounded-lg
+              bg-[#0B5D3B]
+              px-3.5
+              text-[11px]
+              font-semibold
+              text-white
+              shadow-sm
+              transition
+              hover:bg-[#084A30]
+              sm:w-auto
+            "
+          >
+            <Plus size={15} className="shrink-0" />
+            <span className="truncate">Add New Customer</span>
+          </button>
 
         </div>
 
-        <button
-          type="button"
-          onClick={handleAddCustomer}
-          className="
-            inline-flex
-            h-10
-            w-fit
-            items-center
-            justify-center
-            gap-2
-            rounded-lg
-            bg-[#0B5D3B]
-            px-3.5
-            text-xs
-            font-semibold
-            text-white
-            shadow-sm
-            transition
-            hover:bg-[#084A30]
-          "
-        >
-          <Plus size={16} />
-          Add Customer
-        </button>
-
       </div>
 
 
       {/* =================================================
-          SUMMARY
-      ================================================== */}
+          SUMMARY CARDS
+      ================================================= */}
 
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
 
-        <StatCard
-          label="Total Customers"
-          value={stats.totalCustomers}
+        <SummaryCard
           icon={Users}
+          label="Total Customers"
+          value={stats.totalCustomers.toLocaleString(
+            "en-IN"
+          )}
+          note="All time customers"
         />
 
-        <StatCard
-          label="Active Customers"
-          value={stats.activeCustomers}
+        <SummaryCard
           icon={UserCheck}
+          label="Active Customers"
+          value={stats.activeCustomers.toLocaleString(
+            "en-IN"
+          )}
+          note="With active loans"
           green
         />
 
-        <StatCard
-          label="Total Outstanding"
-          value={`₹${money(
-            stats.totalOutstanding
-          )}`}
+        <SummaryCard
           icon={IndianRupee}
+          label="Total Disbursed"
+          value={formatCr(
+            stats.totalDisbursed
+          )}
+          note="All time disbursed amount"
+          blue
+        />
+
+        <SummaryCard
+          icon={IndianRupee}
+          label="Total Outstanding"
+          value={formatCr(
+            stats.totalOutstanding
+          )}
+          note="Remaining loan amount"
           gold
-          emphasize
+        />
+
+        <SummaryCard
+          icon={ShieldCheck}
+          label="Closed Loans"
+          value={stats.closedLoans.toLocaleString(
+            "en-IN"
+          )}
+          note="Successfully closed"
+          purple
         />
 
       </div>
 
 
       {/* =================================================
-          TOOLBAR
-      ================================================== */}
+          SEARCH / FILTER HEADER
+      ================================================= */}
 
-      <div className="mb-3 rounded-xl border border-slate-200 bg-white p-2.5">
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-2.5">
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-          {/* SEARCH */}
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
 
           <div className="relative min-w-0 flex-1">
 
@@ -439,9 +984,11 @@ const CustomerPage = () => {
               type="text"
               value={search}
               onChange={(e) =>
-                setSearch(e.target.value)
+                setSearch(
+                  e.target.value
+                )
               }
-              placeholder="Search by name, mobile, customer ID, vehicle..."
+              placeholder="Search by name, mobile, customer ID, vehicle no., loan ID..."
               className="
                 h-9
                 w-full
@@ -465,109 +1012,430 @@ const CustomerPage = () => {
           </div>
 
 
-          {/* STATUS */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
 
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(
-                e.target.value
-              )
-            }
-            className="
-              h-9
-              rounded-lg
-              border
-              border-slate-200
-              bg-white
-              px-3
-              text-xs
-              font-medium
-              text-slate-600
-              outline-none
-              focus:border-[#0B5D3B]
-            "
-          >
-            <option value="All">
-              All Status
-            </option>
-
-            <option value="Active">
-              Active
-            </option>
-
-            <option value="Inactive">
-              Inactive
-            </option>
-          </select>
+           
 
 
-          {/* FILTER BUTTON */}
+            <button
+  type="button"
+  onClick={resetFilters}
+  className="
+    inline-flex
+    h-9
+    w-full
+    items-center
+    justify-center
+    gap-1.5
+    rounded-lg
+    border
+    border-slate-200
+    bg-white
+    px-3
+    text-[11px]
+    font-medium
+    text-slate-500
+    hover:border-slate-300
+    hover:text-slate-700
+    sm:w-auto
+  "
+>
+  <RotateCcw size={13} className="shrink-0" />
+  Reset Filters
+</button>
 
-          <button
-            type="button"
-            className="
-              inline-flex
-              h-9
-              items-center
-              justify-center
-              gap-1.5
-              rounded-lg
-              border
-              border-slate-200
-              bg-white
-              px-3
-              text-xs
-              font-medium
-              text-slate-500
-              hover:border-slate-300
-              hover:text-slate-700
-            "
-          >
-            <SlidersHorizontal
-              size={14}
-            />
-            <span className="hidden md:inline">
-              Filter
-            </span>
-          </button>
-
-
-          {/* SORT */}
-
-          <div className="relative">
 
             <button
               type="button"
               onClick={() =>
-                handleSort("name")
+                setShowFilters(
+                  (previous) =>
+                    !previous
+                )
               }
-              className="
+              className={`
                 inline-flex
                 h-9
+                w-full
                 items-center
                 justify-center
                 gap-1.5
                 rounded-lg
                 border
-                border-slate-200
-                bg-white
                 px-3
-                text-xs
+                text-[11px]
                 font-medium
-                text-slate-500
-                hover:border-slate-300
-                hover:text-slate-700
-              "
-              title="Sort customers"
+                sm:w-auto
+
+                ${
+                  showFilters
+                    ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
+                    : "border-slate-200 bg-white text-slate-500"
+                }
+              `}
             >
-              <ArrowUpDown size={14} />
-              <span className="hidden md:inline">
-                Sort
-              </span>
+              <SlidersHorizontal
+                size={13}
+                className="shrink-0"
+              />
+              {showFilters
+                ? "Hide Filters"
+                : "Show Filters"}
             </button>
 
           </div>
+
+        </div>
+
+
+        {/* =================================================
+            ADVANCED FILTERS
+        ================================================= */}
+
+        {showFilters && (
+          <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+
+              <FilterSelect
+                label="Customer Status"
+                value={
+                  filters.customerStatus
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "customerStatus",
+                    value
+                  )
+                }
+                options={[
+                  "All Status",
+                  "Active",
+                  "Inactive",
+    
+                  "Closed",
+                ]}
+              />
+
+              <FilterSelect
+                label="Loan Status"
+                value={
+                  filters.loanStatus
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "loanStatus",
+                    value
+                  )
+                }
+                options={[
+                  "All Loan Status",
+                  "Active",
+                  "Closed",
+                
+                ]}
+              />
+
+              <FilterSelect
+                label="Loan Type"
+                value={
+                  filters.loanType
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "loanType",
+                    value
+                  )
+                }
+                options={[
+                  "All Loan Types",
+                  "Flat",
+                  "Reducing",
+                ]}
+              />
+
+              <FilterSelect
+                label="Due Status"
+                value={
+                  filters.dueStatus
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "dueStatus",
+                    value
+                  )
+                }
+               options={[
+  "All Due Status",
+  "Overdue",
+  "Due",
+  "Completed",
+]}
+              />
+
+              <FilterInput
+                label="Date Range"
+                value={
+                  filters.dateRange
+                }
+                type="date"
+                onChange={(value) =>
+                  updateFilter(
+                    "dateRange",
+                    value
+                  )
+                }
+              />
+
+              <FilterSelect
+                label="Branch / Location"
+                value={
+                  filters.branch
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "branch",
+                    value
+                  )
+                }
+                options={[
+                  "All Branches",
+                ]}
+              />
+
+            </div>
+
+
+            <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+
+              <FilterSelect
+                label="Vehicle Type"
+                value={
+                  filters.vehicleType
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "vehicleType",
+                    value
+                  )
+                }
+                options={[
+                  "All Vehicle Types",
+                  "Two Wheeler",
+                  "Three Wheeler",
+                  "Car",
+                  "Commercial Vehicle",
+                  "Tractor",
+                  "Other",
+                ]}
+              />
+
+              <FilterSelect
+                label="Vehicle Brand"
+                value={
+                  filters.brand
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "brand",
+                    value
+                  )
+                }
+                options={getBrandOptions(
+                  customers
+                )}
+              />
+
+              <FilterSelect
+                label="City"
+                value={
+                  filters.city
+                }
+                onChange={(value) =>
+                  updateFilter(
+                    "city",
+                    value
+                  )
+                }
+                options={getCityOptions(
+                  customers
+                )}
+              />
+
+              <RangeFilter
+                label="Loan Amount"
+                minValue={
+                  filters.minLoan
+                }
+                maxValue={
+                  filters.maxLoan
+                }
+                onMinChange={(value) =>
+                  updateFilter(
+                    "minLoan",
+                    value
+                  )
+                }
+                onMaxChange={(value) =>
+                  updateFilter(
+                    "maxLoan",
+                    value
+                  )
+                }
+              />
+
+              <RangeFilter
+                label="Outstanding Amount"
+                minValue={
+                  filters.minOutstanding
+                }
+                maxValue={
+                  filters.maxOutstanding
+                }
+                onMinChange={(value) =>
+                  updateFilter(
+                    "minOutstanding",
+                    value
+                  )
+                }
+                onMaxChange={(value) =>
+                  updateFilter(
+                    "maxOutstanding",
+                    value
+                  )
+                }
+              />
+
+          
+
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+
+      {/* =================================================
+          TABS + SORT
+      ================================================= */}
+
+      <div className="mt-3 flex flex-col gap-2 border-b border-slate-200 sm:flex-row sm:items-end sm:justify-between">
+
+        <div className="-mx-3 flex min-w-0 items-center gap-4 overflow-x-auto px-3 sm:mx-0 sm:gap-5 sm:px-0">
+
+          <TabButton
+            active={
+              activeTab === "all"
+            }
+            label={`All Customers (${stats.totalCustomers.toLocaleString(
+              "en-IN"
+            )})`}
+            onClick={() =>
+              setActiveTab("all")
+            }
+          />
+
+          <TabButton
+            active={
+              activeTab === "active"
+            }
+            label={`Active Loans (${stats.activeCustomers.toLocaleString(
+              "en-IN"
+            )})`}
+            onClick={() =>
+              setActiveTab("active")
+            }
+          />
+
+          <TabButton
+            active={
+              activeTab === "overdue"
+            }
+            label={`Overdue Customers (${customers.filter(
+              (customer) =>
+                getDueStatus(customer) === "Overdue"
+            ).length.toLocaleString(
+              "en-IN"
+            )})`}
+            onClick={() =>
+              setActiveTab("overdue")
+            }
+          />
+
+          <TabButton
+            active={
+              activeTab === "recent"
+            }
+            label={`Recent Customers (${Math.min(
+              25,
+              customers.length
+            )})`}
+            onClick={() =>
+              setActiveTab("recent")
+            }
+          />
+
+        </div>
+
+
+        <div className="flex items-center gap-2 pb-2">
+
+          <button
+            type="button"
+            onClick={() =>
+              setViewMode("list")
+            }
+            className={`
+              flex
+              h-8
+              w-8
+              items-center
+              justify-center
+              rounded-md
+              border
+              shrink-0
+
+              ${
+                viewMode === "list"
+                  ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
+                  : "border-slate-200 bg-white text-slate-400"
+              }
+            `}
+            title="List view"
+          >
+            <ListFilter size={14} />
+          </button>
+
+
+          <button
+            type="button"
+            onClick={() =>
+              setViewMode("grid")
+            }
+            className={`
+              flex
+              h-8
+              w-8
+              items-center
+              justify-center
+              rounded-md
+              border
+              shrink-0
+
+              ${
+                viewMode === "grid"
+                  ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
+                  : "border-slate-200 bg-white text-slate-400"
+              }
+            `}
+            title="Grid view"
+          >
+            <Grid2X2 size={14} />
+          </button>
+
+
+        
 
         </div>
 
@@ -576,151 +1444,74 @@ const CustomerPage = () => {
 
       {/* =================================================
           CUSTOMER COUNT
-      ================================================== */}
+      ================================================= */}
 
-      <div className="mb-2 flex items-center justify-between px-1">
+      <div className="flex items-center justify-between px-1 py-2">
 
-        <p className="text-[11px] font-medium text-slate-400">
-          {filteredCustomers.length}{" "}
-          {filteredCustomers.length ===
-          1
-            ? "customer"
-            : "customers"}
+        <p className="text-[10px] text-slate-400">
+          Showing{" "}
+          <span className="font-semibold text-slate-600">
+            {filteredCustomers.length}
+          </span>{" "}
+          of{" "}
+          <span className="font-semibold text-slate-600">
+            {customers.length}
+          </span>{" "}
+          customers
         </p>
 
       </div>
 
 
       {/* =================================================
-          DESKTOP TABLE
-      ================================================== */}
+          TABLE / GRID
+      ================================================= */}
 
-      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white md:block">
+      {viewMode === "list" ? (
+        <CustomerTable
+          customers={
+            filteredCustomers
+          }
+          onView={handleView}
+          openMenuId={
+            openMenuId
+          }
+          setOpenMenuId={
+            setOpenMenuId
+          }
+          money={money}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 
-        <div className="overflow-x-auto">
-
-          <table className="w-full min-w-[930px]">
-
-            <thead className="border-b border-slate-200 bg-[#F8FAF9]">
-
-              <tr>
-
-                <TableHeader>
-                  Customer
-                </TableHeader>
-
-                <TableHeader>
-                  Contact
-                </TableHeader>
-
-                <TableHeader>
-                  Vehicle
-                </TableHeader>
-
-                <TableHeader align="right">
-                  Loan Amount
-                </TableHeader>
-
-                <TableHeader align="right">
-                  Outstanding
-                </TableHeader>
-
-                <TableHeader align="center">
-                  Status
-                </TableHeader>
-
-                <TableHeader align="center">
-                  Action
-                </TableHeader>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody>
-
-              {filteredCustomers.length ===
-              0 ? (
-                <EmptyRow
-                  onAdd={handleAddCustomer}
-                />
-              ) : (
-                filteredCustomers.map(
-                  (customer) => (
-                    <CustomerTableRow
-                      key={
-                        customer.customer
-                          ?.id
-                      }
-                      customer={
-                        customer
-                      }
-                      money={money}
-                      getVehicleName={
-                        getVehicleName
-                      }
-                      getRegistrationNumber={
-                        getRegistrationNumber
-                      }
-                      onView={() =>
-                        navigate(
-                          `/customers/${customer.customer?.id}`
-                        )
-                      }
-                    />
-                  )
-                )
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-
-      {/* =================================================
-          MOBILE CARDS
-      ================================================== */}
-
-      <div className="space-y-2.5 md:hidden">
-
-        {filteredCustomers.length ===
-        0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white">
-            <EmptyContent
-              onAdd={handleAddCustomer}
-            />
-          </div>
-        ) : (
-          filteredCustomers.map(
-            (customer) => (
-              <CustomerMobileCard
-                key={
-                  customer.customer?.id
-                }
-                customer={customer}
-                money={money}
-                getVehicleName={
-                  getVehicleName
-                }
-                getRegistrationNumber={
-                  getRegistrationNumber
-                }
-                onView={() =>
-                  navigate(
-                    `/customers/${customer.customer?.id}`
-                  )
+          {filteredCustomers.length ===
+          0 ? (
+            <div className="sm:col-span-2 xl:col-span-3">
+              <EmptyContent
+                onAdd={
+                  handleAddCustomer
                 }
               />
+            </div>
+          ) : (
+            filteredCustomers.map(
+              (customer) => (
+               <CustomerGridCard
+  key={customer.customer?.id}
+  customer={customer}
+  money={money}
+  onView={() =>
+    handleView(customer)
+  }
+  openMenuId={openMenuId}
+  setOpenMenuId={setOpenMenuId}
+/>
+              )
             )
-          )
-        )}
+          )}
 
-      </div>
+        </div>
+      )}
 
     </div>
   );
@@ -728,45 +1519,71 @@ const CustomerPage = () => {
 
 
 /* =========================================================
-   STAT CARD
+   SUMMARY CARD
 ========================================================= */
 
-const StatCard = ({
+const SummaryCard = ({
+  icon: Icon,
   label,
   value,
-  icon: Icon,
+  note,
   green = false,
   gold = false,
-  emphasize = false,
+  blue = false,
+  purple = false,
 }) => {
+  const iconBg =
+    gold
+      ? "bg-[#FFF6DE]"
+      : purple
+      ? "bg-[#F0ECFF]"
+      : blue
+      ? "bg-[#EAF2FF]"
+      : "bg-[#EAF5EF]";
+
+  const iconText =
+    gold
+      ? "text-[#D4A72C]"
+      : purple
+      ? "text-[#6D5BD0]"
+      : blue
+      ? "text-[#3974C9]"
+      : "text-[#0B5D3B]";
+
   return (
     <div
       className="
+        min-w-0
         rounded-xl
         border
         border-slate-200
         bg-white
-        px-4
-        py-3.5
+        px-3
+        py-2.5
+        sm:px-3.5
+        sm:py-3
       "
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
 
         <div className="min-w-0">
 
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="truncate text-[9px] font-medium text-slate-500 sm:text-[10px]">
             {label}
           </p>
 
           <p
             className={`
-              mt-1.5
+              mt-1
               truncate
-              text-[21px]
+              text-sm
               font-semibold
               tracking-tight
+              sm:text-[18px]
+
               ${
-                emphasize || green
+                green ||
+                gold
                   ? "text-[#0B5D3B]"
                   : "text-[#17221D]"
               }
@@ -775,33 +1592,33 @@ const StatCard = ({
             {value}
           </p>
 
-        </div>
+          <p className="mt-1 hidden truncate text-[9px] text-slate-400 sm:block">
+            {note}
+          </p>
 
+        </div>
 
         <div
           className={`
             flex
-            h-9
-            w-9
+            h-8
+            w-8
             shrink-0
             items-center
             justify-center
             rounded-lg
-
-            ${
-              gold
-                ? "bg-[#FBF4DD]"
-                : "bg-[#EAF5EF]"
-            }
+            sm:h-9
+            sm:w-9
+            ${iconBg}
           `}
         >
           <Icon
+            size={16}
+            className={`${iconText} sm:hidden`}
+          />
+          <Icon
             size={17}
-            className={
-              gold
-                ? "text-[#D4A72C]"
-                : "text-[#0B5D3B]"
-            }
+            className={`hidden ${iconText} sm:block`}
           />
         </div>
 
@@ -812,322 +1629,536 @@ const StatCard = ({
 
 
 /* =========================================================
-   DESKTOP TABLE ROW
+   TABLE
 ========================================================= */
 
-const CustomerTableRow = ({
-  customer,
-  money,
-  getVehicleName,
-  getRegistrationNumber,
+/* =========================================================
+   TABLE
+========================================================= */
+
+const CustomerTable = ({
+  customers,
   onView,
+  openMenuId,
+  setOpenMenuId,
+  money,
 }) => {
-  const personal =
-    customer.customer?.personal ||
-    {};
+  const [menuPosition, setMenuPosition] = useState({
+    top: 0,
+    left: 0,
+  });
 
-  const vehicle =
-    customer.vehicle || {};
-
-  const loan =
-    customer.loan || {};
-
-  const outstanding =
-    getOutstandingAmount(loan);
-
-  const vehicleName =
-    getVehicleName(customer);
-
-  const registration =
-    getRegistrationNumber(customer);
+  if (!customers.length) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white">
+        <EmptyContent
+          onAdd={() => {
+            window.location.href = "/customers/onboarding";
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <tr
-      onDoubleClick={onView}
-      className="
-        cursor-pointer
-        border-b
-        border-slate-100
-        last:border-0
-        transition-colors
-        hover:bg-[#FAFCFB]
-      "
-    >
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1000px]">
+          <thead className="bg-[#F8FAF9]">
+            <tr className="border-b border-slate-200">
+              <TableHeader>Customer</TableHeader>
+              <TableHeader>Contact</TableHeader>
+              <TableHeader>Vehicle</TableHeader>
+              <TableHeader>Loan Details</TableHeader>
+              <TableHeader>Outstanding</TableHeader>
+              <TableHeader>Next Due</TableHeader>
+              <TableHeader align="center">Status</TableHeader>
+              <TableHeader align="center">Action</TableHeader>
+            </tr>
+          </thead>
 
-      {/* CUSTOMER */}
+          <tbody>
+            {customers.map((customer) => {
+              const personal = getPersonal(customer);
+              const vehicle = getVehicle(customer);
+              const loan = getLoan(customer);
+              const rc = getRc(customer);
 
-      <td className="px-4 py-3">
+              const outstanding = getOutstanding(customer);
+              const vehicleName = getVehicleName(customer);
+              const customerId = customer.customer?.id;
 
-        <div className="flex items-center gap-2.5">
+              const dueStatus = getDueStatus(customer);
+              const nextDueDate = getNextDueDate(customer);
 
-          <div
+              return (
+                <tr
+                  key={customerId}
+                  onDoubleClick={() => onView(customer)}
+                  className="
+                    cursor-pointer
+                    border-b
+                    border-slate-100
+                    last:border-0
+                    transition
+                    hover:bg-[#FAFCFB]
+                  "
+                >
+                  {/* CUSTOMER */}
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF5EF] text-[10px] font-semibold text-[#0B5D3B]">
+                        {getInitials(personal.name)}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-semibold text-[#17221D]">
+                          {personal.name || "Unnamed Customer"}
+                        </p>
+
+                        <p className="mt-0.5 truncate text-[9px] text-slate-400">
+                          {customer.customer?.customerNumber ||
+                            customerId ||
+                            "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* CONTACT */}
+                  <td className="px-3.5 py-2.5">
+                    <p className="text-[11px] text-slate-600">
+                      {personal.mobileNumber || "—"}
+                    </p>
+
+                    {personal.alternateMobileNumber && (
+                      <p className="mt-0.5 text-[9px] text-slate-400">
+                        {personal.alternateMobileNumber}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* VEHICLE */}
+                  <td className="px-3.5 py-2.5">
+                    <p
+                      className={`truncate text-[11px] font-medium ${
+                        vehicleName === "Not assigned"
+                          ? "text-slate-400"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {vehicleName}
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] uppercase text-slate-400">
+                      {rc.registrationNumber || "No registration"}
+                    </p>
+                  </td>
+
+                  {/* LOAN DETAILS */}
+                  <td className="px-3.5 py-2.5">
+                    <p className="text-[11px] font-semibold text-[#17221D]">
+                      ₹{money(loan.loanAmount)}
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-slate-400">
+                      EMI: ₹
+                      {money(
+                        loan.repayment?.method === "Principal"
+                          ? loan.repaymentSchedule?.[0]?.paymentAmount ||
+                              loan.calculation?.paymentAmount ||
+                              0
+                          : loan.calculation?.emiAmount || 0
+                      )}
+                    </p>
+                  </td>
+
+                  {/* OUTSTANDING */}
+                  <td className="px-3.5 py-2.5">
+                    <p className="text-[11px] font-semibold text-[#0B5D3B]">
+                      ₹{money(outstanding)}
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-slate-400">
+                      {dueStatus === "Overdue"
+                        ? "Overdue"
+                        : dueStatus === "Due"
+                        ? "Payment Due"
+                        : "On Schedule"}
+                    </p>
+                  </td>
+
+                  {/* NEXT DUE */}
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays
+                        size={12}
+                        className="shrink-0 text-slate-400"
+                      />
+
+                      <span className="text-[11px] font-medium text-slate-600">
+                        {formatDate(nextDueDate)}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* STATUS */}
+                  <td className="px-3.5 py-2.5 text-center">
+                    <StatusBadge
+                      status={
+                        customer.customer?.status || "Unknown"
+                      }
+                    />
+                  </td>
+
+                  {/* ACTION */}
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center justify-center gap-1.5">
+                      {/* VIEW */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(customer);
+                        }}
+                        className="
+                          flex h-7 w-7 items-center justify-center
+                          rounded-md border border-slate-200
+                          text-slate-500 transition
+                          hover:border-[#0B5D3B]
+                          hover:text-[#0B5D3B]
+                        "
+                        title="View Customer"
+                      >
+                        <Eye size={13} />
+                      </button>
+
+                      {/* HISTORY */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="
+                          flex h-7 w-7 items-center justify-center
+                          rounded-md border border-slate-200
+                          text-slate-500 transition
+                          hover:border-slate-300
+                          hover:text-slate-700
+                        "
+                        title="Activity History"
+                      >
+                        <Clock3 size={13} />
+                      </button>
+
+                      {/* EDIT */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(customer);
+                        }}
+                        className="
+                          flex h-7 w-7 items-center justify-center
+                          rounded-md border border-slate-200
+                          text-slate-500 transition
+                          hover:border-slate-300
+                          hover:text-slate-700
+                        "
+                        title="Edit Customer"
+                      >
+                        <Pencil size={13} />
+                      </button>
+
+                      {/* MORE */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          const rect =
+                            e.currentTarget.getBoundingClientRect();
+
+                          const menuWidth = 230;
+                          const menuHeight = 330;
+                          const gap = 6;
+
+                          let left =
+                            rect.right - menuWidth;
+
+                          let top =
+                            rect.bottom + gap;
+
+                          left = Math.max(
+                            8,
+                            Math.min(
+                              left,
+                              window.innerWidth -
+                                menuWidth -
+                                8
+                            )
+                          );
+
+                          if (
+                            top + menuHeight >
+                            window.innerHeight - 8
+                          ) {
+                            top =
+                              rect.top -
+                              menuHeight -
+                              gap;
+                          }
+
+                          setMenuPosition({
+                            top,
+                            left,
+                          });
+
+                          setOpenMenuId(
+                            openMenuId === customerId
+                              ? null
+                              : customerId
+                          );
+                        }}
+                        className="
+                          flex h-7 w-7 items-center justify-center
+                          rounded-md border border-slate-200
+                          text-slate-500 transition
+                          hover:border-slate-300
+                          hover:text-slate-700
+                        "
+                        title="More Actions"
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+
+                      {/* MORE MENU */}
+                      {openMenuId === customerId && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            top: menuPosition.top,
+                            left: menuPosition.left,
+                          }}
+                          className="
+                            fixed
+                            z-[9999]
+                            w-[230px]
+                            max-w-[calc(100vw-16px)]
+                            overflow-hidden
+                            rounded-xl
+                            border border-slate-200
+                            bg-white
+                            shadow-2xl
+                            ring-1 ring-black/5
+                          "
+                        >
+                          <MenuItem
+                            label="View Loan Details"
+                            icon={Eye}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onView(customer);
+                            }}
+                          />
+
+                          <MenuItem
+                            label="Add Payment"
+                            icon={IndianRupee}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                            }}
+                          />
+
+                          <MenuItem
+                            label="Upload Documents"
+                            icon={Download}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                            }}
+                          />
+
+                          <MenuItem
+                            label="Generate Statement"
+                            icon={FileText}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                            }}
+                          />
+
+                          <MenuItem
+                            label="Download Documents"
+                            icon={Download}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                            }}
+                          />
+
+                          <MenuItem
+                            label="Send Payment Reminder"
+                            icon={CalendarDays}
+                            onClick={() => {
+                              setOpenMenuId(null);
+                            }}
+                          />
+
+                          <div className="border-t border-slate-100" />
+
+                          <MenuItem
+                            label="Deactivate Customer"
+                            icon={UserCheck}
+                            danger
+                            onClick={() => {
+                              setOpenMenuId(null);
+
+                              const name =
+                                personal.name ||
+                                "this customer";
+
+                              const confirmed =
+                                window.confirm(
+                                  `Are you sure you want to deactivate ${name}?`
+                                );
+
+                              if (!confirmed) {
+                                return;
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3.5 py-2.5">
+        <p className="text-[9px] text-slate-400">
+          Showing 1 to {customers.length} of {customers.length} customers
+        </p>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
             className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              rounded-full
-              bg-[#EAF5EF]
-              text-xs
-              font-semibold
-              text-[#0B5D3B]
+              flex h-7 w-7 items-center justify-center
+              rounded-md border border-slate-200
+              text-slate-400
             "
           >
-            {personal.name
-              ?.charAt(0)
-              ?.toUpperCase() || "C"}
+            ‹
+          </button>
+
+          <button
+            type="button"
+            className="
+              flex h-7 min-w-7 items-center justify-center
+              rounded-md bg-[#EAF5EF] px-1.5
+              text-[10px] font-semibold text-[#0B5D3B]
+            "
+          >
+            1
+          </button>
+
+          <button
+            type="button"
+            className="
+              flex h-7 w-7 items-center justify-center
+              rounded-md border border-slate-200
+              text-[10px] text-slate-500
+            "
+          >
+            2
+          </button>
+
+          <button
+            type="button"
+            className="
+              flex h-7 w-7 items-center justify-center
+              rounded-md border border-slate-200
+              text-slate-500
+            "
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* =========================================================
+   GRID CARD
+========================================================= */
+
+const CustomerGridCard = ({
+  customer,
+  money,
+  onView,
+  openMenuId,
+  setOpenMenuId,
+}) =>  {
+  const personal =
+    getPersonal(customer);
+
+  const loan =
+    getLoan(customer);
+
+  const outstanding =
+    getOutstanding(customer);
+
+  return (
+    <div
+  className="
+    relative
+    rounded-xl
+    border
+    border-slate-200
+    bg-white
+    p-3
+    sm:p-3.5
+  "
+>
+
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+
+        <div className="flex min-w-0 items-center gap-2.5">
+
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EAF5EF] text-xs font-semibold text-[#0B5D3B]">
+            {getInitials(
+              personal.name
+            )}
           </div>
 
           <div className="min-w-0">
-
             <p className="truncate text-xs font-semibold text-[#17221D]">
               {personal.name ||
                 "Unnamed Customer"}
             </p>
 
-            <p className="mt-0.5 truncate text-[10px] text-slate-400">
+            <p className="mt-0.5 truncate text-[9px] text-slate-400">
               {customer.customer
                 ?.customerNumber ||
-                customer.customer?.id ||
+                customer.customer
+                  ?.id ||
                 "—"}
             </p>
-
           </div>
 
         </div>
 
-      </td>
-
-
-      {/* CONTACT */}
-
-      <td className="px-4 py-3">
-
-        <p className="text-xs text-slate-600">
-          {personal.mobileNumber ||
-            "—"}
-        </p>
-
-      </td>
-
-
-      {/* VEHICLE */}
-
-      <td className="px-4 py-3">
-
-        <p
-          className={`
-            truncate
-            text-xs
-            font-medium
-            ${
-              vehicleName ===
-              "Not assigned"
-                ? "text-slate-400"
-                : "text-slate-700"
+        <div className="shrink-0">
+          <StatusBadge
+            status={
+              customer.customer
+                ?.status ||
+              "Unknown"
             }
-          `}
-        >
-          {vehicleName}
-        </p>
-
-        {registration && (
-          <p className="mt-0.5 text-[10px] uppercase text-slate-400">
-            {registration}
-          </p>
-        )}
-
-      </td>
-
-
-      {/* LOAN */}
-
-      <td className="px-4 py-3 text-right">
-
-        <p className="text-xs font-medium text-slate-700">
-          ₹{money(
-            loan.loanAmount
-          )}
-        </p>
-
-      </td>
-
-
-      {/* OUTSTANDING */}
-
-      <td className="px-4 py-3 text-right">
-
-        <p className="text-xs font-semibold text-[#0B5D3B]">
-          ₹{money(outstanding)}
-        </p>
-
-      </td>
-
-
-      {/* STATUS */}
-
-      <td className="px-4 py-3 text-center">
-
-        <StatusBadge
-          status={
-            customer.customer
-              ?.status || "Unknown"
-          }
-        />
-
-      </td>
-
-
-      {/* ACTION */}
-
-      <td className="px-4 py-3">
-
-        <div className="flex items-center justify-center gap-1.5">
-
-          <button
-            type="button"
-            onClick={onView}
-            className="
-              flex
-              h-7
-              w-7
-              items-center
-              justify-center
-              rounded-md
-              border
-              border-slate-200
-              text-slate-500
-              transition
-              hover:border-[#0B5D3B]
-              hover:text-[#0B5D3B]
-            "
-            title="View customer"
-          >
-            <Eye size={14} />
-          </button>
-
-
-          <button
-            type="button"
-            className="
-              flex
-              h-7
-              w-7
-              items-center
-              justify-center
-              rounded-md
-              border
-              border-slate-200
-              text-slate-400
-              transition
-              hover:border-slate-300
-              hover:text-slate-700
-            "
-            title="More"
-          >
-            <MoreVertical size={14} />
-          </button>
-
-        </div>
-
-      </td>
-
-    </tr>
-  );
-};
-
-
-/* =========================================================
-   MOBILE CARD
-========================================================= */
-
-const CustomerMobileCard = ({
-  customer,
-  money,
-  getVehicleName,
-  getRegistrationNumber,
-  onView,
-}) => {
-  const personal =
-    customer.customer?.personal ||
-    {};
-
-  const loan =
-    customer.loan || {};
-
-  const vehicleName =
-    getVehicleName(customer);
-
-  const registration =
-    getRegistrationNumber(customer);
-
-  const outstanding =
-    getOutstandingAmount(loan);
-
-  return (
-    <div
-      className="
-        rounded-xl
-        border
-        border-slate-200
-        bg-white
-        p-3.5
-      "
-    >
-
-      <div className="flex items-start gap-3">
-
-        <div
-          className="
-            flex
-            h-9
-            w-9
-            shrink-0
-            items-center
-            justify-center
-            rounded-full
-            bg-[#EAF5EF]
-            text-xs
-            font-semibold
-            text-[#0B5D3B]
-          "
-        >
-          {personal.name
-            ?.charAt(0)
-            ?.toUpperCase() || "C"}
-        </div>
-
-        <div className="min-w-0 flex-1">
-
-          <div className="flex items-start justify-between gap-2">
-
-            <div className="min-w-0">
-
-              <p className="truncate text-xs font-semibold text-[#17221D]">
-                {personal.name ||
-                  "Unnamed Customer"}
-              </p>
-
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                {customer.customer
-                  ?.customerNumber ||
-                  customer.customer?.id ||
-                  "—"}
-              </p>
-
-            </div>
-
-            <StatusBadge
-              status={
-                customer.customer
-                  ?.status || "Unknown"
-              }
-            />
-
-          </div>
-
+          />
         </div>
 
       </div>
@@ -1145,11 +2176,9 @@ const CustomerMobileCard = ({
 
         <MobileDetail
           label="Vehicle"
-          value={vehicleName}
-          muted={
-            vehicleName ===
-            "Not assigned"
-          }
+          value={getVehicleName(
+            customer
+          )}
         />
 
         <MobileDetail
@@ -1167,42 +2196,488 @@ const CustomerMobileCard = ({
           green
         />
 
-        {registration && (
-          <MobileDetail
-            label="Registration"
-            value={registration}
-          />
-        )}
-
       </div>
 
+<div className="mt-3 flex items-center gap-1.5">
 
-      <button
-        type="button"
-        onClick={onView}
+  {/* VIEW */}
+  <button
+    type="button"
+    onClick={onView}
+    className="
+      flex
+      h-8
+      flex-1
+      items-center
+      justify-center
+      gap-1.5
+      rounded-lg
+      border
+      border-slate-200
+      text-[10px]
+      font-semibold
+      text-slate-600
+      transition
+      hover:border-[#0B5D3B]
+      hover:text-[#0B5D3B]
+    "
+    title="View Customer"
+  >
+    <Eye size={13} />
+    View
+  </button>
+
+  {/* HISTORY */}
+  <button
+    type="button"
+    className="
+      flex
+      h-8
+      w-8
+      shrink-0
+      items-center
+      justify-center
+      rounded-lg
+      border
+      border-slate-200
+      text-slate-500
+      hover:border-slate-300
+      hover:text-slate-700
+    "
+    title="Activity History"
+  >
+    <Clock3 size={13} />
+  </button>
+
+  {/* EDIT */}
+  <button
+    type="button"
+    onClick={onView}
+    className="
+      flex
+      h-8
+      w-8
+      shrink-0
+      items-center
+      justify-center
+      rounded-lg
+      border
+      border-slate-200
+      text-slate-500
+      hover:border-slate-300
+      hover:text-slate-700
+    "
+    title="Edit Customer"
+  >
+    <Pencil size={13} />
+  </button>
+
+  {/* MORE */}
+  <button
+    type="button"
+    onClick={() =>
+      setOpenMenuId(
+        openMenuId === customer.customer?.id
+          ? null
+          : customer.customer?.id
+      )
+    }
+    className="
+      flex
+      h-8
+      w-8
+      shrink-0
+      items-center
+      justify-center
+      rounded-lg
+      border
+      border-slate-200
+      text-slate-500
+      hover:border-slate-300
+      hover:text-slate-700
+    "
+    title="More Actions"
+  >
+    <MoreVertical size={14} />
+  </button>
+{openMenuId === customer.customer?.id && (
+  <div
+    className="
+      absolute
+      right-3
+      bottom-12
+      z-50
+      w-[235px]
+      max-w-[calc(100%-24px)]
+      overflow-hidden
+      rounded-lg
+      border
+      border-slate-200
+      bg-white
+      shadow-xl
+    "
+  >
+    <MenuItem
+      label="View Loan Details"
+      icon={Eye}
+      onClick={() => {
+        setOpenMenuId(null);
+        onView(customer);
+      }}
+    />
+
+    <MenuItem
+      label="Add Payment"
+      icon={IndianRupee}
+      onClick={() => {
+        setOpenMenuId(null);
+      }}
+    />
+
+    <MenuItem
+      label="Upload Documents"
+      icon={Download}
+      onClick={() => {
+        setOpenMenuId(null);
+      }}
+    />
+
+    <MenuItem
+      label="Generate Statement"
+      icon={FileText}
+      onClick={() => {
+        setOpenMenuId(null);
+      }}
+    />
+
+    <MenuItem
+      label="Download Documents"
+      icon={Download}
+      onClick={() => {
+        setOpenMenuId(null);
+      }}
+    />
+
+    <MenuItem
+      label="Send Payment Reminder"
+      icon={CalendarDays}
+      onClick={() => {
+        setOpenMenuId(null);
+      }}
+    />
+
+    <div className="border-t border-slate-100" />
+
+    <MenuItem
+      label="Deactivate Customer"
+      icon={UserCheck}
+      danger
+      onClick={() => {
+        setOpenMenuId(null);
+
+        const name =
+          customer.customer?.personal?.name ||
+          "this customer";
+
+        const confirmed = window.confirm(
+          `Are you sure you want to deactivate ${name}?`
+        );
+
+        if (!confirmed) {
+          return;
+        }
+      }}
+    />
+  </div>
+)}
+
+</div>
+</div>
+  );
+};
+
+/* =========================================================
+   FILTER SELECT
+========================================================= */
+
+const FilterSelect = ({
+  label,
+  value,
+  onChange,
+  options,
+}) => {
+  return (
+    <div className="min-w-0">
+
+      <label className="mb-1 block text-[9px] font-medium text-slate-500">
+        {label}
+      </label>
+
+      <select
+        value={value}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+          )
+        }
         className="
-          mt-3
-          flex
-          h-8
+          h-9
           w-full
-          items-center
-          justify-center
-          gap-1.5
           rounded-lg
           border
           border-slate-200
-          text-[11px]
-          font-semibold
+          bg-white
+          px-2.5
+          text-[10px]
           text-slate-600
-          hover:border-[#0B5D3B]
-          hover:text-[#0B5D3B]
+          outline-none
+          focus:border-[#0B5D3B]
         "
       >
-        <Eye size={13} />
-        View Customer
-      </button>
+        {options.map(
+          (option) => (
+            <option
+              key={option}
+              value={option}
+            >
+              {option}
+            </option>
+          )
+        )}
+      </select>
 
     </div>
+  );
+};
+
+
+/* =========================================================
+   FILTER INPUT
+========================================================= */
+
+const FilterInput = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+}) => {
+  return (
+    <div className="min-w-0">
+
+      <label className="mb-1 block text-[9px] font-medium text-slate-500">
+        {label}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+          )
+        }
+        className="
+          h-9
+          w-full
+          rounded-lg
+          border
+          border-slate-200
+          bg-white
+          px-2.5
+          text-[10px]
+          text-slate-600
+          outline-none
+          focus:border-[#0B5D3B]
+        "
+      />
+
+    </div>
+  );
+};
+
+
+/* =========================================================
+   RANGE FILTER
+========================================================= */
+
+const RangeFilter = ({
+  label,
+  minValue,
+  maxValue,
+  onMinChange,
+  onMaxChange,
+}) => {
+  return (
+    <div className="min-w-0">
+
+      <label className="mb-1 block text-[9px] font-medium text-slate-500">
+        {label}
+      </label>
+
+      <div className="flex items-center gap-1.5">
+
+        <input
+          type="number"
+          value={minValue}
+          onChange={(e) =>
+            onMinChange(
+              e.target.value
+            )
+          }
+          placeholder="Min Amount"
+          className="
+            h-9
+            min-w-0
+            flex-1
+            rounded-lg
+            border
+            border-slate-200
+            bg-white
+            px-2
+            text-[10px]
+            text-slate-600
+            outline-none
+            focus:border-[#0B5D3B]
+          "
+        />
+
+        <span className="text-[9px] text-slate-400">
+          -
+        </span>
+
+        <input
+          type="number"
+          value={maxValue}
+          onChange={(e) =>
+            onMaxChange(
+              e.target.value
+            )
+          }
+          placeholder="Max Amount"
+          className="
+            h-9
+            min-w-0
+            flex-1
+            rounded-lg
+            border
+            border-slate-200
+            bg-white
+            px-2
+            text-[10px]
+            text-slate-600
+            outline-none
+            focus:border-[#0B5D3B]
+          "
+        />
+
+      </div>
+
+    </div>
+  );
+};
+
+
+/* =========================================================
+   TAB
+========================================================= */
+
+const TabButton = ({
+  label,
+  active,
+  onClick,
+}) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        relative
+        shrink-0
+        whitespace-nowrap
+        pb-2
+        text-[10px]
+        font-medium
+
+        ${
+          active
+            ? "text-[#0B5D3B]"
+            : "text-slate-400 hover:text-slate-600"
+        }
+      `}
+    >
+      {label}
+
+      {active && (
+        <span
+          className="
+            absolute
+            bottom-0
+            left-0
+            right-0
+            h-[2px]
+            rounded-full
+            bg-[#0B5D3B]
+          "
+        />
+      )}
+    </button>
+  );
+};
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+const StatusBadge = ({
+  status,
+}) => {
+  const normalized =
+    String(status || "")
+      .toLowerCase();
+
+  let classes =
+    "bg-slate-100 text-slate-500";
+
+  if (
+    normalized ===
+    "active"
+  ) {
+    classes =
+      "bg-[#EAF5EF] text-[#0B5D3B]";
+  }
+
+  if (
+    normalized ===
+    "overdue"
+  ) {
+    classes =
+      "bg-red-50 text-red-600";
+  }
+
+  if (
+    normalized ===
+    "closed"
+  ) {
+    classes =
+      "bg-[#F0ECFF] text-[#6D5BD0]";
+  }
+
+  return (
+    <span
+      className={`
+        inline-flex
+        whitespace-nowrap
+        rounded-full
+        px-2
+        py-1
+        text-[9px]
+        font-semibold
+        ${classes}
+      `}
+    >
+      {status}
+    </span>
   );
 };
 
@@ -1214,13 +2689,12 @@ const CustomerMobileCard = ({
 const MobileDetail = ({
   label,
   value,
-  muted = false,
   green = false,
 }) => {
   return (
     <div className="min-w-0">
 
-      <p className="text-[9px] uppercase tracking-wide text-slate-400">
+      <p className="text-[8px] uppercase tracking-wide text-slate-400">
         {label}
       </p>
 
@@ -1228,12 +2702,10 @@ const MobileDetail = ({
         className={`
           mt-0.5
           truncate
-          text-[11px]
+          text-[10px]
           font-medium
           ${
-            muted
-              ? "text-slate-400"
-              : green
+            green
               ? "text-[#0B5D3B]"
               : "text-slate-700"
           }
@@ -1248,61 +2720,6 @@ const MobileDetail = ({
 
 
 /* =========================================================
-   STATUS
-========================================================= */
-
-const StatusBadge = ({
-  status,
-}) => {
-  const active =
-    status === "Active";
-
-  return (
-    <span
-      className={`
-        inline-flex
-        rounded-full
-        px-2
-        py-1
-        text-[9px]
-        font-semibold
-
-        ${
-          active
-            ? "bg-[#EAF5EF] text-[#0B5D3B]"
-            : "bg-slate-100 text-slate-500"
-        }
-      `}
-    >
-      {status}
-    </span>
-  );
-};
-
-
-/* =========================================================
-   EMPTY DESKTOP ROW
-========================================================= */
-
-const EmptyRow = ({
-  onAdd,
-}) => {
-  return (
-    <tr>
-      <td
-        colSpan={7}
-        className="px-6 py-14"
-      >
-        <EmptyContent
-          onAdd={onAdd}
-        />
-      </td>
-    </tr>
-  );
-};
-
-
-/* =========================================================
    EMPTY CONTENT
 ========================================================= */
 
@@ -1310,12 +2727,12 @@ const EmptyContent = ({
   onAdd,
 }) => {
   return (
-    <div className="flex flex-col items-center text-center">
+    <div className="flex flex-col items-center px-4 py-10 text-center sm:px-6 sm:py-14">
 
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EAF5EF]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF5EF]">
 
-        <UserRound
-          size={19}
+        <Users
+          size={20}
           className="text-[#0B5D3B]"
         />
 
@@ -1368,7 +2785,7 @@ const TableHeader = ({
     <th
       className={`
         whitespace-nowrap
-        px-4
+        px-3.5
         py-2.5
         text-[9px]
         font-semibold
@@ -1390,4 +2807,123 @@ const TableHeader = ({
   );
 };
 
+
+/* =========================================================
+   BRAND OPTIONS
+========================================================= */
+
+const getBrandOptions = (
+  customers
+) => {
+  const brands = customers
+    .map(
+      (customer) =>
+        customer.vehicle?.brand
+    )
+    .filter(Boolean);
+
+  return [
+    "All Brands",
+    ...Array.from(
+      new Set(brands)
+    ).sort(),
+  ];
+};
+
+
+/* =========================================================
+   CITY OPTIONS
+========================================================= */
+
+const getCityOptions = (
+  customers
+) => {
+  const cities = customers
+    .flatMap(
+      (customer) => [
+        customer.customer
+          ?.personal?.area,
+        customer.rc?.location,
+      ]
+    )
+    .filter(Boolean);
+
+  return [
+    "All Cities",
+    ...Array.from(
+      new Set(cities)
+    ).sort(),
+  ];
+};
+
+
+/* =========================================================
+   NUMBER FORMAT
+========================================================= */
+
+const formatCr = (
+  value
+) => {
+  const amount =
+    Number(value || 0);
+
+  if (
+    amount >= 10000000
+  ) {
+    return `₹${(
+      amount / 10000000
+    ).toFixed(2)} Cr`;
+  }
+
+  if (
+    amount >= 100000
+  ) {
+    return `₹${(
+      amount / 100000
+    ).toFixed(2)} L`;
+  }
+
+  return `₹${amount.toLocaleString(
+    "en-IN"
+  )}`;
+};
+const MenuItem = ({
+  label,
+  icon: Icon,
+  onClick,
+  danger = false,
+}) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        flex
+        w-full
+        items-center
+        gap-2.5
+        px-3
+        py-2.5
+        text-left
+        text-[11px]
+        font-medium
+        transition
+        ${
+          danger
+            ? "text-red-600 hover:bg-red-50"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+        }
+      `}
+    >
+      <Icon
+        size={14}
+        className="shrink-0"
+      />
+
+      <span>
+        {label}
+      </span>
+    </button>
+  );
+};
 export default CustomerPage;

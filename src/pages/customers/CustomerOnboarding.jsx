@@ -17,14 +17,15 @@ import {
 } from "lucide-react";
 
 import CustomerInfoStep from "../../Components/customers/onboarding/CustomerInfoStep";
-import KycDocumentsStep from "../../Components/customers/onboarding/KycDocumentsStep";
-import VehicleRcStep from "../../Components/customers/onboarding/VehicleRcStep";
-import GuarantorStep from "../../Components/customers/onboarding/GuarantorStep";
-import LoanDetailsStep from "../../Components/customers/onboarding/LoanDetailsStep";
-import ReviewStep from "../../Components/customers/onboarding/ReviewStep";
+import KycDocumentsStep from "../../components/customers/onboarding/KycDocumentsStep";
+import VehicleRcStep from "../../components/customers/onboarding/VehicleRcStep";
+import GuarantorStep from "../../components/customers/onboarding/GuarantorStep";
+import LoanDetailsStep from "../../components/customers/onboarding/LoanDetailsStep";
+import ReviewStep from "../../components/customers/onboarding/ReviewStep";
+import RepaymentScheduleModal from "../../components/loans/RepaymentScheduleModal";
 import { generateRepaymentSchedule } from "../../services/repaymentSchedule";
 import { saveCustomer } from "../../services/customerStorage";
-import RepaymentScheduleModal from "../../Components/loans/RepaymentScheduleModal";
+
 import {
   createEmptyCustomer,
 } from "../../data/schemas/customerSchema";
@@ -71,27 +72,22 @@ const steps = [
 const STEP_DESCRIPTIONS = {
   1: "Basic customer and contact details",
   2: "Verify identity and required documents",
-  3: "Vehicle registration and RC information",
-  4: "Optional guarantor information",
+  3: "Vehicle, RC and compliance information",
+ 4: "Choose whether this customer has a guarantor",
   5: "Loan amount, interest and repayment details",
-  6: "Verify all information before creating the customer",
+  6: "Review all information before creating the customer",
 };
 
 const CustomerOnboarding = () => {
   const navigate = useNavigate();
 
   const [currentStep, setCurrentStep] = useState(1);
-
-  const [showRepaymentSchedule, setShowRepaymentSchedule] =
+const [showRepaymentSchedule, setShowRepaymentSchedule] =
   useState(false);
 
-const [createdLoan, setCreatedLoan] = useState(null);
-  
+const [createdLoan, setCreatedLoan] =
+  useState(null);
 
-  /*
-   * Create a fresh onboarding object once.
-   * Today's date is automatically assigned.
-   */
   const [formData, setFormData] = useState(() => {
     const customer = createEmptyCustomer();
 
@@ -104,15 +100,6 @@ const [createdLoan, setCreatedLoan] = useState(null);
     return customer;
   });
 
-  /*
-   * Step validation state.
-   *
-   * Step 2 starts invalid because the user must
-   * select and upload at least 2 documents.
-   *
-   * Other steps remain enabled temporarily until
-   * their own validation is implemented.
-   */
   const [stepValidity, setStepValidity] = useState({
     1: true,
     2: false,
@@ -123,8 +110,11 @@ const [createdLoan, setCreatedLoan] = useState(null);
   });
 
   /*
-   * Current step information.
+   * --------------------------------------------------------
+   * CURRENT STEP
+   * --------------------------------------------------------
    */
+
   const currentStepInfo = useMemo(
     () => steps[currentStep - 1],
     [currentStep]
@@ -132,226 +122,28 @@ const [createdLoan, setCreatedLoan] = useState(null);
 
   /*
    * --------------------------------------------------------
-   * CLOSE
-   * --------------------------------------------------------
-   */
-
-  const handleClose = useCallback(() => {
-    navigate("/customers");
-  }, [navigate]);
-
-  /*
-   * --------------------------------------------------------
-   * STEP VALIDITY
-   * --------------------------------------------------------
-   */
-
-  const updateStepValidity = useCallback(
-    (step, valid) => {
-      setStepValidity((previous) => {
-        if (previous[step] === valid) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          [step]: valid,
-        };
-      });
-    },
-    []
-  );
-
-  /*
-   * Stable KYC validation callback.
-   */
-  const handleKycValidation = useCallback(
-    (valid) => {
-      updateStepValidity(2, valid);
-    },
-    [updateStepValidity]
-  );
-
-//   const handleVehicleValidation = useCallback(
-//   (valid) => {
-//     updateStepValidity(3, valid);
-//   },
-//   [updateStepValidity]
-// );
-
-  /*
-   * --------------------------------------------------------
-   * NEXT
-   * --------------------------------------------------------
-   */
-
-
-  const handleNext = useCallback(() => {
-    const currentStepIsValid =
-      stepValidity[currentStep] === true;
-
-    if (!currentStepIsValid) {
-      return;
-    }
-
-    if (currentStep < steps.length) {
-      setCurrentStep(
-        (previous) => previous + 1
-      );
-    }
-  }, [currentStep, stepValidity]);
-
-  /*
-   * --------------------------------------------------------
-   * BACK
-   * --------------------------------------------------------
-   */
-
-  const handleBack = useCallback(() => {
-    if (currentStep === 1) {
-      handleClose();
-      return;
-    }
-
-    setCurrentStep(
-      (previous) => previous - 1
-    );
-  }, [currentStep, handleClose]);
-
-  /*
-   * --------------------------------------------------------
-   * STEP CLICK
-   * --------------------------------------------------------
+   * PREVIEW REPAYMENT SCHEDULE
    *
-   * Only completed/current steps can be opened.
-   */
-
-  const handleStepClick = useCallback(
-    (stepId) => {
-      if (stepId <= currentStep) {
-        setCurrentStep(stepId);
-      }
-    },
-    [currentStep]
-  );
-
-  /*
-   * --------------------------------------------------------
-   * CUSTOMER PERSONAL UPDATE
+   * IMPORTANT:
+   * This is only a preview.
+   * Nothing is saved here.
+   * The final schedule is generated again
+   * during Create Customer.
    * --------------------------------------------------------
    */
 
-  const updateCustomerPersonal = useCallback(
-    (data) => {
-      setFormData((previous) => ({
-        ...previous,
-
-        customer: {
-          ...previous.customer,
-
-          personal: {
-            ...previous.customer.personal,
-            ...data,
-          },
-        },
-      }));
-    },
-    []
-  );
-
-  /*
-   * --------------------------------------------------------
-   * CUSTOMER KYC / DOCUMENT UPDATE
-   * --------------------------------------------------------
-   */
-
-  const updateCustomerKyc = useCallback(
-    (data) => {
-      setFormData((previous) => ({
-        ...previous,
-
-        customer: {
-          ...previous.customer,
-          ...data,
-        },
-      }));
-    },
-    []
-  );
-
-  /*
-   * --------------------------------------------------------
-   * VEHICLE / RC UPDATE
-   * --------------------------------------------------------
-   */
-
-  const updateVehicleData = useCallback(
-    (data) => {
-      setFormData((previous) => ({
-        ...previous,
-
-        vehicle: data.vehicle,
-        rc: data.rc,
-      }));
-    },
-    []
-  );
-
-  /*
-   * --------------------------------------------------------
-   * GUARANTOR UPDATE
-   * --------------------------------------------------------
-   */
-
-  const updateGuarantorData = useCallback(
-    (data) => {
-      setFormData((previous) => ({
-        ...previous,
-
-        guarantor: data.guarantor,
-      }));
-    },
-    []
-  );
-
-  /*
-   * --------------------------------------------------------
-   * LOAN UPDATE
-   * --------------------------------------------------------
-   */
-
-  const updateLoanData = useCallback(
-    (data) => {
-      setFormData((previous) => ({
-        ...previous,
-
-        loan: data.loan,
-      }));
-    },
-    []
-  );
-const handleCreateCustomer = () => {
-  try {
-    const now = new Date().toISOString();
-    const timestamp = Date.now();
-
-    const customerId = `CUS-${timestamp}`;
-    const loanId = `LOAN-${timestamp}`;
-
-    const customerNumber =
-      `CUST-${String(timestamp).slice(-6)}`;
-
-    const loanNumber =
-      `LN-${String(timestamp).slice(-6)}`;
-
+  const repaymentSchedulePreview = useMemo(() => {
     const loan = formData.loan || {};
 
-    /* ---------------------------------------------
-       GENERATE REPAYMENT SCHEDULE
-    --------------------------------------------- */
+    if (
+      !loan.loanAmount ||
+      !loan.repayment?.tenure
+    ) {
+      return [];
+    }
 
-    const repaymentSchedule =
-      generateRepaymentSchedule({
+    try {
+      return generateRepaymentSchedule({
         principal: Number(
           loan.loanAmount || 0
         ),
@@ -383,81 +175,363 @@ const handleCreateCustomer = () => {
         firstDueDate:
           loan.firstDueDate || "",
       });
+    } catch (error) {
+      console.error(
+        "Repayment preview failed:",
+        error
+      );
 
-    /* ---------------------------------------------
-       CREATE FINAL CUSTOMER OBJECT
-    --------------------------------------------- */
+      return [];
+    }
+  }, [
+    formData.loan,
+  ]);
 
-    const finalCustomer = {
-      ...formData,
+  /*
+   * --------------------------------------------------------
+   * CLOSE
+   * --------------------------------------------------------
+   */
 
-      customer: {
-        ...formData.customer,
+  const handleClose = useCallback(() => {
+    navigate("/customers");
+  }, [navigate]);
 
-        id: customerId,
-        customerNumber,
+  /*
+   * --------------------------------------------------------
+   * VALIDITY
+   * --------------------------------------------------------
+   */
 
-        createdAt:
-          formData.customer.createdAt ||
-          now,
+  const updateStepValidity = useCallback(
+    (step, valid) => {
+      setStepValidity((previous) => {
+        if (previous[step] === valid) {
+          return previous;
+        }
 
-        updatedAt: now,
+        return {
+          ...previous,
+          [step]: valid,
+        };
+      });
+    },
+    []
+  );
 
-        status: "Active",
-      },
+  const handleKycValidation = useCallback(
+    (valid) => {
+      updateStepValidity(2, valid);
+    },
+    [updateStepValidity]
+  );
 
-      loan: {
-        ...loan,
+  /*
+   * --------------------------------------------------------
+   * NEXT
+   * --------------------------------------------------------
+   */
 
-        id: loanId,
-        loanNumber,
+const handleNext = useCallback(() => {
+  const currentStepIsValid =
+    stepValidity[currentStep] === true;
 
-        repaymentSchedule,
-
-        status: "Active",
-
-        createdAt: now,
-      },
-    };
-
-    /* ---------------------------------------------
-       SAVE TO LOCAL STORAGE
-    --------------------------------------------- */
-
-    saveCustomer(finalCustomer);
-
-    /* ---------------------------------------------
-       UPDATE LOCAL STATE
-    --------------------------------------------- */
-
-    setFormData(finalCustomer);
-    setCreatedLoan(finalCustomer.loan);
-
-    /* ---------------------------------------------
-       OPEN REPAYMENT SCHEDULE
-    --------------------------------------------- */
-
-    setShowRepaymentSchedule(true);
-
-    console.log(
-      "Customer created successfully:",
-      finalCustomer
-    );
-
-  } catch (error) {
-    console.error(
-      "Create Customer failed:",
-      error
-    );
-
-    alert(
-      `Unable to create customer.\n\n${
-        error?.message ||
-        "Unknown error"
-      }`
-    );
+  if (!currentStepIsValid) {
+    return;
   }
-};
+
+  // Step 4: No guarantor -> directly go to Loan
+  if (
+    currentStep === 4 &&
+    formData.guarantor?.hasGuarantor === false
+  ) {
+    setCurrentStep(5);
+    return;
+  }
+
+  // Normal next step
+  if (currentStep < steps.length) {
+    setCurrentStep((previous) => previous + 1);
+  }
+}, [
+  currentStep,
+  stepValidity,
+  formData.guarantor?.hasGuarantor,
+]);
+  /*
+   * --------------------------------------------------------
+   * BACK
+   * --------------------------------------------------------
+   */
+
+  const handleBack = useCallback(() => {
+    if (currentStep === 1) {
+      handleClose();
+      return;
+    }
+
+    setCurrentStep(
+      (previous) => previous - 1
+    );
+  }, [
+    currentStep,
+    handleClose,
+  ]);
+
+  /*
+   * --------------------------------------------------------
+   * STEP CLICK
+   * --------------------------------------------------------
+   */
+
+  const handleStepClick = useCallback(
+    (stepId) => {
+      if (stepId <= currentStep) {
+        setCurrentStep(stepId);
+      }
+    },
+    [currentStep]
+  );
+
+  /*
+   * --------------------------------------------------------
+   * CUSTOMER PERSONAL
+   * --------------------------------------------------------
+   */
+
+  const updateCustomerPersonal = useCallback(
+    (data) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        customer: {
+          ...previous.customer,
+
+          personal: {
+            ...previous.customer.personal,
+            ...data,
+          },
+        },
+      }));
+    },
+    []
+  );
+
+  /*
+   * --------------------------------------------------------
+   * KYC
+   * --------------------------------------------------------
+   */
+
+  const updateCustomerKyc = useCallback(
+    (data) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        customer: {
+          ...previous.customer,
+          ...data,
+        },
+      }));
+    },
+    []
+  );
+
+  /*
+   * --------------------------------------------------------
+   * VEHICLE / RC
+   * --------------------------------------------------------
+   */
+
+  const updateVehicleData = useCallback(
+    (data) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        vehicle: {
+          ...previous.vehicle,
+          ...(data.vehicle || {}),
+        },
+
+        rc: {
+          ...previous.rc,
+          ...(data.rc || {}),
+        },
+      }));
+    },
+    []
+  );
+
+  /*
+   * --------------------------------------------------------
+   * GUARANTOR
+   * --------------------------------------------------------
+   */
+
+  const updateGuarantorData = useCallback(
+    (data) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        guarantor: {
+          ...previous.guarantor,
+          ...(data.guarantor || {}),
+        },
+      }));
+    },
+    []
+  );
+
+  /*
+   * --------------------------------------------------------
+   * LOAN
+   * --------------------------------------------------------
+   */
+
+  const updateLoanData = useCallback(
+    (data) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        loan: {
+          ...previous.loan,
+          ...(data.loan || {}),
+        },
+      }));
+    },
+    []
+  );
+
+  /*
+   * --------------------------------------------------------
+   * CREATE CUSTOMER
+   *
+   * ONLY HERE:
+   * - IDs generated
+   * - repayment schedule generated
+   * - status activated
+   * - saved to localStorage
+   * --------------------------------------------------------
+   */
+
+  const handleCreateCustomer = useCallback(() => {
+    try {
+      const now =
+        new Date().toISOString();
+
+      const timestamp =
+        Date.now();
+
+      const customerId =
+        `CUS-${timestamp}`;
+
+      const loanId =
+        `LOAN-${timestamp}`;
+
+      const customerNumber =
+        `CUST-${String(timestamp).slice(-6)}`;
+
+      const loanNumber =
+        `LN-${String(timestamp).slice(-6)}`;
+
+      const loan =
+        formData.loan || {};
+
+      const repaymentSchedule =
+        generateRepaymentSchedule({
+          principal: Number(
+            loan.loanAmount || 0
+          ),
+
+          rate: Number(
+            loan.interest?.rate || 0
+          ),
+
+          tenure: Number(
+            loan.repayment?.tenure || 0
+          ),
+
+          tenureUnit:
+            loan.repayment?.tenureUnit ||
+            "Months",
+
+          interestType:
+            loan.interest?.type ||
+            "Flat",
+
+          repaymentMethod:
+            loan.repayment?.method ||
+            "EMI",
+
+          frequency:
+            loan.repayment?.frequency ||
+            "Monthly",
+
+          firstDueDate:
+            loan.firstDueDate || "",
+        });
+
+      const finalCustomer = {
+        ...formData,
+
+        customer: {
+          ...formData.customer,
+
+          id: customerId,
+
+          customerNumber,
+
+          createdAt:
+            formData.customer?.createdAt ||
+            now,
+
+          updatedAt: now,
+
+          status: "Active",
+        },
+
+        loan: {
+          ...loan,
+
+          id: loanId,
+
+          loanNumber,
+
+          repaymentSchedule,
+
+          status: "Active",
+
+          createdAt: now,
+        },
+      };
+
+      saveCustomer(
+        finalCustomer
+      );
+
+      console.log(
+        "Customer created successfully:",
+        finalCustomer
+      );
+
+      navigate("/customers");
+    } catch (error) {
+      console.error(
+        "Create Customer failed:",
+        error
+      );
+
+      window.alert(
+        `Unable to create customer.\n\n${
+          error?.message ||
+          "Unknown error"
+        }`
+      );
+    }
+  }, [
+    formData,
+    navigate,
+  ]);
 
   /*
    * --------------------------------------------------------
@@ -467,9 +541,6 @@ const handleCreateCustomer = () => {
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      /*
-       * STEP 1
-       */
       case 1:
         return (
           <CustomerInfoStep
@@ -482,13 +553,12 @@ const handleCreateCustomer = () => {
           />
         );
 
-      /*
-       * STEP 2
-       */
       case 2:
         return (
           <KycDocumentsStep
-            data={formData.customer}
+            data={
+              formData.customer
+            }
             onChange={
               updateCustomerKyc
             }
@@ -498,518 +568,482 @@ const handleCreateCustomer = () => {
           />
         );
 
-      /*
-       * STEP 3
-       */
-     case 3:
-  return (
-    <VehicleRcStep
-      data={{
-        vehicle: formData.vehicle,
-        rc: formData.rc,
-      }}
-      onChange={updateVehicleData}
-    />
-  );
-
-      /*
-       * STEP 4
-       */
-      case 4:
+      case 3:
         return (
-          <GuarantorStep
+          <VehicleRcStep
             data={{
-              guarantor:
-                formData.guarantor,
+              vehicle:
+                formData.vehicle,
+              rc:
+                formData.rc,
             }}
             onChange={
-              updateGuarantorData
+              updateVehicleData
             }
           />
         );
 
-      /*
-       * STEP 5
-       */
+    case 4:
+  return (
+    <GuarantorStep
+      data={{
+        guarantor: formData.guarantor,
+      }}
+      onChange={updateGuarantorData}
+      onNoGuarantor={() => {
+        setCurrentStep(5);
+      }}
+    />
+  );
+
       case 5:
         return (
           <LoanDetailsStep
             data={{
-              loan: formData.loan,
+              loan:
+                formData.loan,
             }}
             onChange={
               updateLoanData
             }
           />
         );
+case 6:
+  return (
+    <ReviewStep
+      data={{
+        ...formData,
 
-      /*
-       * STEP 6
-       */
-      case 6:
-        return (
-          <ReviewStep
-            data={formData}
-            onEdit={setCurrentStep}
-          />
-        );
+        loan: {
+          ...formData.loan,
+
+          repaymentSchedule:
+            repaymentSchedulePreview,
+        },
+      }}
+      onEdit={setCurrentStep}
+      onViewSchedule={() => {
+        const loan = {
+          ...formData.loan,
+          repaymentSchedule:
+            repaymentSchedulePreview,
+        };
+
+        if (!repaymentSchedulePreview.length) {
+          window.alert(
+            "Please complete the loan amount, tenure and repayment details first."
+          );
+          return;
+        }
+
+        setCreatedLoan(loan);
+        setShowRepaymentSchedule(true);
+      }}
+    />
+  );
 
       default:
         return null;
     }
   };
 
-  /*
-   * --------------------------------------------------------
-   * CURRENT STEP VALIDITY
-   * --------------------------------------------------------
-   */
-
   const canContinue =
     stepValidity[currentStep] === true;
 
   return (
-    <>
-      {/* =====================================================
-          OVERLAY
-      ====================================================== */}
-
+    <div
+      className="
+        fixed
+        inset-0
+        z-[100]
+        flex
+        items-center
+        justify-center
+        bg-slate-950/45
+        p-0
+        backdrop-blur-[3px]
+        sm:p-3
+      "
+    >
       <div
         className="
-          fixed
-          inset-0
-          z-[100]
           flex
-          items-center
-          justify-center
-          bg-slate-950/45
-          p-4
-          backdrop-blur-[3px]
+          h-[100dvh]
+          w-full
+          max-w-full
+          flex-col
+          overflow-hidden
+          bg-white
+          shadow-2xl
+          ring-1
+          ring-black/5
+          sm:h-[calc(100vh-24px)]
+          sm:max-w-[920px]
+          sm:rounded-2xl
         "
       >
-        {/* =================================================
-            MODAL
-        ================================================== */}
-
-        <div
+        {/* HEADER */}
+        <header
           className="
-            flex
-            h-[min(820px,calc(100vh-32px))]
-            w-full
-            max-w-[920px]
-            flex-col
-            overflow-hidden
-            rounded-2xl
-            bg-white
-            shadow-2xl
-            ring-1
-            ring-black/5
+            shrink-0
+            border-b
+            border-slate-100
+            px-3.5
+            py-3
+            sm:px-6
+            sm:py-3.5
           "
         >
-          {/* =================================================
-              HEADER
-          ================================================= */}
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-[#EAF5EF]
+                  sm:h-10
+                  sm:w-10
+                "
+              >
+                <User
+                  size={18}
+                  className="text-[#0B5D3B] sm:hidden"
+                />
+                <User
+                  size={20}
+                  className="hidden text-[#0B5D3B] sm:block"
+                />
+              </div>
 
-          <header
-            className="
-              shrink-0
-              border-b
-              border-slate-100
-              px-6
-              py-4
-            "
-          >
-            <div className="flex items-center justify-between gap-4">
-              {/* Left */}
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-[#17221D] sm:text-[17px]">
+                  Customer Onboarding
+                </h1>
 
-              <div className="flex min-w-0 items-center gap-3">
+                <p className="hidden truncate text-xs text-slate-500 sm:block">
+                  Create customer and vehicle finance record
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              <span className="whitespace-nowrap rounded-full bg-[#EAF5EF] px-2.5 py-1 text-[10px] font-semibold text-[#0B5D3B] sm:px-3 sm:text-[11px]">
+                Step {currentStep} of {steps.length}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleClose}
+                className="
+                  flex
+                  h-8
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-lg
+                  text-slate-400
+                  hover:bg-slate-100
+                  hover:text-slate-700
+                "
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* STEPPER */}
+        <div
+          className="
+            shrink-0
+            border-b
+            border-slate-100
+            px-3.5
+            py-2.5
+            sm:px-6
+          "
+        >
+          <div className="flex items-center overflow-x-auto">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+
+              const completed =
+                step.id < currentStep;
+
+              const active =
+                step.id === currentStep;
+
+              return (
                 <div
+                  key={step.id}
                   className="
                     flex
-                    h-10
-                    w-10
+                    min-w-[52px]
                     shrink-0
                     items-center
-                    justify-center
-                    rounded-full
-                    bg-[#EAF5EF]
+                    sm:min-w-0
+                    sm:flex-1
+                    sm:shrink
                   "
                 >
-                  <User
-                    size={20}
-                    className="text-[#0B5D3B]"
-                  />
-                </div>
-
-                <div className="min-w-0">
-                  <h1
+                  <button
+                    type="button"
+                    disabled={
+                      step.id > currentStep
+                    }
+                    onClick={() =>
+                      handleStepClick(
+                        step.id
+                      )
+                    }
                     className="
-                      truncate
-                      text-[17px]
-                      font-semibold
-                      text-[#17221D]
-                    "
-                  >
-                    Customer Onboarding
-                  </h1>
-
-                  <p
-                    className="
-                      mt-0.5
-                      truncate
-                      text-xs
-                      text-slate-500
-                    "
-                  >
-                    Create customer and initial
-                    vehicle finance record
-                  </p>
-                </div>
-              </div>
-
-              {/* Right */}
-
-              <div className="flex shrink-0 items-center gap-2">
-                <span
-                  className="
-                    rounded-full
-                    bg-[#EAF5EF]
-                    px-3
-                    py-1
-                    text-[11px]
-                    font-semibold
-                    text-[#0B5D3B]
-                  "
-                >
-                  Step {currentStep} of{" "}
-                  {steps.length}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="
-                    flex
-                    h-8
-                    w-8
-                    items-center
-                    justify-center
-                    rounded-lg
-                    text-slate-400
-                    transition
-                    hover:bg-slate-100
-                    hover:text-slate-700
-                  "
-                  aria-label="Close onboarding"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-          </header>
-
-          {/* =================================================
-              STEPPER
-          ================================================== */}
-
-          <div
-            className="
-              shrink-0
-              border-b
-              border-slate-100
-              px-6
-              py-3
-            "
-          >
-            <div className="flex items-center">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-
-                const completed =
-                  step.id < currentStep;
-
-                const active =
-                  step.id === currentStep;
-
-                return (
-                  <div
-                    key={step.id}
-                    className="
+                      group
                       flex
                       min-w-0
-                      flex-1
+                      flex-col
                       items-center
+                      gap-1
+                      disabled:cursor-default
                     "
                   >
-                    <button
-                      type="button"
-                      disabled={
-                        step.id > currentStep
-                      }
-                      onClick={() =>
-                        handleStepClick(
-                          step.id
-                        )
-                      }
-                      className="
-                        group
+                    <div
+                      className={`
                         flex
-                        min-w-0
-                        flex-col
+                        h-7
+                        w-7
+                        shrink-0
                         items-center
-                        gap-1
-                        disabled:cursor-default
-                      "
+                        justify-center
+                        rounded-full
+                        border
+                        sm:h-8
+                        sm:w-8
+
+                        ${
+                          completed
+                            ? "border-[#0B5D3B] bg-[#0B5D3B] text-white"
+                            : active
+                            ? "border-[#0B5D3B] bg-white text-[#0B5D3B] ring-4 ring-[#EAF5EF]"
+                            : "border-slate-200 bg-white text-slate-400"
+                        }
+                      `}
                     >
-                      {/* Circle */}
+                      {completed ? (
+                        <Check
+                          size={14}
+                          strokeWidth={2.5}
+                        />
+                      ) : (
+                        <Icon size={14} />
+                      )}
+                    </div>
 
-                      <div
-                        className={`
-                          flex
-                          h-8
-                          w-8
-                          items-center
-                          justify-center
-                          rounded-full
-                          border
-                          transition
+                    <span
+                      className={`
+                        hidden
+                        truncate
+                        text-[10px]
+                        font-medium
+                        sm:block
+                        ${
+                          active ||
+                          completed
+                            ? "text-[#17221D]"
+                            : "text-slate-400"
+                        }
+                      `}
+                    >
+                      {step.shortTitle}
+                    </span>
+                  </button>
 
-                          ${
-                            completed
-                              ? "border-[#0B5D3B] bg-[#0B5D3B] text-white"
-                              : active
-                              ? "border-[#0B5D3B] bg-white text-[#0B5D3B] ring-4 ring-[#EAF5EF]"
-                              : "border-slate-200 bg-white text-slate-400"
-                          }
-                        `}
-                      >
-                        {completed ? (
-                          <Check
-                            size={15}
-                            strokeWidth={2.5}
-                          />
-                        ) : (
-                          <Icon size={15} />
-                        )}
-                      </div>
-
-                      {/* Label */}
-
-                      <span
-                        className={`
-                          hidden
-                          truncate
-                          text-[10px]
-                          font-medium
-                          sm:block
-
-                          ${
-                            active ||
-                            completed
-                              ? "text-[#17221D]"
-                              : "text-slate-400"
-                          }
-                        `}
-                      >
-                        {step.shortTitle}
-                      </span>
-                    </button>
-
-                    {/* Connector */}
-
-                    {index <
-                      steps.length - 1 && (
-                      <div
-                        className={`
-                          mx-2
-                          mt-[-15px]
-                          h-px
-                          min-w-[10px]
-                          flex-1
-
-                          ${
-                            completed
-                              ? "bg-[#0B5D3B]"
-                              : "bg-slate-200"
-                          }
-                        `}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  {index <
+                    steps.length - 1 && (
+                    <div
+                      className={`
+                        mx-1.5
+                        h-px
+                        w-5
+                        shrink-0
+                        sm:mx-2
+                        sm:mt-[-15px]
+                        sm:w-auto
+                        sm:min-w-[10px]
+                        sm:flex-1
+                        ${
+                          completed
+                            ? "bg-[#0B5D3B]"
+                            : "bg-slate-200"
+                        }
+                      `}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* =================================================
-              STEP TITLE
-          ================================================== */}
+        {/* STEP TITLE */}
+        <div
+          className="
+            shrink-0
+            px-3.5
+            pb-2
+            pt-2.5
+            sm:px-6
+          "
+        >
+          <h2 className="text-sm font-semibold text-[#17221D] sm:text-[15px]">
+            {currentStepInfo.title}
+          </h2>
 
-          <div
+          <p className="text-[11px] text-slate-400">
+            {STEP_DESCRIPTIONS[currentStep]}
+          </p>
+        </div>
+
+        {/* FORM AREA
+            IMPORTANT:
+            No page-level scrolling.
+            Individual step content must stay compact.
+        */}
+        <div
+          className="
+            min-h-0
+            flex-1
+            overflow-hidden
+            px-3.5
+            pb-3
+            pt-1
+            sm:px-6
+          "
+        >
+          {renderCurrentStep()}
+        </div>
+
+        {/* FOOTER */}
+        <footer
+          className="
+            flex
+            shrink-0
+            items-center
+            justify-between
+            gap-2
+            border-t
+            border-slate-100
+            bg-white
+            px-3.5
+            py-2.5
+            sm:px-6
+            sm:py-3
+          "
+        >
+          <button
+            type="button"
+            onClick={handleBack}
             className="
-              shrink-0
-              px-6
-              pb-2
-              pt-3
-            "
-          >
-            <h2
-              className="
-                text-[15px]
-                font-semibold
-                text-[#17221D]
-              "
-            >
-              {currentStepInfo.title}
-            </h2>
-
-            <p
-              className="
-                mt-0.5
-                text-[11px]
-                text-slate-400
-              "
-            >
-              {STEP_DESCRIPTIONS[currentStep]}
-            </p>
-          </div>
-
-          {/* =================================================
-              FORM AREA
-          ================================================== */}
-
-          <div
-            className="
-              min-h-0
-              flex-1
-              overflow-y-auto
-              px-6
-              pb-4
-              pt-2
-            "
-          >
-            {renderCurrentStep()}
-          </div>
-
-          {/* =================================================
-              FOOTER
-          ================================================== */}
-
-          <footer
-            className="
-              flex
-              shrink-0
+              inline-flex
               items-center
-              justify-between
-              border-t
-              border-slate-100
+              gap-1.5
+              rounded-lg
+              border
+              border-slate-200
               bg-white
-              px-6
-              py-3
+              px-3
+              py-2
+              text-xs
+              font-medium
+              text-slate-600
+              hover:border-slate-300
+              hover:text-slate-800
+              sm:px-3.5
             "
           >
-            {/* Back */}
+            <ArrowLeft size={14} />
 
+            {currentStep === 1
+              ? "Cancel"
+              : "Back"}
+          </button>
+
+          {currentStep <
+          steps.length ? (
             <button
               type="button"
-              onClick={handleBack}
+              onClick={handleNext}
+              disabled={!canContinue}
+              className={`
+                inline-flex
+                items-center
+                gap-1.5
+                rounded-lg
+                px-3.5
+                py-2
+                text-xs
+                font-semibold
+                text-white
+                shadow-sm
+                sm:px-4
+
+                ${
+                  canContinue
+                    ? "bg-[#0B5D3B] hover:bg-[#084A30]"
+                    : "cursor-not-allowed bg-slate-300"
+                }
+              `}
+            >
+              Continue
+              <ArrowRight size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={
+                handleCreateCustomer
+              }
               className="
                 inline-flex
                 items-center
                 gap-1.5
                 rounded-lg
-                border
-                border-slate-200
-                bg-white
+                bg-[#0B5D3B]
                 px-3.5
                 py-2
                 text-xs
-                font-medium
-                text-slate-600
-                transition
-                hover:border-slate-300
-                hover:text-slate-800
+                font-semibold
+                text-white
+                shadow-sm
+                hover:bg-[#084A30]
+                sm:px-4
               "
             >
-              <ArrowLeft size={14} />
-
-              {currentStep === 1
-                ? "Cancel"
-                : "Back"}
+              <Check size={14} />
+              Create Customer
             </button>
-
-            {/* Continue / Create */}
-
-            {currentStep <
-            steps.length ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={!canContinue}
-                className={`
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-lg
-                  px-4
-                  py-2
-                  text-xs
-                  font-semibold
-                  text-white
-                  shadow-sm
-                  transition
-
-                  ${
-                    canContinue
-                      ? "bg-[#0B5D3B] hover:bg-[#084A30]"
-                      : "cursor-not-allowed bg-slate-300"
-                  }
-                `}
-              >
-                Continue
-                <ArrowRight size={14} />
-              </button>
-            ) : (
- <button
-  type="button"
-  onClick={handleCreateCustomer}
-  className="
-    inline-flex
-    items-center
-    gap-1.5
-    rounded-lg
-    bg-[#0B5D3B]
-    px-4
-    py-2
-    text-xs
-    font-semibold
-    text-white
-    shadow-sm
-    transition
-    hover:bg-[#084A30]
-  "
->
-  <Check size={14} />
-  Create Customer
-</button>
-            )}
-          </footer>
-        </div>
+          )}
+        </footer>
       </div>
-     {showRepaymentSchedule && createdLoan && (
-  <RepaymentScheduleModal
-    loan={createdLoan}
-    customer={formData.customer.personal}
-    schedule={
-      createdLoan.repaymentSchedule || []
-    }
-    onClose={() => {
-      setShowRepaymentSchedule(false);
-      navigate("/customers");
-    }}
-  />
-)}
-    </>
+
+      {/* REPAYMENT SCHEDULE PREVIEW MODAL */}
+      {showRepaymentSchedule && createdLoan && (
+        <RepaymentScheduleModal
+          loan={createdLoan}
+          customer={formData.customer.personal}
+          schedule={createdLoan.repaymentSchedule || []}
+          onClose={() => {
+            setShowRepaymentSchedule(false);
+          }}
+        />
+      )}
+    </div>
+    
   );
 };
 

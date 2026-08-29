@@ -1,16 +1,20 @@
-// src/Components/customers/onboarding/ReviewStep.jsx
+// src/components/customers/onboarding/ReviewStep.jsx
 
 import {
   User,
   ShieldCheck,
   Car,
+  Users,
   IndianRupee,
   CheckCircle2,
+  CalendarDays,
+  ChevronRight,
 } from "lucide-react";
 
 const ReviewStep = ({
   data = {},
   onEdit,
+  onViewSchedule,
 }) => {
   const customer = data.customer || {};
   const personal = customer.personal || {};
@@ -20,22 +24,27 @@ const ReviewStep = ({
   const vehicle = data.vehicle || {};
   const rc = data.rc || {};
 
+  const guarantor = data.guarantor || {};
+
   const loan = data.loan || {};
   const interest = loan.interest || {};
   const repayment = loan.repayment || {};
   const calculation = loan.calculation || {};
 
+  /* =====================================================
+     HELPERS
+  ====================================================== */
+
   const money = (value) => {
-    return Number(value || 0).toLocaleString(
-      "en-IN",
-      {
-        maximumFractionDigits: 2,
-      }
-    );
+    return Number(value || 0).toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
+    });
   };
 
   const formatDate = (value) => {
-    if (!value) return "—";
+    if (!value) {
+      return "—";
+    }
 
     const date = new Date(value);
 
@@ -43,14 +52,11 @@ const ReviewStep = ({
       return "—";
     }
 
-    return date.toLocaleDateString(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const documentCount =
@@ -58,243 +64,401 @@ const ReviewStep = ({
       (item) => item?.fileName
     ).length || 0;
 
-  const vehicleName = [
-    vehicle.brand,
-    vehicle.model,
-    vehicle.variant,
-  ]
-    .filter(Boolean)
-    .join(" ") || "—";
+  const vehicleName =
+    [
+      vehicle.brand,
+      vehicle.model,
+      vehicle.variant,
+    ]
+      .filter(Boolean)
+      .join(" ") || "—";
+
+  const guarantorExists =
+    guarantor.hasGuarantor === true;
+
+  const interestAmount =
+    calculation.interestAmount ??
+    calculation.interest ??
+    0;
+
+  const paymentAmount =
+    repayment.method === "Principal"
+      ? calculation.firstPayment || 0
+      : calculation.emiAmount ||
+        calculation.paymentAmount ||
+        0;
+
+  const paymentLabel =
+    repayment.method === "Principal"
+      ? "First Payment"
+      : "EMI";
+
+  const tenure =
+    repayment.tenure
+      ? `${repayment.tenure} ${
+          repayment.tenureUnit || "Months"
+        }`
+      : "—";
+
+  const paymentCount =
+    calculation.numberOfPayments ||
+    calculation.paymentCount ||
+    loan.repaymentSchedule?.length ||
+    0;
 
   return (
-    <div className="space-y-2">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+
+      
 
       {/* =================================================
-          CUSTOMER
-      ================================================== */}
+          COMPACT INFORMATION GRID
+      ================================================= */}
 
-      <ReviewSection
-        icon={User}
-        title="Customer Information"
-        onEdit={() => onEdit?.(1)}
-      >
-        <ReviewGrid columns="4">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-2">
 
-          <ReviewItem
-            label="Name"
-            value={personal.name}
-          />
+        {/* =================================================
+            CUSTOMER
+        ================================================= */}
 
-          <ReviewItem
-            label="Mobile"
-            value={personal.mobileNumber}
-          />
+        <ReviewCard
+          icon={User}
+          title="Customer"
+          onEdit={() => onEdit?.(1)}
+        >
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
 
-          <ReviewItem
-            label="Area"
-            value={personal.area}
-          />
+            <ReviewValue
+              label="Name"
+              value={personal.name}
+            />
 
-          <ReviewItem
-            label="Profession"
-            value={personal.profession}
-          />
+            <ReviewValue
+              label="Mobile"
+              value={personal.mobileNumber}
+            />
 
-        </ReviewGrid>
-      </ReviewSection>
+            <ReviewValue
+              label="Profession"
+              value={personal.profession}
+            />
 
+            <ReviewValue
+              label="Area"
+              value={personal.area}
+            />
 
-      {/* =================================================
-          KYC
-      ================================================== */}
+          </div>
+        </ReviewCard>
 
-      <ReviewSection
-        icon={ShieldCheck}
-        title="KYC & Documents"
-        onEdit={() => onEdit?.(2)}
-      >
-        <ReviewGrid columns="4">
+        {/* =================================================
+            KYC
+        ================================================= */}
 
-          <ReviewItem
-            label="Aadhaar"
-            value={
-              kyc.aadhaarNumber
-                ? maskAadhaar(
-                    kyc.aadhaarNumber
-                  )
-                : "—"
-            }
-          />
+        <ReviewCard
+          icon={ShieldCheck}
+          title="KYC & Documents"
+          onEdit={() => onEdit?.(2)}
+        >
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
 
-          <ReviewItem
-            label="Driving Licence"
-            value={
-              kyc.drivingLicenceNumber
-            }
-          />
+            <ReviewValue
+              label="Aadhaar"
+              value={
+                kyc.aadhaarNumber
+                  ? maskAadhaar(
+                      kyc.aadhaarNumber
+                    )
+                  : "—"
+              }
+            />
 
-          <ReviewItem
-            label="PAN"
-            value={kyc.panNumber}
-          />
+            <ReviewValue
+              label="PAN"
+              value={kyc.panNumber}
+            />
 
-          <ReviewItem
-            label="Documents"
-            value={
-              documentCount > 0
-                ? `${documentCount} uploaded`
-                : "None"
-            }
-            success={
-              documentCount >= 2
-            }
-          />
+            <ReviewValue
+              label="Driving Licence"
+              value={
+                kyc.drivingLicenceNumber
+              }
+            />
 
-        </ReviewGrid>
-      </ReviewSection>
+            <ReviewValue
+              label="Documents"
+              value={
+                documentCount
+                  ? `${documentCount} uploaded`
+                  : "None"
+              }
+              success={
+                documentCount >= 2
+              }
+            />
 
+          </div>
+        </ReviewCard>
 
-      {/* =================================================
-          VEHICLE
-      ================================================== */}
+        {/* =================================================
+            VEHICLE
+        ================================================= */}
 
-      <ReviewSection
-        icon={Car}
-        title="Vehicle & RC"
-        onEdit={() => onEdit?.(3)}
-      >
-        <ReviewGrid columns="4">
+        <ReviewCard
+          icon={Car}
+          title="Vehicle"
+          onEdit={() => onEdit?.(3)}
+        >
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
 
-          <ReviewItem
-            label="Vehicle"
-            value={vehicleName}
-          />
+            <ReviewValue
+              label="Vehicle"
+              value={vehicleName}
+            />
 
-          <ReviewItem
-            label="Type"
-            value={vehicle.vehicleType}
-          />
+            <ReviewValue
+              label="Registration"
+              value={
+                rc.registrationNumber
+              }
+            />
 
-          <ReviewItem
-            label="Registration"
-            value={rc.registrationNumber}
-          />
+            <ReviewValue
+              label="Type"
+              value={
+                vehicle.vehicleType
+              }
+            />
 
-          <ReviewItem
-            label="Manufacturing Year"
-            value={
-              vehicle.manufacturingYear
-            }
-          />
+            <ReviewValue
+              label="Year"
+              value={
+                vehicle.manufacturingYear
+              }
+            />
 
-        </ReviewGrid>
-      </ReviewSection>
+          </div>
+        </ReviewCard>
 
+        {/* =================================================
+            GUARANTOR
+        ================================================= */}
 
-      {/* =================================================
-          LOAN
-      ================================================== */}
+        <ReviewCard
+          icon={Users}
+          title="Guarantor"
+          onEdit={() => onEdit?.(4)}
+        >
+          {guarantorExists ? (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
 
-      <ReviewSection
-        icon={IndianRupee}
-        title="Loan Details"
-        onEdit={() => onEdit?.(5)}
-      >
-        <ReviewGrid columns="4">
+              <ReviewValue
+                label="Name"
+                value={
+                  guarantor.personal?.name
+                }
+              />
 
-          <ReviewItem
-            label="Loan Amount"
-            value={`₹${money(
-              loan.loanAmount
-            )}`}
-            highlight
-          />
+              <ReviewValue
+                label="Mobile"
+                value={
+                  guarantor.personal
+                    ?.mobileNumber
+                }
+              />
 
-          <ReviewItem
-            label="Interest Type"
-            value={
-              interest.type || "—"
-            }
-          />
+              <ReviewValue
+                label="Profession"
+                value={
+                  guarantor.personal
+                    ?.profession
+                }
+              />
 
-          <ReviewItem
-            label="Interest Rate"
-            value={
-              interest.rate
-                ? `${interest.rate}%`
-                : "—"
-            }
-          />
+              <ReviewValue
+                label="Area"
+                value={
+                  guarantor.personal?.area
+                }
+              />
 
-          <ReviewItem
-            label="Tenure"
-            value={
-              repayment.tenure
-                ? `${repayment.tenure} ${
-                    repayment.tenureUnit ||
-                    "Months"
-                  }`
-                : "—"
-            }
-          />
+            </div>
+          ) : (
+            <div className="flex h-[52px] items-center">
+              <div>
+                <p className="text-[10px] font-semibold text-[#17221D]">
+                  No guarantor
+                </p>
 
-          <ReviewItem
-            label="Interest Amount"
-            value={`₹${money(
-              calculation.interestAmount ??
-                calculation.interest ??
-                0
-            )}`}
-          />
-
-          <ReviewItem
-            label={
-              repayment.method ===
-              "Principal"
-                ? "First Payment"
-                : "EMI"
-            }
-            value={`₹${money(
-              repayment.method ===
-              "Principal"
-                ? calculation.firstPayment ||
-                  0
-                : calculation.emiAmount ||
-                  0
-            )}`}
-            highlight
-          />
-
-          <ReviewItem
-            label="Total Payable"
-            value={`₹${money(
-              calculation.totalDue
-            )}`}
-            highlight
-          />
-
-          <ReviewItem
-            label="First Due Date"
-            value={
-              loan.firstDueDate
-                ? formatDate(
-                    loan.firstDueDate
-                  )
-                : "—"
-            }
-          />
-
-        </ReviewGrid>
-      </ReviewSection>
-
+                <p className="mt-0.5 text-[8px] text-slate-400">
+                  Proceeding without a guarantor
+                </p>
+              </div>
+            </div>
+          )}
+        </ReviewCard>
+      </div>
 
       {/* =================================================
-          FINAL READY STATUS
-      ================================================== */}
+          LOAN CARD
+      ================================================= */}
+
+      <div className="mt-2 shrink-0">
+        <ReviewCard
+          icon={IndianRupee}
+          title="Loan Details"
+          onEdit={() => onEdit?.(5)}
+        >
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+
+            <ReviewValue
+              label="Loan Amount"
+              value={`₹${money(
+                loan.loanAmount
+              )}`}
+              highlight
+            />
+
+            <ReviewValue
+              label="Down Payment"
+              value={`₹${money(
+                loan.downPayment
+              )}`}
+            />
+
+            <ReviewValue
+              label="Interest"
+              value={
+                interest.type || "—"
+              }
+            />
+
+            <ReviewValue
+              label="Rate"
+              value={
+                interest.rate
+                  ? `${interest.rate}%`
+                  : "—"
+              }
+            />
+
+            <ReviewValue
+              label={paymentLabel}
+              value={`₹${money(
+                paymentAmount
+              )}`}
+              highlight
+            />
+
+            <ReviewValue
+              label="Tenure"
+              value={tenure}
+            />
+
+            <ReviewValue
+              label="Interest Amount"
+              value={`₹${money(
+                interestAmount
+              )}`}
+            />
+
+            <ReviewValue
+              label="Total Payable"
+              value={`₹${money(
+                calculation.totalDue
+              )}`}
+              highlight
+            />
+
+          </div>
+
+          {/* =================================================
+              SCHEDULE ROW
+          ================================================= */}
+
+          <button
+            type="button"
+            onClick={onViewSchedule}
+            className="
+              mt-2
+              flex
+              w-full
+              items-center
+              justify-between
+              rounded-lg
+              border
+              border-[#D8E9DF]
+              bg-[#F7FBF8]
+              px-3
+              py-2
+              text-left
+              transition
+              hover:border-[#A8D0BD]
+            "
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+
+              <div
+                className="
+                  flex
+                  h-7
+                  w-7
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-md
+                  bg-[#EAF5EF]
+                "
+              >
+                <CalendarDays
+                  size={13}
+                  className="text-[#0B5D3B]"
+                />
+              </div>
+
+              <div className="min-w-0">
+
+                <p className="text-[10px] font-semibold text-[#17221D]">
+                  Repayment Schedule
+                </p>
+
+                <p className="text-[8px] text-slate-400">
+                  {paymentCount} payments
+                  {loan.firstDueDate
+                    ? ` • First due ${formatDate(
+                        loan.firstDueDate
+                      )}`
+                    : ""}
+                </p>
+
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+
+              <span className="text-[9px] font-semibold text-[#0B5D3B]">
+                View
+              </span>
+
+              <ChevronRight
+                size={12}
+                className="text-[#0B5D3B]"
+              />
+
+            </div>
+          </button>
+        </ReviewCard>
+      </div>
+
+      {/* =================================================
+          READY STATUS
+      ================================================= */}
 
       <div
         className="
+          mt-2
           flex
+          shrink-0
           items-center
           gap-2
           rounded-lg
@@ -305,32 +469,43 @@ const ReviewStep = ({
           py-2
         "
       >
-        <CheckCircle2
-          size={15}
-          className="shrink-0 text-[#0B5D3B]"
-        />
+        <div
+          className="
+            flex
+            h-6
+            w-6
+            shrink-0
+            items-center
+            justify-center
+            rounded-full
+            bg-[#EAF5EF]
+          "
+        >
+          <CheckCircle2
+            size={13}
+            className="text-[#0B5D3B]"
+          />
+        </div>
 
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-[#17221D]">
+          <p className="text-[10px] font-semibold leading-tight text-[#17221D]">
             Ready to create customer
           </p>
 
-          <p className="text-[9px] text-slate-400">
-            Review the above information before confirming.
+          <p className="text-[8px] leading-tight text-slate-400">
+            All required information has been reviewed.
           </p>
         </div>
       </div>
-
     </div>
   );
 };
 
-
 /* =========================================================
-   SECTION
+   REVIEW CARD
 ========================================================= */
 
-const ReviewSection = ({
+const ReviewCard = ({
   icon: Icon,
   title,
   onEdit,
@@ -339,12 +514,15 @@ const ReviewSection = ({
   return (
     <section
       className="
-        rounded-lg
+        min-h-0
+        overflow-hidden
+        rounded-xl
         border
         border-slate-200
         bg-white
       "
     >
+      {/* HEADER */}
 
       <div
         className="
@@ -357,7 +535,6 @@ const ReviewSection = ({
           py-2
         "
       >
-
         <div
           className="
             flex
@@ -379,7 +556,7 @@ const ReviewSection = ({
         <h3
           className="
             flex-1
-            text-[11px]
+            text-[10px]
             font-semibold
             text-[#17221D]
           "
@@ -391,59 +568,34 @@ const ReviewSection = ({
           type="button"
           onClick={onEdit}
           className="
-            text-[9px]
+            rounded-md
+            px-1.5
+            py-1
+            text-[8px]
             font-semibold
             text-[#0B5D3B]
-            hover:underline
+            transition
+            hover:bg-[#EAF5EF]
           "
         >
           Edit
         </button>
-
       </div>
 
-      <div className="px-3 py-2">
+      {/* BODY */}
+
+      <div className="p-3">
         {children}
       </div>
-
     </section>
   );
 };
 
-
 /* =========================================================
-   GRID
+   REVIEW VALUE
 ========================================================= */
 
-const ReviewGrid = ({
-  children,
-  columns = "4",
-}) => {
-  return (
-    <div
-      className={`
-        grid
-        grid-cols-2
-        gap-x-3
-        gap-y-2
-        ${
-          columns === "4"
-            ? "md:grid-cols-4"
-            : "md:grid-cols-3"
-        }
-      `}
-    >
-      {children}
-    </div>
-  );
-};
-
-
-/* =========================================================
-   ITEM
-========================================================= */
-
-const ReviewItem = ({
+const ReviewValue = ({
   label,
   value,
   highlight = false,
@@ -455,7 +607,7 @@ const ReviewItem = ({
       <p
         className="
           truncate
-          text-[8px]
+          text-[7px]
           font-medium
           uppercase
           tracking-wide
@@ -469,13 +621,10 @@ const ReviewItem = ({
         className={`
           mt-0.5
           truncate
-          text-[11px]
+          text-[10px]
           font-semibold
-
           ${
-            success
-              ? "text-[#0B5D3B]"
-              : highlight
+            success || highlight
               ? "text-[#0B5D3B]"
               : "text-[#17221D]"
           }
@@ -487,7 +636,6 @@ const ReviewItem = ({
     </div>
   );
 };
-
 
 /* =========================================================
    MASK AADHAAR

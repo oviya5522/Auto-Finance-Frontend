@@ -15,20 +15,20 @@ export const CUSTOMER_SCHEMA = {
     updatedAt: "",
     status: "Draft",
 
- personal: {
-  date: "",
-  name: "",
-  mobileNumber: "",
-  alternateMobileNumber: "",
-  address: "",
-  area: "",
-  landmark: "",
-  pincode: "",
-  ownHouse: null,
-  profession: "",
-  groupOrVehicleType: "",
-  referredBy: "",
-},
+    personal: {
+      date: "",
+      name: "",
+      mobileNumber: "",
+      alternateMobileNumber: "",
+      address: "",
+      area: "",
+      landmark: "",
+      pincode: "",
+      ownHouse: null,
+      profession: "",
+      groupOrVehicleType: "",
+      referredBy: "",
+    },
 
     kyc: {
       aadhaarNumber: "",
@@ -52,63 +52,66 @@ export const CUSTOMER_SCHEMA = {
   /**
    * Vehicle information
    */
-vehicle: {
-  id: "",
+  vehicle: {
+    id: "",
 
-  vehicleType: "",
-  brand: "",
-  model: "",
-  variant: "",
-  colour: "",
+    vehicleType: "",
+    brand: "",
+    model: "",
+    variant: "",
+    colour: "",
 
-  manufacturingYear: "",
-  fuelType: "",
+    manufacturingYear: "",
+    fuelType: "",
 
-  vehicleValue: 0,
-},
+    vehicleValue: 0,
+  },
 
-rc: {
-  rcBookNumber: "",
-  registrationNumber: "",
-  location: "",
-  dateOfRegistration: "",
+  /**
+   * RC / Registration / Insurance information
+   */
+  rc: {
+    rcBookNumber: "",
+    registrationNumber: "",
+    location: "",
+    dateOfRegistration: "",
 
-  chassisNumber: "",
-  engineNumber: "",
+    chassisNumber: "",
+    engineNumber: "",
 
-  existingFinancier: "None",
-  hypothecation: false,
+    existingFinancier: "None",
+    hypothecation: false,
 
-  taxExpiry: "",
-  permitExpiry: "",
-  fcExpiry: "",
+    taxExpiry: "",
+    permitExpiry: "",
+    fcExpiry: "",
 
-  insurance: {
-    companyName: "",
-    policyNumber: "",
-    expiryDate: "",
+    insurance: {
+      companyName: "",
+      policyNumber: "",
+      expiryDate: "",
 
-    document: {
-      fileName: "",
-      fileType: "",
-      fileSize: 0,
-      fileData: "",
-      uploadedAt: "",
+      document: {
+        fileName: "",
+        fileType: "",
+        fileSize: 0,
+        fileData: "",
+        uploadedAt: "",
+      },
     },
-  },
 
-  endorsement: {
-    enabled: false,
-  },
+    endorsement: {
+      enabled: false,
+    },
 
-  remarks: "",
-},
+    remarks: "",
+  },
 
   /**
    * Guarantor information
    *
    * hasGuarantor controls whether the guarantor
-   * form is required during onboarding.
+   * form is shown during onboarding.
    */
   guarantor: {
     hasGuarantor: false,
@@ -146,7 +149,13 @@ rc: {
   },
 
   /**
-   * Initial loan information
+   * Loan information
+   *
+   * Calculation model:
+   *
+   * 1. Flat
+   * 2. Reducing Balance + EMI
+   * 3. Reducing Balance + Principal
    */
   loan: {
     id: "",
@@ -178,37 +187,74 @@ rc: {
      * EMI
      * Principal
      *
-     * frequency:
-     * Daily
-     * Weekly
-     * Monthly
+     * NOTE:
+     * For Flat interest, repayment.method is ignored.
+     *
+     * For Reducing Balance:
+     * EMI      = fixed EMI
+     * Principal = fixed principal
      */
-    repayment: {
-      method: "EMI",
-      frequency: "Monthly",
-      tenure: 0,
-      tenureUnit: "Months",
-    },
+   repayment: {
+  method: "EMI",
+  frequency: "Monthly",
+  tenure: 0,
+  tenureUnit: "Months",
+},
 
     /**
-     * System-calculated values
+     * System-calculated values.
      *
-     * These should NOT normally be manually entered.
+     * These should not normally be entered manually.
      */
     calculation: {
       principal: 0,
+
       interestAmount: 0,
+
       totalDue: 0,
-      emiAmount: 0,
+
+      /**
+       * Used only for Reducing + EMI.
+       *
+       * Flat uses paymentAmount.
+       * Reducing + Principal uses firstPayment/paymentAmount.
+       */
+      emiAmount: null,
+
       numberOfPayments: 0,
 
       /**
-       * Used for principal-based repayment.
+       * Principal per payment.
        */
       principalPerPayment: 0,
+
+      /**
+       * Interest per payment.
+       */
       interestPerPayment: 0,
+
+      /**
+       * First scheduled payment.
+       */
       firstPayment: 0,
+
+      /**
+       * Last scheduled payment.
+       */
       lastPayment: 0,
+
+      /**
+       * General payment amount.
+       *
+       * Flat:
+       *   fixed payment
+       *
+       * Reducing + EMI:
+       *   EMI amount
+       *
+       * Reducing + Principal:
+       *   first payment amount
+       */
       paymentAmount: 0,
     },
 

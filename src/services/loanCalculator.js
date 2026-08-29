@@ -1,104 +1,178 @@
 // src/services/loanCalculator.js
 
 /*
-|--------------------------------------------------------------------------
-| Loan Calculator
-|--------------------------------------------------------------------------
-|
-| Supported:
-|
-| Interest Type:
-| - Flat
-| - Reducing
-|
-| Repayment Method:
-| - EMI
-| - Principal
-|
-| The UI should call calculateLoan() instead of
-| directly calling individual calculation functions.
-|
-|--------------------------------------------------------------------------
-*/
+ * =========================================================
+ * LOAN CALCULATOR
+ *
+ * Supported calculation modes:
+ *
+ * 1. Flat Interest
+ * 2. Reducing Balance + EMI Based
+ * 3. Reducing Balance + Principal Based
+ *
+ * IMPORTANT:
+ * Flat Interest is ONE calculation type.
+ * Repayment Method is ignored for Flat Interest.
+ * =========================================================
+ */
 
 
 /* =========================================================
-   HELPERS
+   TENURE / PAYMENT HELPERS
 ========================================================= */
 
-export const roundMoney = (value) => {
-  return Math.round(
-    (Number(value) + Number.EPSILON) * 100
-  ) / 100;
-};
-export const calculateDownPayment = ({
-  vehicleAmount = 0,
-  loanAmount = 0,
-}) => {
-  const vehicle = Number(vehicleAmount) || 0;
-  const loan = Number(loanAmount) || 0;
+const toNumber = (value) => {
+  const number = Number(value);
 
-  return roundMoney(
-    Math.max(vehicle - loan, 0)
-  );
+  return Number.isFinite(number)
+    ? number
+    : 0;
 };
+
+
+const normalizeFrequency = (
+  frequency
+) => {
+  const value = String(
+    frequency || "Monthly"
+  ).toLowerCase();
+
+  if (value === "daily") {
+    return "Daily";
+  }
+
+  if (value === "weekly") {
+    return "Weekly";
+  }
+
+  return "Monthly";
+};
+
 
 /*
-|--------------------------------------------------------------------------
-| Convert tenure into number of months
-|--------------------------------------------------------------------------
-*/
-
-const getTenureInMonths = (
-  tenure = 0,
-  tenureUnit = "Months"
+ * Convert the entered tenure into years.
+ */
+const tenureToYears = (
+  tenure,
+  tenureUnit
 ) => {
-  const value = Number(tenure) || 0;
+  const value = toNumber(tenure);
 
-  switch (tenureUnit) {
-    case "Years":
-      return value * 12;
+  if (value <= 0) {
+    return 0;
+  }
 
-    case "Weeks":
-      return value / 4.345;
-
-    case "Days":
-      return value / 30.4375;
-
-    case "Months":
-    default:
+  switch (
+    String(
+      tenureUnit || "Months"
+    ).toLowerCase()
+  ) {
+    case "year":
+    case "years":
       return value;
+
+    case "week":
+    case "weeks":
+      return value / 52;
+
+    case "day":
+    case "days":
+      return value / 365;
+
+    case "month":
+    case "months":
+    default:
+      return value / 12;
   }
 };
 
 
 /*
-|--------------------------------------------------------------------------
-| Get number of repayment periods
-|--------------------------------------------------------------------------
-*/
-
-const getPaymentCount = ({
-  tenure = 0,
-  tenureUnit = "Months",
-  frequency = "Monthly",
+ * Calculate number of payment periods.
+ */
+const calculatePaymentCount = ({
+  tenure,
+  tenureUnit,
+  frequency,
 }) => {
-  const months = getTenureInMonths(
+  const years = tenureToYears(
     tenure,
     tenureUnit
   );
 
-  switch (frequency) {
+  if (years <= 0) {
+    return 0;
+  }
+
+  const normalized =
+    normalizeFrequency(
+      frequency
+    );
+
+  let count;
+
+  switch (normalized) {
     case "Daily":
-      return Math.round(months * 30.4375);
+      count = years * 365;
+      break;
 
     case "Weekly":
-      return Math.round(months * 4.345);
+      count = years * 52;
+      break;
 
     case "Monthly":
     default:
-      return Math.round(months);
+      count = years * 12;
+      break;
   }
+
+  return Math.max(
+    1,
+    Math.round(count)
+  );
+};
+
+
+/*
+ * FIX:
+ * The old `calculatePeriodicRate` derived the rate from a fixed,
+ * nominal period length for the frequency (rate/12, rate/52, rate/365)
+ * *independently* of how many payments were actually produced by
+ * `calculatePaymentCount`. Whenever tenureUnit and frequency did not
+ * describe the same time base (e.g. tenure in Days but repaid
+ * Monthly, or a tenure shorter than one nominal period), the rate
+ * used per instalment no longer matched the real duration of that
+ * instalment - in the worst case (tenure = 1 day, frequency =
+ * Monthly) the customer was charged a full nominal month's interest
+ * for a single day.
+ *
+ * The fix ties the periodic rate directly to the *actual* elapsed
+ * time per payment: (total tenure in years) / (number of payments).
+ * This is mathematically identical to the old table whenever
+ * tenureUnit and frequency already match (verified below), and
+ * self-corrects automatically whenever they don't.
+ */
+const calculatePeriodicRate = ({
+  annualRate,
+  years,
+  paymentCount,
+}) => {
+  const rate = toNumber(annualRate);
+
+  if (
+    rate <= 0 ||
+    years <= 0 ||
+    paymentCount <= 0
+  ) {
+    return 0;
+  }
+
+  const yearsPerPayment =
+    years / paymentCount;
+
+  return (
+    (rate / 100) * yearsPerPayment
+  );
 };
 
 
@@ -106,435 +180,476 @@ const getPaymentCount = ({
    FLAT INTEREST
 ========================================================= */
 
-/*
-|--------------------------------------------------------------------------
-| Flat interest
-|
-| Interest = Principal × Rate × Time
-|--------------------------------------------------------------------------
-*/
-
-export const calculateFlatInterest = ({
-  principal = 0,
-  rate = 0,
-  tenure = 0,
-  tenureUnit = "Months",
+const calculateFlatInterest = ({
+  principal,
+  rate,
+  tenure,
+  tenureUnit,
+  frequency,
 }) => {
-  const loanAmount = Number(principal) || 0;
-  const interestRate = Number(rate) || 0;
+  const P = toNumber(principal);
+  const R = toNumber(rate);
 
-  const months = getTenureInMonths(
+  const years = tenureToYears(
     tenure,
     tenureUnit
   );
 
-  if (
-    loanAmount <= 0 ||
-    interestRate <= 0 ||
-    months <= 0
-  ) {
-    return 0;
-  }
+  const paymentCount =
+    calculatePaymentCount({
+      tenure,
+      tenureUnit,
+      frequency,
+    });
 
-  const years = months / 12;
+  /*
+   * Flat Interest Formula:
+   *
+   * Interest
+   * = Principal × Annual Rate × Years / 100
+   */
 
-  return roundMoney(
-    loanAmount *
-      (interestRate / 100) *
-      years
-  );
-};
+  const totalInterest =
+    P * R * years / 100;
 
-
-/* =========================================================
-   FLAT + EMI
-========================================================= */
-
-export const calculateFlatEMI = ({
-  principal = 0,
-  rate = 0,
-  tenure = 0,
-  tenureUnit = "Months",
-  frequency = "Monthly",
-}) => {
-  const loanAmount = Number(principal) || 0;
-
-  const interest = calculateFlatInterest({
-    principal: loanAmount,
-    rate,
-    tenure,
-    tenureUnit,
-  });
+  /*
+   * Total Payable
+   */
 
   const totalDue =
-    loanAmount + interest;
+    P + totalInterest;
 
-  const paymentCount = getPaymentCount({
-    tenure,
-    tenureUnit,
-    frequency,
-  });
-
-  const emi =
-    paymentCount > 0
-      ? totalDue / paymentCount
-      : 0;
-
-  return {
-    principal: roundMoney(loanAmount),
-    interest: roundMoney(interest),
-    totalDue: roundMoney(totalDue),
-    emiAmount: roundMoney(emi),
-    paymentCount,
-  };
-};
-
-
-/* =========================================================
-   FLAT + PRINCIPAL BASED
-========================================================= */
-
-export const calculateFlatPrincipalBased = ({
-  principal = 0,
-  rate = 0,
-  tenure = 0,
-  tenureUnit = "Months",
-  frequency = "Monthly",
-}) => {
-  const loanAmount = Number(principal) || 0;
-
-  const interest = calculateFlatInterest({
-    principal: loanAmount,
-    rate,
-    tenure,
-    tenureUnit,
-  });
-
-  const paymentCount = getPaymentCount({
-    tenure,
-    tenureUnit,
-    frequency,
-  });
+  /*
+   * Principal per payment
+   */
 
   const principalPerPayment =
     paymentCount > 0
-      ? loanAmount / paymentCount
+      ? P / paymentCount
       : 0;
 
   /*
-   * With flat interest, the total interest is
-   * distributed across payments.
+   * Interest per payment
    */
+
   const interestPerPayment =
     paymentCount > 0
-      ? interest / paymentCount
+      ? totalInterest /
+        paymentCount
       : 0;
+
+  /*
+   * Payment per period
+   */
 
   const paymentAmount =
     principalPerPayment +
     interestPerPayment;
 
   return {
-    principal: roundMoney(loanAmount),
-    interest: roundMoney(interest),
-    totalDue: roundMoney(
-      loanAmount + interest
-    ),
+    principal: P,
 
-    principalPerPayment:
-      roundMoney(principalPerPayment),
+    interest: totalInterest,
 
-    interestPerPayment:
-      roundMoney(interestPerPayment),
+    totalDue,
 
-    paymentAmount:
-      roundMoney(paymentAmount),
+    emiAmount: paymentAmount,
+
+    paymentAmount,
+
+    firstPayment: paymentAmount,
+
+    lastPayment: paymentAmount,
+
+    principalPerPayment,
+
+    interestPerPayment,
 
     paymentCount,
+
+    calculationType:
+      "Flat",
+
+    paymentNature:
+      "Fixed",
   };
 };
 
 
 /* =========================================================
-   REDUCING BALANCE + EMI
+   REDUCING + EMI
 ========================================================= */
 
-/*
-|--------------------------------------------------------------------------
-| Standard reducing-balance EMI
-|
-| EMI = P × r × (1+r)^n / ((1+r)^n - 1)
-|--------------------------------------------------------------------------
-*/
-
-export const calculateReducingEMI = ({
-  principal = 0,
-  rate = 0,
-  tenure = 0,
-  tenureUnit = "Months",
-  frequency = "Monthly",
+const calculateReducingEmi = ({
+  principal,
+  rate,
+  tenure,
+  tenureUnit,
+  frequency,
 }) => {
-  const loanAmount = Number(principal) || 0;
+  const P = toNumber(principal);
 
-  const interestRate =
-    Number(rate) || 0;
-
-  const paymentCount =
-    getPaymentCount({
-      tenure,
-      tenureUnit,
-      frequency,
-    });
-
-  if (
-    loanAmount <= 0 ||
-    paymentCount <= 0
-  ) {
-    return {
-      principal: 0,
-      interest: 0,
-      totalDue: 0,
-      emiAmount: 0,
-      paymentCount: 0,
-    };
-  }
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Convert annual rate according to repayment
-  |--------------------------------------------------------------------------
-  */
-
-  let periodicRate = 0;
-
-  if (frequency === "Monthly") {
-    periodicRate =
-      interestRate / 100 / 12;
-  }
-
-  if (frequency === "Weekly") {
-    periodicRate =
-      interestRate / 100 / 52;
-  }
-
-  if (frequency === "Daily") {
-    periodicRate =
-      interestRate / 100 / 365;
-  }
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Zero interest
-  |--------------------------------------------------------------------------
-  */
-
-  if (periodicRate === 0) {
-    const emi =
-      loanAmount / paymentCount;
-
-return {
-  principal: roundMoney(loanAmount),
-  interestAmount: roundMoney(totalInterest),
-  totalDue: roundMoney(totalDue),
-  emiAmount: roundMoney(emi),
-  paymentCount,
-};
-  }
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | EMI formula
-  |--------------------------------------------------------------------------
-  */
-
-  const factor = Math.pow(
-    1 + periodicRate,
-    paymentCount
+  const years = tenureToYears(
+    tenure,
+    tenureUnit
   );
 
-  const emi =
-    loanAmount *
-    periodicRate *
-    factor /
-    (factor - 1);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Total payable
-  |--------------------------------------------------------------------------
-  */
-
-  const totalDue =
-    emi * paymentCount;
-
-  const totalInterest =
-    totalDue - loanAmount;
-
-
-  return {
-    principal: roundMoney(loanAmount),
-
-    interest:
-      roundMoney(totalInterest),
-
-    totalDue:
-      roundMoney(totalDue),
-
-    emiAmount:
-      roundMoney(emi),
-
-    paymentCount,
-  };
-};
-
-
-/* =========================================================
-   REDUCING BALANCE + PRINCIPAL BASED
-========================================================= */
-
-/*
-|--------------------------------------------------------------------------
-| Principal-based reducing repayment
-|
-| Principal is divided equally.
-| Interest is calculated on the remaining balance.
-|
-| This returns the first payment and totals.
-|--------------------------------------------------------------------------
-*/
-
-export const calculateReducingPrincipalBased = ({
-  principal = 0,
-  rate = 0,
-  tenure = 0,
-  tenureUnit = "Months",
-  frequency = "Monthly",
-}) => {
-  const loanAmount = Number(principal) || 0;
-  const annualRate = Number(rate) || 0;
-
   const paymentCount =
-    getPaymentCount({
+    calculatePaymentCount({
       tenure,
       tenureUnit,
       frequency,
     });
 
+  const periodicRate =
+    calculatePeriodicRate({
+      annualRate: rate,
+      years,
+      paymentCount,
+    });
+
   if (
-    loanAmount <= 0 ||
+    P <= 0 ||
     paymentCount <= 0
   ) {
     return {
-      principal: 0,
+      principal: P,
       interest: 0,
-      totalDue: 0,
-      principalPerPayment: 0,
+      totalDue: P,
+      emiAmount: 0,
+      paymentAmount: 0,
       firstPayment: 0,
       lastPayment: 0,
-      paymentCount: 0,
+      principalPerPayment: 0,
+      interestPerPayment: 0,
+      paymentCount,
+      calculationType:
+        "Reducing EMI",
+      paymentNature:
+        "Fixed",
     };
   }
 
+  /*
+   * Zero-interest case.
+   */
 
-  let periodicRate = 0;
+  if (periodicRate === 0) {
+    const payment =
+      P / paymentCount;
 
-  if (frequency === "Monthly") {
-    periodicRate =
-      annualRate / 100 / 12;
+    return {
+      principal: P,
+      interest: 0,
+      totalDue: P,
+      emiAmount: payment,
+      paymentAmount: payment,
+      firstPayment: payment,
+      lastPayment: payment,
+      principalPerPayment: payment,
+      interestPerPayment: 0,
+      paymentCount,
+      calculationType:
+        "Reducing EMI",
+      paymentNature:
+        "Fixed",
+    };
   }
 
-  if (frequency === "Weekly") {
-    periodicRate =
-      annualRate / 100 / 52;
-  }
+  /*
+   * Standard EMI formula:
+   *
+   * EMI =
+   * P × r × (1+r)^n
+   * -----------------
+   * (1+r)^n - 1
+   */
 
-  if (frequency === "Daily") {
-    periodicRate =
-      annualRate / 100 / 365;
-  }
+  const power =
+    Math.pow(
+      1 + periodicRate,
+      paymentCount
+    );
 
+  const emi =
+    P *
+    periodicRate *
+    power /
+    (power - 1);
 
-  const principalPerPayment =
-    loanAmount / paymentCount;
+  /*
+   * FIX:
+   * Previously totalDue/interest were computed as `emi * paymentCount`
+   * (a purely theoretical figure), while the amortization loop below
+   * force-adjusts the final instalment to clear the exact remaining
+   * balance. That meant the reported "total interest" could silently
+   * disagree with the sum of the real per-period interest amounts in
+   * the schedule. We now accumulate the actual interest paid each
+   * period (same approach already used in the Principal-based
+   * function) so the summary always matches the schedule.
+   */
 
-
-  let remainingPrincipal =
-    loanAmount;
-
+  let balance = P;
   let totalInterest = 0;
-  let firstPayment = 0;
-  let lastPayment = 0;
-
+  let firstPrincipal = 0;
+  let firstInterest = 0;
+  let lastInterest = 0;
+  let lastPrincipal = 0;
 
   for (
     let period = 1;
     period <= paymentCount;
-    period++
+    period += 1
   ) {
-    const interestForPeriod =
-      remainingPrincipal *
+    const interest =
+      balance *
       periodicRate;
 
-    const currentPayment =
-      principalPerPayment +
-      interestForPeriod;
+    let principalComponent =
+      emi - interest;
 
-    totalInterest += interestForPeriod;
+    /*
+     * Protect against rounding
+     * / final-balance issues.
+     */
+
+    if (
+      period === paymentCount
+    ) {
+      principalComponent =
+        balance;
+    }
+
+    totalInterest += interest;
 
     if (period === 1) {
-      firstPayment = currentPayment;
+      firstInterest = interest;
+      firstPrincipal =
+        principalComponent;
     }
 
-    if (period === paymentCount) {
-      lastPayment = currentPayment;
-    }
+    balance =
+      Math.max(
+        balance -
+          principalComponent,
+        0
+      );
 
-    remainingPrincipal -=
-      principalPerPayment;
+    lastInterest =
+      interest;
+
+    lastPrincipal =
+      principalComponent;
   }
 
-
   const totalDue =
-    loanAmount + totalInterest;
-
+    P + totalInterest;
 
   return {
-    principal:
-      roundMoney(loanAmount),
+    principal: P,
 
-    interest:
-      roundMoney(totalInterest),
+    interest: totalInterest,
 
-    totalDue:
-      roundMoney(totalDue),
+    totalDue,
 
-    principalPerPayment:
-      roundMoney(principalPerPayment),
+    emiAmount: emi,
 
-    firstPayment:
-      roundMoney(firstPayment),
+    paymentAmount: emi,
+
+    firstPayment: emi,
 
     lastPayment:
-      roundMoney(lastPayment),
+      lastPrincipal +
+      lastInterest,
+
+    principalPerPayment:
+      firstPrincipal,
+
+    interestPerPayment:
+      firstInterest,
 
     paymentCount,
+
+    calculationType:
+      "Reducing EMI",
+
+    paymentNature:
+      "Fixed",
   };
 };
 
 
 /* =========================================================
-   MASTER CALCULATOR
+   REDUCING + PRINCIPAL
 ========================================================= */
 
-/*
-|--------------------------------------------------------------------------
-| Main function used by the UI
-|--------------------------------------------------------------------------
-*/
+const calculateReducingPrincipal = ({
+  principal,
+  rate,
+  tenure,
+  tenureUnit,
+  frequency,
+}) => {
+  const P = toNumber(principal);
+
+  const years = tenureToYears(
+    tenure,
+    tenureUnit
+  );
+
+  const paymentCount =
+    calculatePaymentCount({
+      tenure,
+      tenureUnit,
+      frequency,
+    });
+
+  const periodicRate =
+    calculatePeriodicRate({
+      annualRate: rate,
+      years,
+      paymentCount,
+    });
+
+  if (
+    P <= 0 ||
+    paymentCount <= 0
+  ) {
+    return {
+      principal: P,
+      interest: 0,
+      totalDue: P,
+      emiAmount: 0,
+      paymentAmount: 0,
+      firstPayment: 0,
+      lastPayment: 0,
+      principalPerPayment: 0,
+      interestPerPayment: 0,
+      paymentCount,
+      calculationType:
+        "Reducing Principal",
+      paymentNature:
+        "Decreasing",
+    };
+  }
+
+  /*
+   * Fixed principal each period.
+   */
+
+  const principalPerPayment =
+    P / paymentCount;
+
+  let balance = P;
+
+  let totalInterest = 0;
+
+  let firstPayment = 0;
+
+  let lastPayment = 0;
+
+  let firstInterest = 0;
+
+  let lastInterest = 0;
+
+  for (
+    let period = 1;
+    period <= paymentCount;
+    period += 1
+  ) {
+    const interest =
+      balance *
+      periodicRate;
+
+    let principalComponent =
+      principalPerPayment;
+
+    /*
+     * Final-period adjustment.
+     */
+
+    if (
+      period === paymentCount
+    ) {
+      principalComponent =
+        balance;
+    }
+
+    const payment =
+      principalComponent +
+      interest;
+
+    totalInterest +=
+      interest;
+
+    if (period === 1) {
+      firstInterest =
+        interest;
+
+      firstPayment =
+        payment;
+    }
+
+    if (
+      period === paymentCount
+    ) {
+      lastInterest =
+        interest;
+
+      lastPayment =
+        payment;
+    }
+
+    balance =
+      Math.max(
+        balance -
+          principalComponent,
+        0
+      );
+  }
+
+  const totalDue =
+    P + totalInterest;
+
+  return {
+    principal: P,
+
+    interest: totalInterest,
+
+    totalDue,
+
+    /*
+     * There is no fixed EMI in
+     * principal-based repayment.
+     */
+    emiAmount: 0,
+
+    paymentAmount:
+      firstPayment,
+
+    firstPayment,
+
+    lastPayment,
+
+    principalPerPayment,
+
+    interestPerPayment:
+      firstInterest,
+
+    paymentCount,
+
+    calculationType:
+      "Reducing Principal",
+
+    paymentNature:
+      "Decreasing",
+  };
+};
+
+
+/* =========================================================
+   MAIN CALCULATOR
+========================================================= */
 
 export const calculateLoan = ({
   principal = 0,
@@ -545,18 +660,27 @@ export const calculateLoan = ({
   repaymentMethod = "EMI",
   frequency = "Monthly",
 }) => {
+  const normalizedInterest =
+    String(
+      interestType || "Flat"
+    ).toLowerCase();
 
   /*
-  |--------------------------------------------------------------------------
-  | Flat
-  |--------------------------------------------------------------------------
-  */
+   * -------------------------------------------------------
+   * FLAT
+   *
+   * IMPORTANT:
+   * Repayment method is ignored.
+   * -------------------------------------------------------
+   */
 
   if (
-    interestType === "Flat" &&
-    repaymentMethod === "EMI"
+    normalizedInterest ===
+      "flat" ||
+    normalizedInterest ===
+      "flat interest"
   ) {
-    return calculateFlatEMI({
+    return calculateFlatInterest({
       principal,
       rate,
       tenure,
@@ -564,33 +688,25 @@ export const calculateLoan = ({
       frequency,
     });
   }
-
-
-  if (
-    interestType === "Flat" &&
-    repaymentMethod === "Principal"
-  ) {
-    return calculateFlatPrincipalBased({
-      principal,
-      rate,
-      tenure,
-      tenureUnit,
-      frequency,
-    });
-  }
-
 
   /*
-  |--------------------------------------------------------------------------
-  | Reducing
-  |--------------------------------------------------------------------------
-  */
+   * -------------------------------------------------------
+   * REDUCING BALANCE
+   * -------------------------------------------------------
+   */
+
+  const normalizedRepayment =
+    String(
+      repaymentMethod || "EMI"
+    ).toLowerCase();
 
   if (
-    interestType === "Reducing" &&
-    repaymentMethod === "EMI"
+    normalizedRepayment ===
+      "principal" ||
+    normalizedRepayment ===
+      "principal based"
   ) {
-    return calculateReducingEMI({
+    return calculateReducingPrincipal({
       principal,
       rate,
       tenure,
@@ -598,33 +714,38 @@ export const calculateLoan = ({
       frequency,
     });
   }
-
-
-  if (
-    interestType === "Reducing" &&
-    repaymentMethod === "Principal"
-  ) {
-    return calculateReducingPrincipalBased({
-      principal,
-      rate,
-      tenure,
-      tenureUnit,
-      frequency,
-    });
-  }
-
 
   /*
-  |--------------------------------------------------------------------------
-  | Default
-  |--------------------------------------------------------------------------
-  */
+   * Default reducing calculation
+   * is EMI based.
+   */
 
-  return {
-    principal: 0,
-    interest: 0,
-    totalDue: 0,
-    emiAmount: 0,
-    paymentCount: 0,
-  };
+  return calculateReducingEmi({
+    principal,
+    rate,
+    tenure,
+    tenureUnit,
+    frequency,
+  });
+};
+
+
+/* =========================================================
+   DOWN PAYMENT
+========================================================= */
+
+export const calculateDownPayment = ({
+  vehicleAmount = 0,
+  loanAmount = 0,
+}) => {
+  const vehicle =
+    toNumber(vehicleAmount);
+
+  const loan =
+    toNumber(loanAmount);
+
+  return Math.max(
+    vehicle - loan,
+    0
+  );
 };

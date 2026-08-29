@@ -1,4 +1,4 @@
-// src/Components/customers/loans/RepaymentScheduleModal.jsx
+// src/components/customers/loans/RepaymentScheduleModal.jsx
 
 import {
   X,
@@ -52,10 +52,12 @@ const RepaymentScheduleModal = ({
     });
   };
 
-  const firstPayment =
-    repayment.method === "Principal"
-      ? schedule[0]?.paymentAmount || 0
-      : calculation.emiAmount || 0;
+ const firstPayment =
+  loan.interest?.type === "Flat"
+    ? calculation.paymentAmount || schedule[0]?.paymentAmount || 0
+    : repayment.method === "Principal"
+    ? schedule[0]?.paymentAmount || 0
+    : calculation.emiAmount || 0;
 
   const totalInterest =
     calculation.interestAmount ??
@@ -215,10 +217,12 @@ const RepaymentScheduleModal = ({
 
           <SummaryItem
             label={
-              repayment.method === "Principal"
-                ? "First Payment"
-                : "EMI"
-            }
+  loan.interest?.type === "Flat"
+    ? "Payment"
+    : repayment.method === "Principal"
+    ? "First Payment"
+    : "EMI"
+}
             value={`₹${money(
               firstPayment
             )}`}
@@ -226,11 +230,14 @@ const RepaymentScheduleModal = ({
           />
 
           <SummaryItem
-            label="Payments"
-            value={
-              schedule.length || "—"
-            }
-          />
+  label="Payments"
+  value={
+    calculation.numberOfPayments ||
+    calculation.paymentCount ||
+    schedule.length ||
+    "—"
+  }
+/>
 
           <SummaryItem
             label="First Due"
@@ -558,10 +565,11 @@ const RepaymentScheduleModal = ({
             <IndianRupee size={13} />
 
             <span>
-              {repayment.method ===
-              "Principal"
-                ? "Principal-based repayment"
-                : "EMI-based repayment"}
+              {loan.interest?.type === "Flat"
+  ? "Flat interest repayment"
+  : repayment.method === "Principal"
+  ? "Principal-based repayment"
+  : "EMI-based repayment"}
             </span>
           </div>
 

@@ -1,4 +1,4 @@
-// src/Components/customers/onboarding/KycDocumentsStep.jsx
+// src/components/customers/onboarding/KycDocumentsStep.jsx
 
 import {
   useEffect,
