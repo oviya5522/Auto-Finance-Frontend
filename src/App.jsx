@@ -9,7 +9,7 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import Sidebar from "./components/SideBar";
+import SideBar from "./components/SideBar";
 
 import CustomerPage from "./pages/customers/CustomerPage";
 import CustomerOnboarding from "./pages/customers/CustomerOnboarding";
@@ -66,7 +66,7 @@ const AppLayout = () => {
   return (
     <div className="flex min-h-screen bg-[#F8FAF9]">
 
-      <Sidebar
+      <SideBar
         activeItem={getActiveItem()}
         onNavigate={handleNavigate}
       />

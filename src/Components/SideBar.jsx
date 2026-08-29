@@ -36,7 +36,7 @@ const NAV_ITEMS = [
 
 const SETTINGS_ITEM = { id: "settings", label: "Settings", icon: Settings };
 
-export default function Sidebar({ activeItem, onNavigate }) {
+export default function SideBar({ activeItem, onNavigate }) {
   const [collapsed, setCollapsed] = useState(true); // this one can stay local
 
   const renderNavButton = (item) => {
