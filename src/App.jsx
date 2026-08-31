@@ -15,10 +15,15 @@ import CustomerPage from "./pages/customers/CustomerPage";
 import CustomerOnboarding from "./pages/customers/CustomerOnboarding";
 import LoanPage from "./pages/loan/Loan";
 import CustomerDetails from "./pages/customers/CustomerDetails";
+import Dashboard from "./pages/dashboard/Dashboard";
 
 const AppLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  /* =====================================================
+     ACTIVE SIDEBAR ITEM
+  ====================================================== */
 
   const getActiveItem = () => {
     if (
@@ -40,6 +45,10 @@ const AppLayout = () => {
     return "dashboard";
   };
 
+  /* =====================================================
+     NAVIGATION
+  ====================================================== */
+
   const handleNavigate = (id) => {
     switch (id) {
       case "customers":
@@ -51,7 +60,7 @@ const AppLayout = () => {
         break;
 
       case "dashboard":
-        navigate("/");
+        navigate("/dashboard");
         break;
 
       case "settings":
@@ -63,32 +72,88 @@ const AppLayout = () => {
     }
   };
 
+  const isDashboard =
+    location.pathname === "/dashboard" ||
+    location.pathname === "/";
+
   return (
-    <div className="flex min-h-screen bg-[#F8FAF9]">
+    <div
+      className="
+        flex
+        h-screen
+        min-h-0
+        overflow-hidden
+        bg-[#F8FAF9]
+      "
+    >
+      {/* =================================================
+          SIDEBAR
+      ================================================== */}
 
       <SideBar
         activeItem={getActiveItem()}
         onNavigate={handleNavigate}
       />
 
-      <main className="min-w-0 flex-1 overflow-auto">
+      {/* =================================================
+          MAIN APPLICATION AREA
+      ================================================== */}
 
+      <main
+        className="
+          min-w-0
+          min-h-0
+          flex-1
+          overflow-auto
+        "
+      >
         <Routes>
+
+          {/* =================================================
+              ROOT
+          ================================================== */}
 
           <Route
             path="/"
             element={
               <Navigate
-                to="/customers"
+                to="/dashboard"
                 replace
               />
             }
           />
 
+          {/* =================================================
+              DASHBOARD
+          ================================================== */}
+
+          <Route
+            path="/dashboard"
+            element={
+              <div
+                className="
+                  h-full
+                  min-h-0
+                  overflow-hidden
+                "
+              >
+                <Dashboard />
+              </div>
+            }
+          />
+
+          {/* =================================================
+              CUSTOMERS
+          ================================================== */}
+
           <Route
             path="/customers"
             element={<CustomerPage />}
           />
+
+          {/* =================================================
+              CUSTOMER ONBOARDING
+          ================================================== */}
 
           <Route
             path="/customers/onboarding"
@@ -96,10 +161,21 @@ const AppLayout = () => {
               <CustomerOnboarding />
             }
           />
+
+          {/* =================================================
+              CUSTOMER DETAILS
+          ================================================== */}
+
           <Route
-  path="/customers/:customerId"
-  element={<CustomerDetails />}
-/>
+            path="/customers/:customerId"
+            element={
+              <CustomerDetails />
+            }
+          />
+
+          {/* =================================================
+              LOAN MANAGEMENT
+          ================================================== */}
 
           <Route
             path="/loan"
@@ -107,20 +183,17 @@ const AppLayout = () => {
           />
 
         </Routes>
-
       </main>
-
     </div>
   );
 };
 
-
-function App() {
+const App = () => {
   return (
     <BrowserRouter>
       <AppLayout />
     </BrowserRouter>
   );
-}
+};
 
 export default App;
