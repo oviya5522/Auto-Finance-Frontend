@@ -62,10 +62,26 @@ const Dashboard = () => {
 
 
   /* =====================================================
+     TODAY'S FOLLOW-UP
+     Only records due today.
+     Maximum 3 records.
+  ====================================================== */
+
+  const todayFollowUps = Array.isArray(
+    followUpQueue
+  )
+    ? followUpQueue
+        .filter(
+          ({ scheduleRow }) =>
+            isDueToday(
+              scheduleRow?.dueDate
+            )
+        )
+        .slice(0, 3)
+    : [];
+
+  /* =====================================================
      RECENT ATTENTION / ACTIONS
-     
-     Only real actions supplied by the dashboard hook.
-     Maximum 3 inside the floating menu.
   ====================================================== */
 
   const recentAttention =
@@ -73,12 +89,9 @@ const Dashboard = () => {
       ? recentActions
           .filter(
             (action) =>
-              action?.type ===
-                "overdue" ||
-              action?.type ===
-                "loan_created" ||
-              action?.type ===
-                "customer_created"
+              action?.type === "overdue" ||
+              action?.type === "loan_created" ||
+              action?.type === "customer_created"
           )
           .slice(0, 3)
       : [];
