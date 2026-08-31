@@ -16,7 +16,8 @@ import CustomerOnboarding from "./pages/customers/CustomerOnboarding";
 import LoanPage from "./pages/loan/Loan";
 import CustomerDetails from "./pages/customers/CustomerDetails";
 import Dashboard from "./pages/dashboard/Dashboard";
-
+import RecentActivities from "./pages/activities/RecentActivities";
+import Settings from "./pages/settings/Settings";
 const AppLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,25 +26,33 @@ const AppLayout = () => {
      ACTIVE SIDEBAR ITEM
   ====================================================== */
 
-  const getActiveItem = () => {
-    if (
-      location.pathname.startsWith(
-        "/customers"
-      )
-    ) {
-      return "customers";
-    }
+const getActiveItem = () => {
+  if (
+    location.pathname.startsWith(
+      "/customers"
+    )
+  ) {
+    return "customers";
+  }
 
-    if (
-      location.pathname.startsWith(
-        "/loan"
-      )
-    ) {
-      return "loan-management";
-    }
+  if (
+    location.pathname.startsWith(
+      "/loan"
+    )
+  ) {
+    return "loan-management";
+  }
 
-    return "dashboard";
-  };
+  if (
+    location.pathname.startsWith(
+      "/settings"
+    )
+  ) {
+    return "settings";
+  }
+
+  return "dashboard";
+};
 
   /* =====================================================
      NAVIGATION
@@ -72,9 +81,6 @@ const AppLayout = () => {
     }
   };
 
-  const isDashboard =
-    location.pathname === "/dashboard" ||
-    location.pathname === "/";
 
   return (
     <div
@@ -107,82 +113,58 @@ const AppLayout = () => {
           overflow-auto
         "
       >
-        <Routes>
+   <Routes>
 
-          {/* =================================================
-              ROOT
-          ================================================== */}
+  <Route
+    path="/"
+    element={
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    }
+  />
 
-          <Route
-            path="/"
-            element={
-              <Navigate
-                to="/dashboard"
-                replace
-              />
-            }
-          />
+  <Route
+    path="/dashboard"
+    element={
+      <div className="h-full min-h-0 overflow-hidden">
+        <Dashboard />
+      </div>
+    }
+  />
 
-          {/* =================================================
-              DASHBOARD
-          ================================================== */}
+  <Route
+    path="/customers"
+    element={<CustomerPage />}
+  />
 
-          <Route
-            path="/dashboard"
-            element={
-              <div
-                className="
-                  h-full
-                  min-h-0
-                  overflow-hidden
-                "
-              >
-                <Dashboard />
-              </div>
-            }
-          />
+  <Route
+    path="/customers/onboarding"
+    element={<CustomerOnboarding />}
+  />
 
-          {/* =================================================
-              CUSTOMERS
-          ================================================== */}
+  <Route
+    path="/customers/:customerId"
+    element={<CustomerDetails />}
+  />
 
-          <Route
-            path="/customers"
-            element={<CustomerPage />}
-          />
+  <Route
+    path="/loan"
+    element={<LoanPage />}
+  />
 
-          {/* =================================================
-              CUSTOMER ONBOARDING
-          ================================================== */}
+  {/* RECENT ACTIVITIES */}
+  <Route
+    path="/activities"
+    element={<RecentActivities />}
+  />
+<Route
+  path="/settings"
+  element={<Settings />}
+/>
+</Routes>
 
-          <Route
-            path="/customers/onboarding"
-            element={
-              <CustomerOnboarding />
-            }
-          />
-
-          {/* =================================================
-              CUSTOMER DETAILS
-          ================================================== */}
-
-          <Route
-            path="/customers/:customerId"
-            element={
-              <CustomerDetails />
-            }
-          />
-
-          {/* =================================================
-              LOAN MANAGEMENT
-          ================================================== */}
-
-          <Route
-            path="/loan"
-            element={<LoanPage />}
-          />
-
-        </Routes>
       </main>
     </div>
   );

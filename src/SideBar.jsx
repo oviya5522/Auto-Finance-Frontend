@@ -9,7 +9,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Wallet,
 } from "lucide-react";
 
 /* =========================================================
@@ -74,11 +73,11 @@ const SideBar = ({
           relative
           flex
           w-full
-          items-center
+          items-start
           rounded-lg
           text-left
-          transition-colors
-          duration-150
+          transition-all
+          duration-200
           ease-out
 
           ${
@@ -91,8 +90,8 @@ const SideBar = ({
 
           ${
             isActive
-              ? "bg-slate-700/50 text-white"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              ? "bg-[#1C6848] text-white shadow-sm"
+              : "text-[#A8C2B3] hover:bg-[#174D38] hover:text-white"
           }
         `}
       >
@@ -104,26 +103,22 @@ const SideBar = ({
               absolute
               left-0
               top-1/2
-              h-5
+              h-6
               w-[3px]
               -translate-y-1/2
               rounded-r-full
-              bg-indigo-400
+              bg-[#72D3A2]
             "
           />
         )}
 
-        {/* ICON
-            IMPORTANT:
-            fixed width keeps every icon
-            perfectly aligned.
-        */}
+        {/* ICON */}
 
         <span
           className="
             flex
-            h-5
-            w-5
+            h-6
+            w-6
             shrink-0
             items-center
             justify-center
@@ -135,7 +130,7 @@ const SideBar = ({
             className={
               isActive
                 ? "text-white"
-                : "text-slate-400"
+                : "text-[#A8C2B3]"
             }
           />
         </span>
@@ -150,7 +145,7 @@ const SideBar = ({
               flex-1
               whitespace-normal
               break-words
-              text-[14px]
+              text-[13px]
               font-medium
               leading-5
               text-inherit
@@ -172,8 +167,8 @@ const SideBar = ({
         flex-col
         overflow-hidden
         border-r
-        border-slate-800/60
-        bg-[#0F172A]
+        border-[#174D38]
+        bg-[#0D2F24]
         transition-[width]
         duration-200
         ease-out
@@ -193,13 +188,11 @@ const SideBar = ({
         className={`
           shrink-0
           border-b
-          border-slate-800/60
-          py-3
-
+          border-[#174D38]
           ${
             collapsed
-              ? "px-2"
-              : "px-3"
+              ? "px-2 py-3"
+              : "px-3.5 py-3"
           }
         `}
       >
@@ -215,7 +208,7 @@ const SideBar = ({
             }
           `}
         >
-          {/* LOGO ICON */}
+          {/* LOGO PLACEHOLDER */}
 
           <div
             className="
@@ -225,51 +218,37 @@ const SideBar = ({
               shrink-0
               items-center
               justify-center
+              overflow-hidden
               rounded-lg
-              bg-indigo-500/15
+              bg-[#174D38]
+              ring-1
+              ring-[#2B7655]
             "
+            title="MotoLend logo"
           >
-            <Wallet
-              size={18}
-              className="text-indigo-400"
-              strokeWidth={2}
-            />
+            <img
+    src="/Auto-Finance-Logo.png"
+    alt="MotoLend"
+    className="h-full w-full object-contain"
+  />
           </div>
 
-          {/* BRAND TEXT */}
+          {/* PRODUCT NAME */}
 
           {!collapsed && (
-            <div
-              className="
-                ml-2.5
-                min-w-0
-                leading-tight
-              "
-            >
-              <p
-                className="
-                  truncate
-                  text-[14px]
-                  font-semibold
-                  tracking-wide
-                  text-white
-                "
-              >
-                YAZH VAHANA
-              </p>
+           <div className="ml-2.5 min-w-0 leading-tight">
+  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-white">
+  Moto<span className="text-[#78D6A4]">Lend</span>
+</p>
 
-              <p
-                className="
-                  truncate
-                  text-[10px]
-                  font-medium
-                  tracking-[0.16em]
-                  text-slate-400
-                "
-              >
-                AUTO FINANCE
-              </p>
-            </div>
+<p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-white">
+  POWERING{" "}
+  <span className="text-[#78D6A4]">
+    SMARTER
+  </span>{" "}
+  FINANCE
+</p>
+</div>
           )}
         </div>
       </div>
@@ -296,37 +275,26 @@ const SideBar = ({
       </nav>
 
       {/* =================================================
-          SETTINGS
+          BOTTOM AREA
       ================================================== */}
 
       <div
         className="
           shrink-0
           border-t
-          border-slate-800/60
+          border-[#174D38]
           px-2
-          py-3
+          py-2.5
         "
       >
+        {/* SETTINGS */}
+
         {renderNavButton(
           SETTINGS_ITEM
         )}
-      </div>
 
-      {/* =================================================
-          COLLAPSE / EXPAND
-      ================================================== */}
+        {/* COLLAPSE */}
 
-      <div
-        className="
-          shrink-0
-          border-t
-          border-slate-800/60
-          px-2
-          pb-3
-          pt-2
-        "
-      >
         <button
           type="button"
           onClick={() =>
@@ -341,6 +309,7 @@ const SideBar = ({
               : "Collapse sidebar"
           }
           className="
+            mt-1
             flex
             w-full
             items-center
@@ -349,11 +318,11 @@ const SideBar = ({
             rounded-lg
             px-2
             py-2
-            text-slate-400
-            transition-colors
-            duration-150
-            hover:bg-slate-800
-            hover:text-slate-100
+            text-[#8EAF9E]
+            transition-all
+            duration-200
+            hover:bg-[#174D38]
+            hover:text-white
           "
         >
           {collapsed ? (
@@ -368,7 +337,7 @@ const SideBar = ({
                 strokeWidth={2}
               />
 
-              <span className="text-[13px] font-medium">
+              <span className="text-[12px] font-medium">
                 Collapse
               </span>
             </>

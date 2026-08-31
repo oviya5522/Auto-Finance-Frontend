@@ -525,101 +525,93 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* =================================================
-                RECENT ACTIONS
-            ================================================== */}
+           
+{/* =================================================
+    RECENT ACTIONS
+================================================== */}
 
-            <div
-              className="
-                border-t
-                border-slate-100
-                px-3
-                py-3
-              "
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell
-                    size={13}
-                    strokeWidth={2}
-                    className="text-[#0B5D3B]"
-                  />
+<div
+  className="
+    border-t
+    border-slate-100
+    px-3
+    py-3
+  "
+>
+  <div className="flex items-center justify-between gap-3">
+    {/* LEFT */}
 
-                  <p className="text-[9px] font-semibold text-[#17221D]">
-                    Recent Actions
-                  </p>
-                </div>
-              </div>
+    <div className="flex min-w-0 items-center gap-3">
+      <div
+        className="
+          flex
+          h-9
+          w-9
+          shrink-0
+          items-center
+          justify-center
+          rounded-lg
+          bg-[#EAF5EF]
+        "
+      >
+        <Bell
+          size={18}
+          strokeWidth={2}
+          className="text-[#0B5D3B]"
+        />
+      </div>
 
-              {recentAttention.length === 0 ? (
-                <p className="rounded-lg bg-slate-50 px-3 py-2 text-[8px] text-slate-400">
-                  No recent actions
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {recentAttention.map(
-                    (action) => (
-                      <button
-                        key={action.id}
-                        type="button"
-                        onClick={() => {
-                          if (
-                            action?.type ===
-                            "customer_created"
-                          ) {
-                            navigate(
-                              "/customers"
-                            );
-                            return;
-                          }
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-[#17221D]">
+          Recent Activities
+        </p>
 
-                          navigate(
-                            "/loan"
-                          );
-                        }}
-                        className="
-                          flex
-                          w-full
-                          items-center
-                          justify-between
-                          gap-2
-                          rounded-lg
-                          bg-slate-50
-                          px-3
-                          py-2
-                          text-left
-                          transition
-                          hover:bg-[#F1F7F3]
-                        "
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-[9px] font-semibold text-[#17221D]">
-                            {action?.title ||
-                              "Recent activity"}
-                          </p>
+        <p className="mt-0.5 text-[9px] text-slate-400">
+          Recent customer & loan activity
+        </p>
+      </div>
+    </div>
 
-                          <p className="mt-0.5 truncate text-[8px] text-slate-400">
-                            {action?.description ||
-                              "Recent system activity"}
-                          </p>
-                        </div>
+    {/* COUNT + VIEW ALL */}
 
-                        <span
-                          className="
-                            shrink-0
-                            text-[8px]
-                            font-semibold
-                            text-[#0B5D3B]
-                          "
-                        >
-                          View
-                        </span>
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
+    <div className="flex shrink-0 items-center gap-3">
+      <span
+        className="
+          inline-flex
+          min-w-[30px]
+          items-center
+          justify-center
+          rounded-full
+          bg-[#EAF5EF]
+          px-2
+          py-1
+          text-[12px]
+          font-bold
+          text-[#0B5D3B]
+        "
+      >
+        {recentAttention.length}
+      </span>
+
+      <button
+        type="button"
+        onClick={() =>
+          navigate("/activities")
+        }
+        className="
+          text-[9px]
+          font-semibold
+          text-[#0B5D3B]
+          transition
+          hover:text-[#084A30]
+          hover:underline
+        "
+      >
+        View All
+      </button>
+    </div>
+  </div>
+</div>
           </div>
         )}
 
