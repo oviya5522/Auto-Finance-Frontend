@@ -18,6 +18,7 @@ import CustomerDetails from "./pages/customers/CustomerDetails";
 import Dashboard from "./pages/dashboard/Dashboard";
 import RecentActivities from "./pages/activities/RecentActivities";
 import Settings from "./pages/settings/Settings";
+import LoanManagement from "./pages/loan/LoanManagement";
 const AppLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,13 +36,19 @@ const getActiveItem = () => {
     return "customers";
   }
 
-  if (
-    location.pathname.startsWith(
-      "/loan"
-    )
-  ) {
-    return "loan-management";
-  }
+ if (
+  location.pathname === "/loan"
+) {
+  return "loans";
+}
+
+if (
+  location.pathname.startsWith(
+    "/loan-management"
+  )
+) {
+  return "loan-management";
+}
 
   if (
     location.pathname.startsWith(
@@ -59,28 +66,31 @@ const getActiveItem = () => {
   ====================================================== */
 
   const handleNavigate = (id) => {
-    switch (id) {
-      case "customers":
-        navigate("/customers");
-        break;
+  switch (id) {
+    case "customers":
+      navigate("/customers");
+      break;
 
-      case "loan-management":
-        navigate("/loan");
-        break;
+    case "loans":
+      navigate("/loan");
+      break;
 
-      case "dashboard":
-        navigate("/dashboard");
-        break;
+    case "loan-management":
+      navigate("/loan-management");
+      break;
 
-      case "settings":
-        navigate("/settings");
-        break;
+    case "dashboard":
+      navigate("/dashboard");
+      break;
 
-      default:
-        break;
-    }
-  };
+    case "settings":
+      navigate("/settings");
+      break;
 
+    default:
+      break;
+  }
+};
 
   return (
     <div
@@ -162,6 +172,10 @@ const getActiveItem = () => {
 <Route
   path="/settings"
   element={<Settings />}
+/>
+<Route
+  path="/loan-management"
+  element={<LoanManagement />}
 />
 </Routes>
 

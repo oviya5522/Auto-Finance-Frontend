@@ -8,7 +8,7 @@ import {
   HandCoins,
   Settings,
   ChevronLeft,
-  ChevronRight,
+  ChevronRight,Wallet
 } from "lucide-react";
 
 /* =========================================================
@@ -27,9 +27,14 @@ const NAV_ITEMS = [
     icon: Users,
   },
   {
+    id: "loans",
+    label: "Loans",
+    icon: HandCoins,
+  },
+  {
     id: "loan-management",
     label: "Loan Management",
-    icon: HandCoins,
+    icon: Wallet,
   },
 ];
 

@@ -1,3 +1,5 @@
+// src/components/loans/LoanTableRow.jsx
+
 import {
   CalendarDays,
   MoreVertical,
@@ -17,15 +19,12 @@ import {
   getTenure,
   getNextDue,
   getLoanOutstanding,
-  getOverdueCount,
   getDisplayLoanStatus,
   getLoanDueStatus,
 } from "../../utils/loan/loanHelpers";
 
 const LoanTableRow = ({
   loan,
-  selected = false,
-  onSelect,
   onViewLoan,
   openMenuId,
   setOpenMenuId,
@@ -33,30 +32,65 @@ const LoanTableRow = ({
   setMenuPosition,
 }) => {
   const loanId =
-    loan.id ||
-    loan.loanNumber;
-
-  const nextDue =
-    getNextDue(loan);
-
-  const overdue =
-    getOverdueCount(loan);
+    loan?.id ||
+    loan?.loanNumber;
 
   const customerName =
     getCustomerName(loan);
 
+  const customerId =
+    getCustomerId(loan);
+
+  const customerMobile =
+    getCustomerMobile(loan);
+
+  const vehicleName =
+    getVehicleName(loan);
+
+  const registration =
+    getRegistration(loan);
+
+  const nextDue =
+    getNextDue(loan);
+
+  const emi =
+    getEmi(loan);
+
+  const outstanding =
+    getLoanOutstanding(loan);
+
+  const status =
+    getDisplayLoanStatus(loan);
+
+  const dueStatus =
+    getLoanDueStatus(loan);
+
+  const interestRate =
+    Number(
+      loan?.interest?.rate ??
+        loan?.interestRate ??
+        loan?.calculation?.interestRate ??
+        0
+    );
+
+  /*
+   * Try the most common date fields used by
+   * the existing loan model.
+   */
+  const startDate =
+    loan?.startDate ||
+    loan?.loanStartDate ||
+    loan?.disbursementDate ||
+    loan?.createdAt;
+
+  const maturityDate =
+    loan?.maturityDate ||
+    loan?.loanMaturityDate ||
+    loan?.endDate ||
+    loan?.repayment?.maturityDate;
+
   /* =====================================================
-     CHECKBOX
-  ====================================================== */
-
-  const handleSelect = (event) => {
-    event.stopPropagation();
-
-    onSelect?.();
-  };
-
-  /* =====================================================
-     MENU TOGGLE
+     ACTION MENU
   ====================================================== */
 
   const handleMenuToggle = (event) => {
@@ -70,14 +104,14 @@ const LoanTableRow = ({
     const gap = 6;
 
     let left =
-      rect.right - menuWidth;
+      rect.right -
+      menuWidth;
 
     let top =
-      rect.bottom + gap;
+      rect.bottom +
+      gap;
 
-    /* -----------------------------------------
-       Horizontal safety
-    ----------------------------------------- */
+    /* Horizontal safety */
 
     left = Math.max(
       8,
@@ -89,9 +123,7 @@ const LoanTableRow = ({
       )
     );
 
-    /* -----------------------------------------
-       Open above when bottom space is not enough
-    ----------------------------------------- */
+    /* Open above when bottom space is insufficient */
 
     if (
       top + menuHeight >
@@ -103,9 +135,7 @@ const LoanTableRow = ({
         gap;
     }
 
-    /* -----------------------------------------
-       Vertical safety
-    ----------------------------------------- */
+    /* Vertical safety */
 
     top = Math.max(
       8,
@@ -122,14 +152,11 @@ const LoanTableRow = ({
       left,
     });
 
-    /* -----------------------------------------
-       ONE MENU AT A TIME
-    ----------------------------------------- */
-
-    setOpenMenuId((current) =>
-      current === loanId
-        ? null
-        : loanId
+    setOpenMenuId(
+      (current) =>
+        current === loanId
+          ? null
+          : loanId
     );
   };
 
@@ -138,203 +165,155 @@ const LoanTableRow = ({
       className="
         border-b
         border-slate-100
-        transition
+        transition-colors
+        duration-150
         hover:bg-[#FAFCFB]
       "
     >
-
-      {/* =================================================
-          CHECKBOX
-      ================================================= */}
-
-      <td className="w-10 px-3 py-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={handleSelect}
-          className="
-            h-4
-            w-4
-            cursor-pointer
-            rounded
-            border-slate-300
-            accent-[#0B5D3B]
-          "
-          aria-label={`Select ${
-            loan.loanNumber ||
-            "loan"
-          }`}
-        />
-      </td>
-
       {/* =================================================
           LOAN NUMBER
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3">
         <p className="text-[11px] font-semibold text-[#17221D]">
-          {loan.loanNumber ||
+          {loan?.loanNumber ||
             "—"}
         </p>
       </td>
 
       {/* =================================================
           CUSTOMER
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3">
-        <p className="text-[11px] font-semibold text-[#17221D]">
+        <p className="max-w-[150px] truncate text-[11px] font-semibold text-[#17221D]">
           {customerName}
         </p>
 
-        <p className="mt-0.5 text-[9px] text-slate-400">
-          {getCustomerId(loan)}
+        <p className="mt-0.5 max-w-[150px] truncate text-[9px] text-slate-400">
+          {customerId}
 
-          {getCustomerMobile(loan)
-            ? ` • ${getCustomerMobile(
-                loan
-              )}`
+          {customerMobile
+            ? ` • ${customerMobile}`
             : ""}
         </p>
       </td>
 
       {/* =================================================
           VEHICLE
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3">
-        <p className="text-[11px] font-medium text-slate-700">
-          {getRegistration(loan) ||
-            "No registration"}
+        <p className="max-w-[150px] truncate text-[11px] font-medium text-slate-700">
+          {registration}
         </p>
 
-        <p className="mt-0.5 text-[9px] text-slate-400">
-          {getVehicleName(loan)}
+        <p className="mt-0.5 max-w-[150px] truncate text-[9px] text-slate-400">
+          {vehicleName}
         </p>
       </td>
 
       {/* =================================================
           LOAN AMOUNT
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3 text-right">
         <span className="text-[11px] font-medium text-slate-700">
-          ₹{money(loan.loanAmount)}
+          ₹
+          {money(
+            loan?.loanAmount
+          )}
         </span>
       </td>
 
       {/* =================================================
-          DOWN PAYMENT
-      ================================================= */}
+          INTEREST RATE
+      ================================================== */}
 
       <td className="px-3.5 py-3 text-right">
-        <span className="text-[11px] text-slate-700">
-          ₹{money(loan.downPayment)}
+        <span className="text-[11px] font-medium text-slate-700">
+          {interestRate
+            ? `${interestRate}%`
+            : "—"}
         </span>
       </td>
 
       {/* =================================================
-          EMI
-      ================================================= */}
+          EMI AMOUNT
+      ================================================== */}
 
       <td className="px-3.5 py-3 text-right">
         <span className="text-[11px] font-semibold text-[#0B5D3B]">
-          ₹{money(getEmi(loan))}
+          ₹
+          {money(emi)}
         </span>
       </td>
 
       {/* =================================================
           TENURE
-      ================================================= */}
+      ================================================== */}
 
-      <td className="px-3.5 py-3 text-[10px] text-slate-700">
-        {getTenure(loan)}
+      <td className="px-3.5 py-3">
+        <span className="whitespace-nowrap text-[10px] font-medium text-slate-700">
+          {getTenure(loan)}
+        </span>
       </td>
 
       {/* =================================================
-          NEXT DUE
-      ================================================= */}
+          START DATE
+      ================================================== */}
 
       <td className="px-3.5 py-3">
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <CalendarDays
-            size={12}
-            className="shrink-0 text-slate-400"
-          />
+        <DateCell
+          value={startDate}
+        />
+      </td>
 
-          <span className="text-[10px] text-slate-600">
-            {formatDate(
-              nextDue?.dueDate
-            )}
-          </span>
-        </div>
+      {/* =================================================
+          MATURITY DATE
+      ================================================== */}
+
+      <td className="px-3.5 py-3">
+        <DateCell
+          value={maturityDate}
+        />
       </td>
 
       {/* =================================================
           OUTSTANDING
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3 text-right">
         <span className="text-[11px] font-semibold text-[#17221D]">
           ₹
           {money(
-            getLoanOutstanding(loan)
+            outstanding
           )}
-        </span>
-      </td>
-
-      {/* =================================================
-          OVERDUE
-      ================================================= */}
-
-      <td className="px-3.5 py-3 text-center">
-        <span
-          className={`
-            inline-flex
-            min-w-7
-            items-center
-            justify-center
-            rounded-full
-            px-2
-            py-1
-            text-[9px]
-            font-semibold
-            ${
-              overdue > 0
-                ? "bg-red-50 text-red-600"
-                : "bg-slate-50 text-slate-500"
-            }
-          `}
-        >
-          {overdue}
         </span>
       </td>
 
       {/* =================================================
           STATUS
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3">
         <LoanStatus
-          status={getDisplayLoanStatus(
-            loan
-          )}
-          dueStatus={getLoanDueStatus(
-            loan
-          )}
+          status={status}
+          dueStatus={dueStatus}
         />
       </td>
 
       {/* =================================================
           ACTIONS
-      ================================================= */}
+      ================================================== */}
 
       <td className="px-3.5 py-3">
         <div className="flex justify-center">
-
           <button
             type="button"
-            onClick={handleMenuToggle}
+            onClick={
+              handleMenuToggle
+            }
             className={`
               flex
               h-8
@@ -346,7 +325,8 @@ const LoanTableRow = ({
               bg-white
               transition
               ${
-                openMenuId === loanId
+                openMenuId ===
+                loanId
                   ? "border-[#0B5D3B] text-[#0B5D3B] shadow-sm"
                   : "border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700"
               }
@@ -354,31 +334,61 @@ const LoanTableRow = ({
             title="More Actions"
             aria-label="More Actions"
             aria-expanded={
-              openMenuId === loanId
+              openMenuId ===
+              loanId
             }
           >
-            <MoreVertical size={15} />
+            <MoreVertical
+              size={15}
+            />
           </button>
 
-          {openMenuId === loanId && (
+          {openMenuId ===
+            loanId && (
             <LoanActionMenu
               loan={loan}
-              position={menuPosition}
+              position={
+                menuPosition
+              }
               onClose={() =>
-                setOpenMenuId(null)
+                setOpenMenuId(
+                  null
+                )
               }
               onView={() => {
-                setOpenMenuId(null);
+                setOpenMenuId(
+                  null
+                );
 
-                onViewLoan(loan);
+                onViewLoan?.(loan);
               }}
             />
           )}
-
         </div>
       </td>
-
     </tr>
+  );
+};
+
+/* =========================================================
+   DATE CELL
+========================================================= */
+
+const DateCell = ({
+  value,
+}) => {
+  return (
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <CalendarDays
+        size={12}
+        strokeWidth={2}
+        className="shrink-0 text-slate-400"
+      />
+
+      <span className="text-[10px] font-medium text-slate-600">
+        {formatDate(value)}
+      </span>
+    </div>
   );
 };
 
@@ -391,8 +401,9 @@ const LoanStatus = ({
   dueStatus,
 }) => {
   const normalized =
-    String(status || "")
-      .toLowerCase();
+    String(
+      status || ""
+    ).toLowerCase();
 
   let classes =
     "bg-slate-100 text-slate-500";
@@ -408,7 +419,8 @@ const LoanStatus = ({
     classes =
       "bg-amber-50 text-amber-700";
   } else if (
-    normalized === "overdue" ||
+    normalized ===
+      "overdue" ||
     dueStatus === "Overdue"
   ) {
     classes =
@@ -424,7 +436,8 @@ const LoanStatus = ({
     classes =
       "bg-orange-50 text-orange-700";
   } else if (
-    normalized === "written off"
+    normalized ===
+    "written off"
   ) {
     classes =
       "bg-red-50 text-red-700";

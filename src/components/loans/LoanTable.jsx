@@ -1,10 +1,8 @@
+// src/components/loans/LoanTable.jsx
+
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  Square,
-  Check,
-  Minus,
-} from "lucide-react";
+import { ClipboardList } from "lucide-react";
 
 import LoanTableRow from "./LoanTableRow";
 
@@ -13,21 +11,17 @@ const LoanTable = ({
   onViewLoan,
 }) => {
   /* =====================================================
-     SELECTION
-  ====================================================== */
-
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  /* =====================================================
      SINGLE OPEN ACTION MENU
   ====================================================== */
 
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [openMenuId, setOpenMenuId] =
+    useState(null);
 
-  const [menuPosition, setMenuPosition] = useState({
-    top: 0,
-    left: 0,
-  });
+  const [menuPosition, setMenuPosition] =
+    useState({
+      top: 0,
+      left: 0,
+    });
 
   /* =====================================================
      LOAN IDS
@@ -38,25 +32,21 @@ const LoanTable = ({
       loans
         .map(
           (loan) =>
-            loan.id || loan.loanNumber
+            loan?.id ||
+            loan?.loanNumber
         )
         .filter(Boolean),
     [loans]
   );
 
   /* =====================================================
-     KEEP SELECTION VALID WHEN LOANS CHANGE
+     KEEP OPEN MENU VALID
   ====================================================== */
 
   useEffect(() => {
-    setSelectedIds((current) =>
-      current.filter((id) =>
-        loanIds.includes(id)
-      )
-    );
-
     setOpenMenuId((current) =>
-      current && loanIds.includes(current)
+      current &&
+      loanIds.includes(current)
         ? current
         : null
     );
@@ -108,302 +98,181 @@ const LoanTable = ({
     };
   }, []);
 
-  /* =====================================================
-     SELECT ALL
-  ====================================================== */
-
-  const allSelected =
-    loanIds.length > 0 &&
-    selectedIds.length === loanIds.length;
-
-  const someSelected =
-    selectedIds.length > 0 &&
-    selectedIds.length < loanIds.length;
-
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds([]);
-      return;
-    }
-
-    setSelectedIds(loanIds);
-  };
-
-  /* =====================================================
-     SELECT INDIVIDUAL LOAN
-  ====================================================== */
-
-  const toggleSelectLoan = (id) => {
-    setSelectedIds((current) => {
-      if (current.includes(id)) {
-        return current.filter(
-          (item) => item !== id
-        );
-      }
-
-      return [...current, id];
-    });
-  };
-
-  /* =====================================================
-     CLEAR SELECTION
-  ====================================================== */
-
-  const clearSelection = () => {
-    setSelectedIds([]);
-  };
-
   return (
-<div className="mt-3 w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <section
+      className="
+        mt-2.5
+        w-full
+        overflow-hidden
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        shadow-sm
+      "
+    >
       {/* =================================================
-          BULK ACTION BAR
-      ================================================= */}
+          TABLE HEADER
+      ================================================== */}
 
-      {selectedIds.length > 0 && (
-        <div
-          className="
-            flex
-            items-center
-            justify-between
-            gap-3
-            border-b
-            border-slate-200
-            bg-[#F8FAF9]
-            px-4
-            py-2.5
-          "
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-[#17221D]">
-              {selectedIds.length} selected
-            </span>
-
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="
-                rounded-md
-                px-2
-                py-1
-                text-[10px]
-                font-medium
-                text-slate-500
-                transition
-                hover:bg-white
-                hover:text-slate-700
-              "
-            >
-              Clear
-            </button>
+      <div
+        className="
+          flex
+          items-center
+          justify-between
+          gap-3
+          border-b
+          border-slate-100
+          px-3.5
+          py-3
+        "
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div
+            className="
+              flex
+              h-8
+              w-8
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              bg-[#EAF5EF]
+            "
+          >
+            <ClipboardList
+              size={16}
+              strokeWidth={2}
+              className="text-[#0B5D3B]"
+            />
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              className="
-                rounded-md
-                border
-                border-slate-200
-                bg-white
-                px-2.5
-                py-1.5
-                text-[10px]
-                font-medium
-                text-slate-600
-                transition
-                hover:border-slate-300
-              "
-            >
-              Send Reminder
-            </button>
+          <div className="min-w-0">
+            <h2 className="text-[12px] font-semibold text-[#17221D]">
+              Loan Accounts
+            </h2>
 
-            <button
-              type="button"
-              className="
-                rounded-md
-                border
-                border-slate-200
-                bg-white
-                px-2.5
-                py-1.5
-                text-[10px]
-                font-medium
-                text-slate-600
-                transition
-                hover:border-slate-300
-              "
-            >
-              Export Selected
-            </button>
+            <p className="mt-0.5 text-[9px] text-slate-400">
+              Loan details and repayment status
+            </p>
           </div>
         </div>
-      )}
+
+        <span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[9px] font-medium text-slate-500">
+          {loans.length.toLocaleString(
+            "en-IN"
+          )}{" "}
+          records
+        </span>
+      </div>
 
       {/* =================================================
           TABLE
-      ================================================= */}
+      ================================================== */}
 
-     <div className="overflow-x-hidden">
-  <table className="w-full border-collapse">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[1280px] border-collapse">
           <thead className="bg-[#F8FAF9]">
             <tr className="border-b border-slate-200">
-
-              {/* SELECT ALL */}
-              <th
-                className="
-                  sticky
-                  left-0
-                  z-20
-                  w-11
-                  bg-[#F8FAF9]
-                  px-3
-                  py-2.5
-                "
-              >
-                <button
-                  type="button"
-                  onClick={toggleSelectAll}
-                  aria-label={
-                    allSelected
-                      ? "Deselect all loans"
-                      : "Select all loans"
-                  }
-                  className="
-                    flex
-                    h-5
-                    w-5
-                    items-center
-                    justify-center
-                    rounded
-                    border
-                    border-slate-300
-                    bg-white
-                    text-[#0B5D3B]
-                    transition
-                    hover:border-[#0B5D3B]
-                  "
-                >
-                  {allSelected ? (
-                    <Check
-                      size={13}
-                      strokeWidth={2.5}
-                    />
-                  ) : someSelected ? (
-                    <Minus
-                      size={13}
-                      strokeWidth={2.5}
-                    />
-                  ) : (
-                    <Square
-                      size={13}
-                      className="text-transparent"
-                    />
-                  )}
-                </button>
-              </th>
-
-              <TableHeader>
+              <TableHeader className="w-[120px]">
                 Loan Number
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="w-[165px]">
                 Customer
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="w-[165px]">
                 Vehicle
               </TableHeader>
 
-              <TableHeader align="right">
+              <TableHeader
+                align="right"
+                className="w-[115px]"
+              >
                 Loan Amount
               </TableHeader>
 
-              <TableHeader align="right">
-                Down Payment
+              <TableHeader
+                align="right"
+                className="w-[105px]"
+              >
+                Interest Rate
               </TableHeader>
 
-              <TableHeader align="right">
-                EMI
+              <TableHeader
+                align="right"
+                className="w-[105px]"
+              >
+                EMI Amount
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="w-[90px]">
                 Tenure
               </TableHeader>
 
-              <TableHeader>
-                Next Due Date
+              <TableHeader className="w-[110px]">
+                Start Date
               </TableHeader>
 
-              <TableHeader align="right">
+              <TableHeader className="w-[115px]">
+                Maturity Date
+              </TableHeader>
+
+              <TableHeader
+                align="right"
+                className="w-[120px]"
+              >
                 Outstanding
               </TableHeader>
 
-              <TableHeader align="center">
-                Overdue
-              </TableHeader>
-
-              <TableHeader>
+              <TableHeader className="w-[100px]">
                 Status
               </TableHeader>
 
-              <TableHeader align="center">
+              <TableHeader
+                align="center"
+                className="w-[75px]"
+              >
                 Actions
               </TableHeader>
-
             </tr>
           </thead>
 
           <tbody>
-            {loans.length ? (
+            {loans.length > 0 ? (
               loans.map((loan) => {
                 const id =
-                  loan.id ||
-                  loan.loanNumber;
+                  loan?.id ||
+                  loan?.loanNumber;
 
                 return (
                   <LoanTableRow
                     key={id}
                     loan={loan}
-                    selected={selectedIds.includes(
-                      id
-                    )}
-                    onSelect={() =>
-                      toggleSelectLoan(id)
-                    }
                     onViewLoan={onViewLoan}
-                    openMenuId={openMenuId}
-                    setOpenMenuId={setOpenMenuId}
-                    menuPosition={menuPosition}
-                    setMenuPosition={setMenuPosition}
+                    openMenuId={
+                      openMenuId
+                    }
+                    setOpenMenuId={
+                      setOpenMenuId
+                    }
+                    menuPosition={
+                      menuPosition
+                    }
+                    setMenuPosition={
+                      setMenuPosition
+                    }
                   />
                 );
               })
             ) : (
-              <tr>
-                <td
-                  colSpan={13}
-                  className="
-                    px-6
-                    py-16
-                    text-center
-                  "
-                >
-                  <p className="text-sm font-medium text-[#17221D]">
-                    No loans found
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Loans matching your filters
-                    will appear here.
-                  </p>
-                </td>
-              </tr>
+              <EmptyTableState />
             )}
           </tbody>
-
         </table>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -414,28 +283,65 @@ const LoanTable = ({
 const TableHeader = ({
   children,
   align = "left",
-}) => (
-  <th
-    className={`
-      whitespace-nowrap
-      px-3.5
-      py-2.5
-      text-[9px]
-      font-semibold
-      uppercase
-      tracking-wide
-      text-slate-400
-      ${
-        align === "right"
-          ? "text-right"
-          : align === "center"
-          ? "text-center"
-          : "text-left"
-      }
-    `}
-  >
-    {children}
-  </th>
-);
+  className = "",
+}) => {
+  return (
+    <th
+      className={`
+        whitespace-nowrap
+        px-3
+        py-3
+        text-[9px]
+        font-semibold
+        uppercase
+        tracking-[0.04em]
+        text-slate-400
+        ${className}
+        ${
+          align === "right"
+            ? "text-right"
+            : align === "center"
+            ? "text-center"
+            : "text-left"
+        }
+      `}
+    >
+      {children}
+    </th>
+  );
+};
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+const EmptyTableState = () => {
+  return (
+    <tr>
+      <td
+        colSpan={12}
+        className="px-6 py-12 text-center"
+      >
+        <div className="mx-auto max-w-[280px]">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-50">
+            <ClipboardList
+              size={18}
+              className="text-slate-400"
+            />
+          </div>
+
+          <p className="mt-3 text-[12px] font-semibold text-[#17221D]">
+            No loans found
+          </p>
+
+          <p className="mt-1 text-[10px] leading-5 text-slate-400">
+            Loans matching your current filters
+            will appear here.
+          </p>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 export default LoanTable;

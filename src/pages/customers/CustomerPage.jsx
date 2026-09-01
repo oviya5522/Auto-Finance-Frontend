@@ -1,6 +1,11 @@
 // src/pages/customers/CustomerPage.jsx
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -19,6 +24,8 @@ import {
   Grid2X2,
   ListFilter,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Pencil,
   CalendarDays,
   Clock3,
@@ -29,6 +36,10 @@ import {
   getCustomers,
   getOutstandingAmount,
 } from "../../services/customerStorage";
+
+/* =========================================================
+   BASE HELPERS
+========================================================= */
 
 const getPersonal = (customer) =>
   customer?.customer?.personal || {};
@@ -47,9 +58,9 @@ const getVehicleName = (customer) => {
 
   return (
     [
-      vehicle.brand,
-      vehicle.model,
-      vehicle.variant,
+      vehicle?.brand,
+      vehicle?.model,
+      vehicle?.variant,
     ]
       .filter(Boolean)
       .join(" ") || "Not assigned"
@@ -57,13 +68,18 @@ const getVehicleName = (customer) => {
 };
 
 const getRegistration = (customer) =>
-  getRc(customer).registrationNumber || "";
+  getRc(customer)?.registrationNumber ||
+  "";
 
 const getOutstanding = (customer) =>
-  getOutstandingAmount(getLoan(customer));
+  getOutstandingAmount(
+    getLoan(customer)
+  );
 
 const getInitials = (name) => {
-  if (!name) return "C";
+  if (!name) {
+    return "C";
+  }
 
   const parts = name
     .trim()
@@ -71,22 +87,30 @@ const getInitials = (name) => {
     .filter(Boolean);
 
   if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase();
+    return parts[0]
+      .charAt(0)
+      .toUpperCase();
   }
 
   return (
-    parts[0].charAt(0) +
-    parts[1].charAt(0)
-  ).toUpperCase();
+    parts[0]
+      .charAt(0)
+      .toUpperCase() +
+    parts[1]
+      .charAt(0)
+      .toUpperCase()
+  );
 };
 
 const getDueStatus = (customer) => {
   const schedule =
-    getLoan(customer).repaymentSchedule || [];
+    getLoan(customer)
+      ?.repaymentSchedule || [];
 
   if (
     schedule.some(
-      (row) => row.status === "Overdue"
+      (row) =>
+        row?.status === "Overdue"
     )
   ) {
     return "Overdue";
@@ -94,7 +118,9 @@ const getDueStatus = (customer) => {
 
   if (
     schedule.some(
-      (row) => row.status === "Pending"
+      (row) =>
+        row?.status === "Pending" ||
+        row?.status === "Partially Paid"
     )
   ) {
     return "Due";
@@ -105,53 +131,88 @@ const getDueStatus = (customer) => {
 
 const getNextDueDate = (customer) => {
   const schedule =
-    getLoan(customer).repaymentSchedule || [];
+    getLoan(customer)
+      ?.repaymentSchedule || [];
 
-  const nextPayment = schedule.find(
-    (row) =>
-      row.status === "Pending" ||
-      row.status === "Overdue"
-  );
+  const nextPayment =
+    schedule.find(
+      (row) =>
+        row?.status === "Pending" ||
+        row?.status === "Overdue" ||
+        row?.status === "Partially Paid"
+    );
 
   return nextPayment?.dueDate || "";
 };
 
 const formatDate = (value) => {
-  if (!value) return "—";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  if (!value) {
     return "—";
   }
 
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 };
 
 const getLoanStatus = (customer) => {
   const loan = getLoan(customer);
 
   return (
-    loan.status ||
+    loan?.status ||
     customer?.customer?.status ||
     "Draft"
   );
 };
+
+const getLoanType = (customer) => {
+  const loan = getLoan(customer);
+
+  return (
+    loan?.interest?.type ||
+    loan?.interestType ||
+    "Flat"
+  );
+};
+
+/* =========================================================
+   PAGE
+========================================================= */
+
 const CustomerPage = () => {
   const navigate = useNavigate();
 
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  /* =====================================================
+     DATA
+  ====================================================== */
+
+  const [customers, setCustomers] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   /* =====================================================
      SEARCH / FILTER STATE
   ====================================================== */
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
   const [showFilters, setShowFilters] =
     useState(false);
@@ -159,30 +220,46 @@ const CustomerPage = () => {
   const [viewMode, setViewMode] =
     useState("list");
 
- 
+  /*
+   * List = 7 rows per page
+   * Grid = 6 boxes per page
+   */
+  const [currentPage, setCurrentPage] =
+    useState(1);
+
+  const customersPerPage =
+    viewMode === "grid" ? 6 : 7;
 
   const [activeTab, setActiveTab] =
     useState("all");
 
-  const [filters, setFilters] = useState({
-    customerStatus: "All Status",
-    loanStatus: "All Loan Status",
-    loanType: "All Loan Types",
-    dueStatus: "All Due Status",
-    dateRange: "",
-    branch: "All Branches",
-    vehicleType: "All Vehicle Types",
-    brand: "All Brands",
-    city: "All Cities",
-    minLoan: "",
-    maxLoan: "",
-    minOutstanding: "",
-    maxOutstanding: "",
-  });
+  const [filters, setFilters] =
+    useState({
+      customerStatus:
+        "All Status",
+      loanStatus:
+        "All Loan Status",
+      loanType:
+        "All Loan Types",
+      dueStatus:
+        "All Due Status",
+      dateRange: "",
+      branch:
+        "All Branches",
+      vehicleType:
+        "All Vehicle Types",
+      brand:
+        "All Brands",
+      city:
+        "All Cities",
+      minLoan: "",
+      maxLoan: "",
+      minOutstanding: "",
+      maxOutstanding: "",
+    });
 
   const [openMenuId, setOpenMenuId] =
     useState(null);
-
 
   /* =====================================================
      LOAD CUSTOMERS
@@ -194,7 +271,9 @@ const CustomerPage = () => {
         getCustomers();
 
       setCustomers(
-        Array.isArray(storedCustomers)
+        Array.isArray(
+          storedCustomers
+        )
           ? storedCustomers
           : []
       );
@@ -209,7 +288,6 @@ const CustomerPage = () => {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     loadCustomers();
@@ -241,13 +319,14 @@ const CustomerPage = () => {
     };
   }, []);
 
-
   /* =====================================================
-     HELPERS
+     MONEY
   ====================================================== */
 
   const money = (value) => {
-    return Number(value || 0).toLocaleString(
+    return Number(
+      value || 0
+    ).toLocaleString(
       "en-IN",
       {
         minimumFractionDigits: 0,
@@ -256,71 +335,51 @@ const CustomerPage = () => {
     );
   };
 
-
-  
-const getNextDueDate = (customer) => {
-  const schedule =
-    getLoan(customer)
-      .repaymentSchedule || [];
-
-  const nextPayment = schedule.find(
-    (row) =>
-      row.status === "Pending" ||
-      row.status === "Overdue"
-  );
-
-  return nextPayment?.dueDate || "";
-};
-const formatDate = (value) => {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
+  /* =====================================================
+     FILTER HELPERS
+  ====================================================== */
 
   const updateFilter = (
     field,
     value
   ) => {
-    setFilters((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+    setFilters(
+      (previous) => ({
+        ...previous,
+        [field]: value,
+      })
+    );
   };
 
+  const resetFilters = () => {
+    setFilters({
+      customerStatus:
+        "All Status",
+      loanStatus:
+        "All Loan Status",
+      loanType:
+        "All Loan Types",
+      dueStatus:
+        "All Due Status",
+      dateRange: "",
+      branch:
+        "All Branches",
+      vehicleType:
+        "All Vehicle Types",
+      brand:
+        "All Brands",
+      city:
+        "All Cities",
+      minLoan: "",
+      maxLoan: "",
+      minOutstanding: "",
+      maxOutstanding: "",
+    });
 
-const resetFilters = () => {
-  setFilters({
-    customerStatus: "All Status",
-    loanStatus: "All Loan Status",
-    loanType: "All Loan Types",
-    dueStatus: "All Due Status",
-    dateRange: "",
-    branch: "All Branches",
-    vehicleType: "All Vehicle Types",
-    brand: "All Brands",
-    city: "All Cities",
-    minLoan: "",
-    maxLoan: "",
-    minOutstanding: "",
-    maxOutstanding: "",
-  });
-
-  setSearch("");
-  setActiveTab("all");
-};
-
+    setSearch("");
+    setActiveTab("all");
+    setCurrentPage(1);
+  };
 
   /* =====================================================
      SUMMARY
@@ -333,7 +392,7 @@ const resetFilters = () => {
     const activeCustomers =
       customers.filter(
         (customer) =>
-          customer.customer?.status ===
+          customer?.customer?.status ===
           "Active"
       ).length;
 
@@ -342,7 +401,8 @@ const resetFilters = () => {
         (total, customer) =>
           total +
           Number(
-            customer.loan?.loanAmount || 0
+            customer?.loan
+              ?.loanAmount || 0
           ),
         0
       );
@@ -351,15 +411,26 @@ const resetFilters = () => {
       customers.reduce(
         (total, customer) =>
           total +
-          getOutstanding(customer),
+          getOutstanding(
+            customer
+          ),
         0
       );
 
     const closedLoans =
       customers.filter(
         (customer) =>
-          getLoanStatus(customer) ===
-          "Closed"
+          getLoanStatus(
+            customer
+          ) === "Closed"
+      ).length;
+
+    const overdueCustomers =
+      customers.filter(
+        (customer) =>
+          getDueStatus(
+            customer
+          ) === "Overdue"
       ).length;
 
     return {
@@ -368,280 +439,382 @@ const resetFilters = () => {
       totalDisbursed,
       totalOutstanding,
       closedLoans,
+      overdueCustomers,
     };
   }, [customers]);
-/* =====================================================
-   FILTERED CUSTOMERS
-===================================================== */
 
-const filteredCustomers = useMemo(() => {
-  const query =
-    search.trim().toLowerCase();
+  /* =====================================================
+     FILTERED CUSTOMERS
+  ====================================================== */
 
-  let result = customers.filter(
-    (customer) => {
-      const personal =
-        getPersonal(customer);
+  const filteredCustomers =
+    useMemo(() => {
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-      const vehicle =
-        getVehicle(customer);
+      let result =
+        customers.filter(
+          (customer) => {
+            const personal =
+              getPersonal(
+                customer
+              );
 
-      const loan =
-        getLoan(customer);
+            const vehicle =
+              getVehicle(
+                customer
+              );
 
-      const rc =
-        getRc(customer);
+            const loan =
+              getLoan(
+                customer
+              );
 
-      const vehicleName =
-        getVehicleName(customer);
+            const rc =
+              getRc(
+                customer
+              );
 
-      const outstanding =
-        getOutstanding(customer);
+            const outstanding =
+              getOutstanding(
+                customer
+              );
 
-      const loanAmount =
-        Number(
-          loan.loanAmount || 0
+            const loanAmount =
+              Number(
+                loan?.loanAmount ||
+                  0
+              );
+
+            /* SEARCH */
+
+            const searchableText =
+              [
+                personal?.name,
+                personal?.mobileNumber,
+                personal?.alternateMobileNumber,
+                customer
+                  ?.customer?.id,
+                customer
+                  ?.customer
+                  ?.customerNumber,
+                vehicle?.brand,
+                vehicle?.model,
+                vehicle?.variant,
+                rc?.registrationNumber,
+                loan?.loanNumber,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            const matchesSearch =
+              !query ||
+              searchableText.includes(
+                query
+              );
+
+            /* CUSTOMER STATUS */
+
+            const matchesCustomerStatus =
+              filters.customerStatus ===
+                "All Status" ||
+              customer
+                ?.customer
+                ?.status ===
+                filters.customerStatus;
+
+            /* LOAN STATUS */
+
+            const matchesLoanStatus =
+              filters.loanStatus ===
+                "All Loan Status" ||
+              getLoanStatus(
+                customer
+              ) ===
+                filters.loanStatus;
+
+            /* LOAN TYPE */
+
+            const matchesLoanType =
+              filters.loanType ===
+                "All Loan Types" ||
+              getLoanType(
+                customer
+              ) ===
+                filters.loanType;
+
+            /* DUE STATUS */
+
+            const matchesDueStatus =
+              filters.dueStatus ===
+                "All Due Status" ||
+              getDueStatus(
+                customer
+              ) ===
+                filters.dueStatus;
+
+            /* VEHICLE TYPE */
+
+            const matchesVehicleType =
+              filters.vehicleType ===
+                "All Vehicle Types" ||
+              vehicle?.vehicleType ===
+                filters.vehicleType;
+
+            /* BRAND */
+
+            const matchesBrand =
+              filters.brand ===
+                "All Brands" ||
+              vehicle?.brand ===
+                filters.brand;
+
+            /* CITY */
+
+            const matchesCity =
+              filters.city ===
+                "All Cities" ||
+              personal?.area ===
+                filters.city ||
+              rc?.location ===
+                filters.city;
+
+            /* BRANCH */
+
+            const matchesBranch =
+              filters.branch ===
+                "All Branches" ||
+              rc?.location ===
+                filters.branch ||
+              personal?.area ===
+                filters.branch;
+
+            /* DATE */
+
+            const nextDueDate =
+              getNextDueDate(
+                customer
+              );
+
+            const matchesDate =
+              !filters.dateRange ||
+              String(
+                nextDueDate || ""
+              ).startsWith(
+                filters.dateRange
+              );
+
+            /* LOAN RANGE */
+
+            const minLoan =
+              filters.minLoan ===
+              ""
+                ? 0
+                : Number(
+                    filters.minLoan
+                  );
+
+            const maxLoan =
+              filters.maxLoan ===
+              ""
+                ? Infinity
+                : Number(
+                    filters.maxLoan
+                  );
+
+            const matchesLoanRange =
+              loanAmount >=
+                minLoan &&
+              loanAmount <=
+                maxLoan;
+
+            /* OUTSTANDING RANGE */
+
+            const minOutstanding =
+              filters.minOutstanding ===
+              ""
+                ? 0
+                : Number(
+                    filters.minOutstanding
+                  );
+
+            const maxOutstanding =
+              filters.maxOutstanding ===
+              ""
+                ? Infinity
+                : Number(
+                    filters.maxOutstanding
+                  );
+
+            const matchesOutstandingRange =
+              outstanding >=
+                minOutstanding &&
+              outstanding <=
+                maxOutstanding;
+
+            return (
+              matchesSearch &&
+              matchesCustomerStatus &&
+              matchesLoanStatus &&
+              matchesLoanType &&
+              matchesDueStatus &&
+              matchesVehicleType &&
+              matchesBrand &&
+              matchesCity &&
+              matchesBranch &&
+              matchesDate &&
+              matchesLoanRange &&
+              matchesOutstandingRange
+            );
+          }
         );
 
-      /* -----------------------------------------
-         SEARCH
-      ----------------------------------------- */
+      /* =================================================
+         TABS
+      ================================================== */
 
-      const searchableText = [
-        personal.name,
-        personal.mobileNumber,
-        personal.alternateMobileNumber,
-        customer.customer?.id,
-        customer.customer?.customerNumber,
-        vehicle.brand,
-        vehicle.model,
-        vehicle.variant,
-        rc.registrationNumber,
-        loan.loanNumber,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      if (
+        activeTab ===
+        "active"
+      ) {
+        result =
+          result.filter(
+            (customer) =>
+              customer
+                ?.customer
+                ?.status ===
+              "Active"
+          );
+      }
 
-      const matchesSearch =
-        !query ||
-        searchableText.includes(query);
+      if (
+        activeTab ===
+        "overdue"
+      ) {
+        result =
+          result.filter(
+            (customer) =>
+              getDueStatus(
+                customer
+              ) ===
+              "Overdue"
+          );
+      }
 
+      if (
+        activeTab ===
+        "recent"
+      ) {
+        result = [
+          ...result,
+        ]
+          .sort(
+            (a, b) => {
+              const aDate =
+                new Date(
+                  a?.customer
+                    ?.createdAt ||
+                    0
+                ).getTime();
 
-      /* -----------------------------------------
-         CUSTOMER STATUS
-      ----------------------------------------- */
+              const bDate =
+                new Date(
+                  b?.customer
+                    ?.createdAt ||
+                    0
+                ).getTime();
 
-      const matchesCustomerStatus =
-        filters.customerStatus ===
-          "All Status" ||
-        customer.customer?.status ===
-          filters.customerStatus;
+              return (
+                bDate -
+                aDate
+              );
+            }
+          )
+          .slice(0, 25);
+      }
 
+      return result;
+    }, [
+      customers,
+      search,
+      filters,
+      activeTab,
+    ]);
 
-      /* -----------------------------------------
-         LOAN STATUS
-      ----------------------------------------- */
+  /* =====================================================
+     PAGINATION
+  ====================================================== */
 
-      const matchesLoanStatus =
-        filters.loanStatus ===
-          "All Loan Status" ||
-        getLoanStatus(customer) ===
-          filters.loanStatus;
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        filteredCustomers.length /
+          customersPerPage
+      )
+    );
 
+  /*
+   * Reset to page 1 whenever
+   * the displayed dataset changes.
+   */
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    search,
+    filters,
+    activeTab,
+    viewMode,
+  ]);
 
-      /* -----------------------------------------
-         LOAN TYPE
-      ----------------------------------------- */
-
-      const matchesLoanType =
-        filters.loanType ===
-          "All Loan Types" ||
-        getLoanType(customer) ===
-          filters.loanType;
-
-
-      /* -----------------------------------------
-         DUE STATUS
-      ----------------------------------------- */
-
-      const matchesDueStatus =
-        filters.dueStatus ===
-          "All Due Status" ||
-        getDueStatus(customer) ===
-          filters.dueStatus;
-
-
-      /* -----------------------------------------
-         VEHICLE TYPE
-      ----------------------------------------- */
-
-      const matchesVehicleType =
-        filters.vehicleType ===
-          "All Vehicle Types" ||
-        vehicle.vehicleType ===
-          filters.vehicleType;
-
-
-      /* -----------------------------------------
-         BRAND
-      ----------------------------------------- */
-
-      const matchesBrand =
-        filters.brand ===
-          "All Brands" ||
-        vehicle.brand ===
-          filters.brand;
-
-
-      /* -----------------------------------------
-         CITY
-      ----------------------------------------- */
-
-      const matchesCity =
-        filters.city ===
-          "All Cities" ||
-        personal.area ===
-          filters.city ||
-        rc.location ===
-          filters.city;
-
-
-      /* -----------------------------------------
-         BRANCH
-      ----------------------------------------- */
-
-      const matchesBranch =
-        filters.branch ===
-          "All Branches" ||
-        rc.location ===
-          filters.branch ||
-        personal.area ===
-          filters.branch;
-
-
-      /* -----------------------------------------
-         LOAN RANGE
-      ----------------------------------------- */
-
-      const minLoan =
-        filters.minLoan === ""
-          ? 0
-          : Number(
-              filters.minLoan
-            );
-
-      const maxLoan =
-        filters.maxLoan === ""
-          ? Infinity
-          : Number(
-              filters.maxLoan
-            );
-
-      const matchesLoanRange =
-        loanAmount >= minLoan &&
-        loanAmount <= maxLoan;
-
-
-      /* -----------------------------------------
-         OUTSTANDING RANGE
-      ----------------------------------------- */
-
-      const minOutstanding =
-        filters.minOutstanding === ""
-          ? 0
-          : Number(
-              filters.minOutstanding
-            );
-
-      const maxOutstanding =
-        filters.maxOutstanding === ""
-          ? Infinity
-          : Number(
-              filters.maxOutstanding
-            );
-
-      const matchesOutstandingRange =
-        outstanding >=
-          minOutstanding &&
-        outstanding <=
-          maxOutstanding;
-
-
-      return (
-        matchesSearch &&
-        matchesCustomerStatus &&
-        matchesLoanStatus &&
-        matchesLoanType &&
-        matchesDueStatus &&
-        matchesVehicleType &&
-        matchesBrand &&
-        matchesCity &&
-        matchesBranch &&
-        matchesLoanRange &&
-        matchesOutstandingRange
+  /*
+   * Protect against deleting/filtering
+   * the last page.
+   */
+  useEffect(() => {
+    if (
+      currentPage >
+      totalPages
+    ) {
+      setCurrentPage(
+        totalPages
       );
     }
+  }, [
+    currentPage,
+    totalPages,
+  ]);
+
+  const startIndex =
+    filteredCustomers.length ===
+    0
+      ? 0
+      : (currentPage - 1) *
+        customersPerPage;
+
+  const endIndex = Math.min(
+    startIndex +
+      customersPerPage,
+    filteredCustomers.length
   );
 
-
-  /* ===================================================
-     TABS
-  =================================================== */
-
-  if (activeTab === "active") {
-    result = result.filter(
-      (customer) =>
-        customer.customer?.status ===
-        "Active"
+  const paginatedCustomers =
+    filteredCustomers.slice(
+      startIndex,
+      endIndex
     );
-  }
-
-
-  if (activeTab === "overdue") {
-    result = result.filter(
-      (customer) =>
-        getDueStatus(customer) ===
-        "Overdue"
-    );
-  }
-
-
-  if (activeTab === "recent") {
-    result = [...result]
-      .sort((a, b) => {
-        const aDate =
-          new Date(
-            a.customer?.createdAt ||
-              0
-          ).getTime();
-
-        const bDate =
-          new Date(
-            b.customer?.createdAt ||
-              0
-          ).getTime();
-
-        return bDate - aDate;
-      })
-      .slice(0, 25);
-  }
-
-
-  return result;
-}, [
-  customers,
-  search,
-  filters,
-  activeTab,
-]);
 
   /* =====================================================
      EXPORT
   ====================================================== */
 
   const handleExport = () => {
-    if (!filteredCustomers.length) {
+    if (
+      !filteredCustomers.length
+    ) {
       return;
     }
 
@@ -661,18 +834,25 @@ const filteredCustomers = useMemo(() => {
     filteredCustomers.forEach(
       (customer) => {
         const personal =
-          getPersonal(customer);
+          getPersonal(
+            customer
+          );
 
         const loan =
-          getLoan(customer);
+          getLoan(
+            customer
+          );
 
         rows.push([
-          personal.name || "",
-          customer.customer
-            ?.customerNumber ||
-            customer.customer?.id ||
+          personal?.name ||
             "",
-          personal.mobileNumber ||
+          customer
+            ?.customer
+            ?.customerNumber ||
+            customer
+              ?.customer?.id ||
+            "",
+          personal?.mobileNumber ||
             "",
           getVehicleName(
             customer
@@ -681,44 +861,50 @@ const filteredCustomers = useMemo(() => {
             customer
           ),
           Number(
-            loan.loanAmount || 0
+            loan?.loanAmount ||
+              0
           ),
           getOutstanding(
             customer
           ),
-          customer.customer
-            ?.status || "",
+          customer
+            ?.customer?.status ||
+            "",
         ]);
       }
     );
 
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) => {
-            const text =
-              String(
-                value ?? ""
-              );
+    const csv =
+      rows
+        .map((row) =>
+          row
+            .map((value) => {
+              const text =
+                String(
+                  value ?? ""
+                );
 
-            return `"${text.replace(
-              /"/g,
-              '""'
-            )}"`;
-          })
-          .join(",")
-      )
-      .join("\n");
+              return `"${text.replace(
+                /"/g,
+                '""'
+              )}"`;
+            })
+            .join(",")
+        )
+        .join("\n");
 
-    const blob = new Blob(
-      [csv],
-      {
-        type: "text/csv;charset=utf-8;",
-      }
-    );
+    const blob =
+      new Blob(
+        [csv],
+        {
+          type: "text/csv;charset=utf-8;",
+        }
+      );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
       document.createElement(
@@ -726,35 +912,42 @@ const filteredCustomers = useMemo(() => {
       );
 
     link.href = url;
-
     link.download =
       "customers.csv";
 
     link.click();
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(
+      url
+    );
   };
-
 
   /* =====================================================
      NAVIGATION
   ====================================================== */
 
-  const handleAddCustomer = () => {
-    navigate(
-      "/customers/onboarding"
-    );
-  };
-
+  const handleAddCustomer =
+    () => {
+      navigate(
+        "/customers/onboarding"
+      );
+    };
 
   const handleView = (
     customer
   ) => {
+    const id =
+      customer
+        ?.customer?.id;
+
+    if (!id) {
+      return;
+    }
+
     navigate(
-      `/customers/${customer.customer?.id}`
+      `/customers/${id}`
     );
   };
-
 
   /* =====================================================
      LOADING
@@ -769,7 +962,6 @@ const filteredCustomers = useMemo(() => {
       </div>
     );
   }
-
 
   /* =====================================================
      RENDER
@@ -790,13 +982,11 @@ const filteredCustomers = useMemo(() => {
         lg:px-6
       "
     >
-
       {/* =================================================
           HEADER
-      ================================================= */}
+      ================================================== */}
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-[#17221D] sm:text-[22px] md:text-[24px]">
             Customers
@@ -807,9 +997,7 @@ const filteredCustomers = useMemo(() => {
           </p>
         </div>
 
-
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-
           <button
             type="button"
             className="
@@ -828,19 +1016,27 @@ const filteredCustomers = useMemo(() => {
               text-[11px]
               font-medium
               text-slate-600
+              transition
               hover:border-slate-300
               sm:w-auto
               sm:justify-start
             "
           >
-            <History size={14} className="shrink-0" />
-            <span className="truncate">Activity History</span>
+            <History
+              size={14}
+              className="shrink-0"
+            />
+
+            <span className="truncate">
+              Activity History
+            </span>
           </button>
 
-
           <button
             type="button"
-            onClick={handleExport}
+            onClick={
+              handleExport
+            }
             className="
               col-span-1
               inline-flex
@@ -857,20 +1053,30 @@ const filteredCustomers = useMemo(() => {
               text-[11px]
               font-medium
               text-slate-600
+              transition
               hover:border-slate-300
               sm:w-auto
               sm:justify-start
             "
           >
-            <Download size={14} className="shrink-0" />
+            <Download
+              size={14}
+              className="shrink-0"
+            />
+
             Export
-            <ChevronDown size={13} className="shrink-0" />
-          </button>
 
+            <ChevronDown
+              size={13}
+              className="shrink-0"
+            />
+          </button>
 
           <button
             type="button"
-            onClick={handleAddCustomer}
+            onClick={
+              handleAddCustomer
+            }
             className="
               col-span-2
               inline-flex
@@ -891,21 +1097,23 @@ const filteredCustomers = useMemo(() => {
               sm:w-auto
             "
           >
-            <Plus size={15} className="shrink-0" />
-            <span className="truncate">Add New Customer</span>
+            <Plus
+              size={15}
+              className="shrink-0"
+            />
+
+            <span className="truncate">
+              Add New Customer
+            </span>
           </button>
-
         </div>
-
       </div>
-
 
       {/* =================================================
           SUMMARY CARDS
-      ================================================= */}
+      ================================================== */}
 
       <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
-
         <SummaryCard
           icon={Users}
           label="Total Customers"
@@ -954,20 +1162,15 @@ const filteredCustomers = useMemo(() => {
           note="Successfully closed"
           purple
         />
-
       </div>
 
-
       {/* =================================================
-          SEARCH / FILTER HEADER
-      ================================================= */}
+          SEARCH / FILTER
+      ================================================== */}
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-2.5">
-
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-
           <div className="relative min-w-0 flex-1">
-
             <Search
               size={16}
               className="
@@ -983,9 +1186,9 @@ const filteredCustomers = useMemo(() => {
             <input
               type="text"
               value={search}
-              onChange={(e) =>
+              onChange={(event) =>
                 setSearch(
-                  e.target.value
+                  event.target.value
                 )
               }
               placeholder="Search by name, mobile, customer ID, vehicle no., loan ID..."
@@ -1000,50 +1203,50 @@ const filteredCustomers = useMemo(() => {
                 pr-3
                 text-xs
                 text-slate-700
-                placeholder:text-slate-400
                 outline-none
                 transition
+                placeholder:text-slate-400
                 focus:border-[#0B5D3B]
                 focus:ring-1
                 focus:ring-[#0B5D3B]
               "
             />
-
           </div>
 
-
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-
-           
-
-
             <button
-  type="button"
-  onClick={resetFilters}
-  className="
-    inline-flex
-    h-9
-    w-full
-    items-center
-    justify-center
-    gap-1.5
-    rounded-lg
-    border
-    border-slate-200
-    bg-white
-    px-3
-    text-[11px]
-    font-medium
-    text-slate-500
-    hover:border-slate-300
-    hover:text-slate-700
-    sm:w-auto
-  "
->
-  <RotateCcw size={13} className="shrink-0" />
-  Reset Filters
-</button>
+              type="button"
+              onClick={
+                resetFilters
+              }
+              className="
+                inline-flex
+                h-9
+                w-full
+                items-center
+                justify-center
+                gap-1.5
+                rounded-lg
+                border
+                border-slate-200
+                bg-white
+                px-3
+                text-[11px]
+                font-medium
+                text-slate-500
+                transition
+                hover:border-slate-300
+                hover:text-slate-700
+                sm:w-auto
+              "
+            >
+              <RotateCcw
+                size={13}
+                className="shrink-0"
+              />
 
+              Reset Filters
+            </button>
 
             <button
               type="button"
@@ -1065,12 +1268,12 @@ const filteredCustomers = useMemo(() => {
                 px-3
                 text-[11px]
                 font-medium
+                transition
                 sm:w-auto
-
                 ${
                   showFilters
                     ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
-                    : "border-slate-200 bg-white text-slate-500"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                 }
               `}
             >
@@ -1078,25 +1281,21 @@ const filteredCustomers = useMemo(() => {
                 size={13}
                 className="shrink-0"
               />
+
               {showFilters
                 ? "Hide Filters"
                 : "Show Filters"}
             </button>
-
           </div>
-
         </div>
-
 
         {/* =================================================
             ADVANCED FILTERS
-        ================================================= */}
+        ================================================== */}
 
         {showFilters && (
           <div className="mt-2.5 border-t border-slate-100 pt-2.5">
-
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-
               <FilterSelect
                 label="Customer Status"
                 value={
@@ -1112,7 +1311,6 @@ const filteredCustomers = useMemo(() => {
                   "All Status",
                   "Active",
                   "Inactive",
-    
                   "Closed",
                 ]}
               />
@@ -1132,7 +1330,6 @@ const filteredCustomers = useMemo(() => {
                   "All Loan Status",
                   "Active",
                   "Closed",
-                
                 ]}
               />
 
@@ -1165,12 +1362,12 @@ const filteredCustomers = useMemo(() => {
                     value
                   )
                 }
-               options={[
-  "All Due Status",
-  "Overdue",
-  "Due",
-  "Completed",
-]}
+                options={[
+                  "All Due Status",
+                  "Overdue",
+                  "Due",
+                  "Completed",
+                ]}
               />
 
               <FilterInput
@@ -1202,12 +1399,9 @@ const filteredCustomers = useMemo(() => {
                   "All Branches",
                 ]}
               />
-
             </div>
 
-
             <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-
               <FilterSelect
                 label="Vehicle Type"
                 value={
@@ -1305,25 +1499,17 @@ const filteredCustomers = useMemo(() => {
                   )
                 }
               />
-
-          
-
             </div>
-
           </div>
         )}
-
       </div>
 
-
       {/* =================================================
-          TABS + SORT
-      ================================================= */}
+          TABS + VIEW SWITCH
+      ================================================== */}
 
       <div className="mt-3 flex flex-col gap-2 border-b border-slate-200 sm:flex-row sm:items-end sm:justify-between">
-
         <div className="-mx-3 flex min-w-0 items-center gap-4 overflow-x-auto px-3 sm:mx-0 sm:gap-5 sm:px-0">
-
           <TabButton
             active={
               activeTab === "all"
@@ -1350,129 +1536,145 @@ const filteredCustomers = useMemo(() => {
 
           <TabButton
             active={
-              activeTab === "overdue"
+              activeTab ===
+              "overdue"
             }
-            label={`Overdue Customers (${customers.filter(
-              (customer) =>
-                getDueStatus(customer) === "Overdue"
-            ).length.toLocaleString(
+            label={`Overdue Customers (${stats.overdueCustomers.toLocaleString(
               "en-IN"
             )})`}
             onClick={() =>
-              setActiveTab("overdue")
+              setActiveTab(
+                "overdue"
+              )
             }
           />
 
           <TabButton
             active={
-              activeTab === "recent"
+              activeTab ===
+              "recent"
             }
             label={`Recent Customers (${Math.min(
               25,
               customers.length
             )})`}
             onClick={() =>
-              setActiveTab("recent")
+              setActiveTab(
+                "recent"
+              )
             }
           />
-
         </div>
 
-
         <div className="flex items-center gap-2 pb-2">
-
           <button
             type="button"
-            onClick={() =>
-              setViewMode("list")
-            }
+            onClick={() => {
+              setViewMode(
+                "list"
+              );
+              setCurrentPage(
+                1
+              );
+            }}
             className={`
               flex
               h-8
               w-8
+              shrink-0
               items-center
               justify-center
               rounded-md
               border
-              shrink-0
-
               ${
-                viewMode === "list"
+                viewMode ===
+                "list"
                   ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
                   : "border-slate-200 bg-white text-slate-400"
               }
             `}
             title="List view"
           >
-            <ListFilter size={14} />
+            <ListFilter
+              size={14}
+            />
           </button>
-
 
           <button
             type="button"
-            onClick={() =>
-              setViewMode("grid")
-            }
+            onClick={() => {
+              setViewMode(
+                "grid"
+              );
+              setCurrentPage(
+                1
+              );
+            }}
             className={`
               flex
               h-8
               w-8
+              shrink-0
               items-center
               justify-center
               rounded-md
               border
-              shrink-0
-
               ${
-                viewMode === "grid"
+                viewMode ===
+                "grid"
                   ? "border-[#A8D0BD] bg-[#F6FBF8] text-[#0B5D3B]"
                   : "border-slate-200 bg-white text-slate-400"
               }
             `}
             title="Grid view"
           >
-            <Grid2X2 size={14} />
+            <Grid2X2
+              size={14}
+            />
           </button>
-
-
-        
-
         </div>
-
       </div>
 
-
       {/* =================================================
-          CUSTOMER COUNT
-      ================================================= */}
+          CURRENT COUNT
+      ================================================== */}
 
-      <div className="flex items-center justify-between px-1 py-2">
-
+      <div className="px-1 py-2">
         <p className="text-[10px] text-slate-400">
           Showing{" "}
           <span className="font-semibold text-slate-600">
-            {filteredCustomers.length}
+            {filteredCustomers.length ===
+            0
+              ? 0
+              : startIndex + 1}
+          </span>{" "}
+          to{" "}
+          <span className="font-semibold text-slate-600">
+            {endIndex}
           </span>{" "}
           of{" "}
           <span className="font-semibold text-slate-600">
-            {customers.length}
+            {
+              filteredCustomers.length
+            }
           </span>{" "}
           customers
         </p>
-
       </div>
-
 
       {/* =================================================
           TABLE / GRID
-      ================================================= */}
+      ================================================== */}
 
-      {viewMode === "list" ? (
+      {viewMode ===
+      "list" ? (
         <CustomerTable
           customers={
-            filteredCustomers
+            paginatedCustomers
           }
-          onView={handleView}
+          onView={
+            handleView
+          }
           openMenuId={
             openMenuId
           }
@@ -1483,8 +1685,7 @@ const filteredCustomers = useMemo(() => {
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-
-          {filteredCustomers.length ===
+          {paginatedCustomers.length ===
           0 ? (
             <div className="sm:col-span-2 xl:col-span-3">
               <EmptyContent
@@ -1494,29 +1695,86 @@ const filteredCustomers = useMemo(() => {
               />
             </div>
           ) : (
-            filteredCustomers.map(
-              (customer) => (
-               <CustomerGridCard
-  key={customer.customer?.id}
-  customer={customer}
-  money={money}
-  onView={() =>
-    handleView(customer)
-  }
-  openMenuId={openMenuId}
-  setOpenMenuId={setOpenMenuId}
-/>
+            paginatedCustomers.map(
+              (
+                customer
+              ) => (
+                <CustomerGridCard
+                  key={
+                    customer
+                      ?.customer
+                      ?.id
+                  }
+                  customer={
+                    customer
+                  }
+                  money={money}
+                  onView={() =>
+                    handleView(
+                      customer
+                    )
+                  }
+                  openMenuId={
+                    openMenuId
+                  }
+                  setOpenMenuId={
+                    setOpenMenuId
+                  }
+                />
               )
             )
           )}
-
         </div>
       )}
 
+      {/* =================================================
+          PAGINATION
+      ================================================== */}
+
+      {filteredCustomers.length >
+        0 && (
+        <Pagination
+          currentPage={
+            currentPage
+          }
+          totalPages={
+            totalPages
+          }
+          totalItems={
+            filteredCustomers.length
+          }
+          startIndex={
+            startIndex
+          }
+          endIndex={
+            endIndex
+          }
+          onPrevious={() =>
+            setCurrentPage(
+              (page) =>
+                Math.max(
+                  page - 1,
+                  1
+                )
+            )
+          }
+          onNext={() =>
+            setCurrentPage(
+              (page) =>
+                Math.min(
+                  page + 1,
+                  totalPages
+                )
+            )
+          }
+          onPageChange={
+            setCurrentPage
+          }
+        />
+      )}
     </div>
   );
 };
-
 
 /* =========================================================
    SUMMARY CARD
@@ -1565,9 +1823,7 @@ const SummaryCard = ({
       "
     >
       <div className="flex items-start justify-between gap-2 sm:gap-3">
-
         <div className="min-w-0">
-
           <p className="truncate text-[9px] font-medium text-slate-500 sm:text-[10px]">
             {label}
           </p>
@@ -1580,7 +1836,6 @@ const SummaryCard = ({
               font-semibold
               tracking-tight
               sm:text-[18px]
-
               ${
                 green ||
                 gold
@@ -1595,7 +1850,6 @@ const SummaryCard = ({
           <p className="mt-1 hidden truncate text-[9px] text-slate-400 sm:block">
             {note}
           </p>
-
         </div>
 
         <div
@@ -1616,24 +1870,19 @@ const SummaryCard = ({
             size={16}
             className={`${iconText} sm:hidden`}
           />
+
           <Icon
             size={17}
             className={`hidden ${iconText} sm:block`}
           />
         </div>
-
       </div>
     </div>
   );
 };
 
-
 /* =========================================================
-   TABLE
-========================================================= */
-
-/* =========================================================
-   TABLE
+   CUSTOMER TABLE
 ========================================================= */
 
 const CustomerTable = ({
@@ -1643,17 +1892,23 @@ const CustomerTable = ({
   setOpenMenuId,
   money,
 }) => {
-  const [menuPosition, setMenuPosition] = useState({
+  const [
+    menuPosition,
+    setMenuPosition,
+  ] = useState({
     top: 0,
     left: 0,
   });
 
-  if (!customers.length) {
+  if (
+    !customers.length
+  ) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white">
         <EmptyContent
           onAdd={() => {
-            window.location.href = "/customers/onboarding";
+            window.location.href =
+              "/customers/onboarding";
           }}
         />
       </div>
@@ -1666,426 +1921,580 @@ const CustomerTable = ({
         <table className="w-full min-w-[1000px]">
           <thead className="bg-[#F8FAF9]">
             <tr className="border-b border-slate-200">
-              <TableHeader>Customer</TableHeader>
-              <TableHeader>Contact</TableHeader>
-              <TableHeader>Vehicle</TableHeader>
-              <TableHeader>Loan Details</TableHeader>
-              <TableHeader>Outstanding</TableHeader>
-              <TableHeader>Next Due</TableHeader>
-              <TableHeader align="center">Status</TableHeader>
-              <TableHeader align="center">Action</TableHeader>
+              <TableHeader>
+                Customer
+              </TableHeader>
+
+              <TableHeader>
+                Contact
+              </TableHeader>
+
+              <TableHeader>
+                Vehicle
+              </TableHeader>
+
+              <TableHeader>
+                Loan Details
+              </TableHeader>
+
+              <TableHeader>
+                Outstanding
+              </TableHeader>
+
+              <TableHeader>
+                Next Due
+              </TableHeader>
+
+              <TableHeader align="center">
+                Status
+              </TableHeader>
+
+              <TableHeader align="center">
+                Action
+              </TableHeader>
             </tr>
           </thead>
 
           <tbody>
-            {customers.map((customer) => {
-              const personal = getPersonal(customer);
-              const vehicle = getVehicle(customer);
-              const loan = getLoan(customer);
-              const rc = getRc(customer);
+            {customers.map(
+              (
+                customer
+              ) => {
+                const personal =
+                  getPersonal(
+                    customer
+                  );
 
-              const outstanding = getOutstanding(customer);
-              const vehicleName = getVehicleName(customer);
-              const customerId = customer.customer?.id;
+                const vehicle =
+                  getVehicle(
+                    customer
+                  );
 
-              const dueStatus = getDueStatus(customer);
-              const nextDueDate = getNextDueDate(customer);
+                const loan =
+                  getLoan(
+                    customer
+                  );
 
-              return (
-                <tr
-                  key={customerId}
-                  onDoubleClick={() => onView(customer)}
-                  className="
-                    cursor-pointer
-                    border-b
-                    border-slate-100
-                    last:border-0
-                    transition
-                    hover:bg-[#FAFCFB]
-                  "
-                >
-                  {/* CUSTOMER */}
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF5EF] text-[10px] font-semibold text-[#0B5D3B]">
-                        {getInitials(personal.name)}
+                const rc =
+                  getRc(
+                    customer
+                  );
+
+                const outstanding =
+                  getOutstanding(
+                    customer
+                  );
+
+                const vehicleName =
+                  getVehicleName(
+                    customer
+                  );
+
+                const customerId =
+                  customer
+                    ?.customer
+                    ?.id;
+
+                const dueStatus =
+                  getDueStatus(
+                    customer
+                  );
+
+                const nextDueDate =
+                  getNextDueDate(
+                    customer
+                  );
+
+                return (
+                  <tr
+                    key={
+                      customerId ||
+                      customer
+                        ?.customer
+                        ?.customerNumber
+                    }
+                    onDoubleClick={() =>
+                      onView(
+                        customer
+                      )
+                    }
+                    className="
+                      cursor-pointer
+                      border-b
+                      border-slate-100
+                      transition
+                      hover:bg-[#FAFCFB]
+                    "
+                  >
+                    {/* CUSTOMER */}
+
+                    <td className="px-3.5 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF5EF] text-[10px] font-semibold text-[#0B5D3B]">
+                          {getInitials(
+                            personal?.name
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-semibold text-[#17221D]">
+                            {personal?.name ||
+                              "Unnamed Customer"}
+                          </p>
+
+                          <p className="mt-0.5 truncate text-[9px] text-slate-400">
+                            {customer
+                              ?.customer
+                              ?.customerNumber ||
+                              customerId ||
+                              "—"}
+                          </p>
+                        </div>
                       </div>
+                    </td>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-[11px] font-semibold text-[#17221D]">
-                          {personal.name || "Unnamed Customer"}
-                        </p>
+                    {/* CONTACT */}
 
-                        <p className="mt-0.5 truncate text-[9px] text-slate-400">
-                          {customer.customer?.customerNumber ||
-                            customerId ||
-                            "—"}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* CONTACT */}
-                  <td className="px-3.5 py-2.5">
-                    <p className="text-[11px] text-slate-600">
-                      {personal.mobileNumber || "—"}
-                    </p>
-
-                    {personal.alternateMobileNumber && (
-                      <p className="mt-0.5 text-[9px] text-slate-400">
-                        {personal.alternateMobileNumber}
+                    <td className="px-3.5 py-2.5">
+                      <p className="text-[11px] text-slate-600">
+                        {personal?.mobileNumber ||
+                          "—"}
                       </p>
-                    )}
-                  </td>
 
-                  {/* VEHICLE */}
-                  <td className="px-3.5 py-2.5">
-                    <p
-                      className={`truncate text-[11px] font-medium ${
-                        vehicleName === "Not assigned"
-                          ? "text-slate-400"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      {vehicleName}
-                    </p>
-
-                    <p className="mt-0.5 text-[9px] uppercase text-slate-400">
-                      {rc.registrationNumber || "No registration"}
-                    </p>
-                  </td>
-
-                  {/* LOAN DETAILS */}
-                  <td className="px-3.5 py-2.5">
-                    <p className="text-[11px] font-semibold text-[#17221D]">
-                      ₹{money(loan.loanAmount)}
-                    </p>
-
-                    <p className="mt-0.5 text-[9px] text-slate-400">
-                      EMI: ₹
-                      {money(
-                        loan.repayment?.method === "Principal"
-                          ? loan.repaymentSchedule?.[0]?.paymentAmount ||
-                              loan.calculation?.paymentAmount ||
-                              0
-                          : loan.calculation?.emiAmount || 0
-                      )}
-                    </p>
-                  </td>
-
-                  {/* OUTSTANDING */}
-                  <td className="px-3.5 py-2.5">
-                    <p className="text-[11px] font-semibold text-[#0B5D3B]">
-                      ₹{money(outstanding)}
-                    </p>
-
-                    <p className="mt-0.5 text-[9px] text-slate-400">
-                      {dueStatus === "Overdue"
-                        ? "Overdue"
-                        : dueStatus === "Due"
-                        ? "Payment Due"
-                        : "On Schedule"}
-                    </p>
-                  </td>
-
-                  {/* NEXT DUE */}
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays
-                        size={12}
-                        className="shrink-0 text-slate-400"
-                      />
-
-                      <span className="text-[11px] font-medium text-slate-600">
-                        {formatDate(nextDueDate)}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="px-3.5 py-2.5 text-center">
-                    <StatusBadge
-                      status={
-                        customer.customer?.status || "Unknown"
-                      }
-                    />
-                  </td>
-
-                  {/* ACTION */}
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {/* VIEW */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onView(customer);
-                        }}
-                        className="
-                          flex h-7 w-7 items-center justify-center
-                          rounded-md border border-slate-200
-                          text-slate-500 transition
-                          hover:border-[#0B5D3B]
-                          hover:text-[#0B5D3B]
-                        "
-                        title="View Customer"
-                      >
-                        <Eye size={13} />
-                      </button>
-
-                      {/* HISTORY */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        className="
-                          flex h-7 w-7 items-center justify-center
-                          rounded-md border border-slate-200
-                          text-slate-500 transition
-                          hover:border-slate-300
-                          hover:text-slate-700
-                        "
-                        title="Activity History"
-                      >
-                        <Clock3 size={13} />
-                      </button>
-
-                      {/* EDIT */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onView(customer);
-                        }}
-                        className="
-                          flex h-7 w-7 items-center justify-center
-                          rounded-md border border-slate-200
-                          text-slate-500 transition
-                          hover:border-slate-300
-                          hover:text-slate-700
-                        "
-                        title="Edit Customer"
-                      >
-                        <Pencil size={13} />
-                      </button>
-
-                      {/* MORE */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-
-                          const rect =
-                            e.currentTarget.getBoundingClientRect();
-
-                          const menuWidth = 230;
-                          const menuHeight = 330;
-                          const gap = 6;
-
-                          let left =
-                            rect.right - menuWidth;
-
-                          let top =
-                            rect.bottom + gap;
-
-                          left = Math.max(
-                            8,
-                            Math.min(
-                              left,
-                              window.innerWidth -
-                                menuWidth -
-                                8
-                            )
-                          );
-
-                          if (
-                            top + menuHeight >
-                            window.innerHeight - 8
-                          ) {
-                            top =
-                              rect.top -
-                              menuHeight -
-                              gap;
+                      {personal?.alternateMobileNumber && (
+                        <p className="mt-0.5 text-[9px] text-slate-400">
+                          {
+                            personal.alternateMobileNumber
                           }
+                        </p>
+                      )}
+                    </td>
 
-                          setMenuPosition({
-                            top,
-                            left,
-                          });
+                    {/* VEHICLE */}
 
-                          setOpenMenuId(
-                            openMenuId === customerId
-                              ? null
-                              : customerId
-                          );
-                        }}
-                        className="
-                          flex h-7 w-7 items-center justify-center
-                          rounded-md border border-slate-200
-                          text-slate-500 transition
-                          hover:border-slate-300
-                          hover:text-slate-700
-                        "
-                        title="More Actions"
+                    <td className="px-3.5 py-2.5">
+                      <p
+                        className={`truncate text-[11px] font-medium ${
+                          vehicleName ===
+                          "Not assigned"
+                            ? "text-slate-400"
+                            : "text-slate-700"
+                        }`}
                       >
-                        <MoreVertical size={13} />
-                      </button>
+                        {vehicleName}
+                      </p>
 
-                      {/* MORE MENU */}
-                      {openMenuId === customerId && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            top: menuPosition.top,
-                            left: menuPosition.left,
+                      <p className="mt-0.5 text-[9px] uppercase text-slate-400">
+                        {rc?.registrationNumber ||
+                          "No registration"}
+                      </p>
+                    </td>
+
+                    {/* LOAN */}
+
+                    <td className="px-3.5 py-2.5">
+                      <p className="text-[11px] font-semibold text-[#17221D]">
+                        ₹
+                        {money(
+                          loan?.loanAmount
+                        )}
+                      </p>
+
+                      <p className="mt-0.5 text-[9px] text-slate-400">
+                        EMI: ₹
+                        {money(
+                          loan?.repayment
+                            ?.method ===
+                            "Principal"
+                            ? loan
+                                ?.repaymentSchedule?.[0]
+                                ?.paymentAmount ||
+                              loan?.calculation
+                                ?.paymentAmount ||
+                              0
+                            : loan?.calculation
+                                ?.emiAmount ||
+                              loan?.emiAmount ||
+                              0
+                        )}
+                      </p>
+                    </td>
+
+                    {/* OUTSTANDING */}
+
+                    <td className="px-3.5 py-2.5">
+                      <p className="text-[11px] font-semibold text-[#0B5D3B]">
+                        ₹
+                        {money(
+                          outstanding
+                        )}
+                      </p>
+
+                      <p className="mt-0.5 text-[9px] text-slate-400">
+                        {dueStatus ===
+                        "Overdue"
+                          ? "Overdue"
+                          : dueStatus ===
+                            "Due"
+                          ? "Payment Due"
+                          : "On Schedule"}
+                      </p>
+                    </td>
+
+                    {/* NEXT DUE */}
+
+                    <td className="px-3.5 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays
+                          size={12}
+                          className="shrink-0 text-slate-400"
+                        />
+
+                        <span className="text-[11px] font-medium text-slate-600">
+                          {formatDate(
+                            nextDueDate
+                          )}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* STATUS */}
+
+                    <td className="px-3.5 py-2.5 text-center">
+                      <StatusBadge
+                        status={
+                          customer
+                            ?.customer
+                            ?.status ||
+                          "Unknown"
+                        }
+                      />
+                    </td>
+
+                    {/* ACTION */}
+
+                    <td className="px-3.5 py-2.5">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(
+                            event
+                          ) => {
+                            event.stopPropagation();
+                            onView(
+                              customer
+                            );
                           }}
                           className="
-                            fixed
-                            z-[9999]
-                            w-[230px]
-                            max-w-[calc(100vw-16px)]
-                            overflow-hidden
-                            rounded-xl
-                            border border-slate-200
-                            bg-white
-                            shadow-2xl
-                            ring-1 ring-black/5
+                            flex
+                            h-7
+                            w-7
+                            items-center
+                            justify-center
+                            rounded-md
+                            border
+                            border-slate-200
+                            text-slate-500
+                            transition
+                            hover:border-[#0B5D3B]
+                            hover:text-[#0B5D3B]
                           "
+                          title="View Customer"
                         >
-                          <MenuItem
-                            label="View Loan Details"
-                            icon={Eye}
-                            onClick={() => {
-                              setOpenMenuId(null);
-                              onView(customer);
-                            }}
+                          <Eye
+                            size={13}
                           />
+                        </button>
 
-                          <MenuItem
-                            label="Add Payment"
-                            icon={IndianRupee}
-                            onClick={() => {
-                              setOpenMenuId(null);
-                            }}
+                        <button
+                          type="button"
+                          onClick={(
+                            event
+                          ) =>
+                            event.stopPropagation()
+                          }
+                          className="
+                            flex
+                            h-7
+                            w-7
+                            items-center
+                            justify-center
+                            rounded-md
+                            border
+                            border-slate-200
+                            text-slate-500
+                            transition
+                            hover:border-slate-300
+                            hover:text-slate-700
+                          "
+                          title="Activity History"
+                        >
+                          <Clock3
+                            size={13}
                           />
+                        </button>
 
-                          <MenuItem
-                            label="Upload Documents"
-                            icon={Download}
-                            onClick={() => {
-                              setOpenMenuId(null);
-                            }}
+                        <button
+                          type="button"
+                          onClick={(
+                            event
+                          ) => {
+                            event.stopPropagation();
+                            onView(
+                              customer
+                            );
+                          }}
+                          className="
+                            flex
+                            h-7
+                            w-7
+                            items-center
+                            justify-center
+                            rounded-md
+                            border
+                            border-slate-200
+                            text-slate-500
+                            transition
+                            hover:border-slate-300
+                            hover:text-slate-700
+                          "
+                          title="Edit Customer"
+                        >
+                          <Pencil
+                            size={13}
                           />
+                        </button>
 
-                          <MenuItem
-                            label="Generate Statement"
-                            icon={FileText}
-                            onClick={() => {
-                              setOpenMenuId(null);
-                            }}
+                        <button
+                          type="button"
+                          onClick={(
+                            event
+                          ) => {
+                            event.stopPropagation();
+
+                            const rect =
+                              event.currentTarget.getBoundingClientRect();
+
+                            const menuWidth =
+                              230;
+
+                            const menuHeight =
+                              330;
+
+                            const gap =
+                              6;
+
+                            let left =
+                              rect.right -
+                              menuWidth;
+
+                            let top =
+                              rect.bottom +
+                              gap;
+
+                            left =
+                              Math.max(
+                                8,
+                                Math.min(
+                                  left,
+                                  window.innerWidth -
+                                    menuWidth -
+                                    8
+                                )
+                              );
+
+                            if (
+                              top +
+                                menuHeight >
+                              window.innerHeight -
+                                8
+                            ) {
+                              top =
+                                rect.top -
+                                menuHeight -
+                                gap;
+                            }
+
+                            setMenuPosition(
+                              {
+                                top,
+                                left,
+                              }
+                            );
+
+                            setOpenMenuId(
+                              openMenuId ===
+                                customerId
+                                ? null
+                                : customerId
+                            );
+                          }}
+                          className="
+                            flex
+                            h-7
+                            w-7
+                            items-center
+                            justify-center
+                            rounded-md
+                            border
+                            border-slate-200
+                            text-slate-500
+                            transition
+                            hover:border-slate-300
+                            hover:text-slate-700
+                          "
+                          title="More Actions"
+                        >
+                          <MoreVertical
+                            size={
+                              13
+                            }
                           />
+                        </button>
 
-                          <MenuItem
-                            label="Download Documents"
-                            icon={Download}
-                            onClick={() => {
-                              setOpenMenuId(null);
+                        {/* MORE MENU */}
+
+                        {openMenuId ===
+                          customerId && (
+                          <div
+                            onClick={(
+                              event
+                            ) =>
+                              event.stopPropagation()
+                            }
+                            style={{
+                              top: menuPosition.top,
+                              left: menuPosition.left,
                             }}
-                          />
+                            className="
+                              fixed
+                              z-[9999]
+                              w-[230px]
+                              max-w-[calc(100vw-16px)]
+                              overflow-hidden
+                              rounded-xl
+                              border
+                              border-slate-200
+                              bg-white
+                              shadow-2xl
+                              ring-1
+                              ring-black/5
+                            "
+                          >
+                            <MenuItem
+                              label="View Loan Details"
+                              icon={
+                                Eye
+                              }
+                              onClick={() => {
+                                setOpenMenuId(
+                                  null
+                                );
+                                onView(
+                                  customer
+                                );
+                              }}
+                            />
 
-                          <MenuItem
-                            label="Send Payment Reminder"
-                            icon={CalendarDays}
-                            onClick={() => {
-                              setOpenMenuId(null);
-                            }}
-                          />
+                            <MenuItem
+                              label="Add Payment"
+                              icon={
+                                IndianRupee
+                              }
+                              onClick={() =>
+                                setOpenMenuId(
+                                  null
+                                )
+                              }
+                            />
 
-                          <div className="border-t border-slate-100" />
+                            <MenuItem
+                              label="Upload Documents"
+                              icon={
+                                Download
+                              }
+                              onClick={() =>
+                                setOpenMenuId(
+                                  null
+                                )
+                              }
+                            />
 
-                          <MenuItem
-                            label="Deactivate Customer"
-                            icon={UserCheck}
-                            danger
-                            onClick={() => {
-                              setOpenMenuId(null);
+                            <MenuItem
+                              label="Generate Statement"
+                              icon={
+                                FileText
+                              }
+                              onClick={() =>
+                                setOpenMenuId(
+                                  null
+                                )
+                              }
+                            />
 
-                              const name =
-                                personal.name ||
-                                "this customer";
+                            <MenuItem
+                              label="Download Documents"
+                              icon={
+                                Download
+                              }
+                              onClick={() =>
+                                setOpenMenuId(
+                                  null
+                                )
+                              }
+                            />
 
-                              const confirmed =
-                                window.confirm(
-                                  `Are you sure you want to deactivate ${name}?`
+                            <MenuItem
+                              label="Send Payment Reminder"
+                              icon={
+                                CalendarDays
+                              }
+                              onClick={() =>
+                                setOpenMenuId(
+                                  null
+                                )
+                              }
+                            />
+
+                            <div className="border-t border-slate-100" />
+
+                            <MenuItem
+                              label="Deactivate Customer"
+                              icon={
+                                UserCheck
+                              }
+                              danger
+                              onClick={() => {
+                                setOpenMenuId(
+                                  null
                                 );
 
-                              if (!confirmed) {
-                                return;
-                              }
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                                const name =
+                                  personal?.name ||
+                                  "this customer";
+
+                                const confirmed =
+                                  window.confirm(
+                                    `Are you sure you want to deactivate ${name}?`
+                                  );
+
+                                if (
+                                  !confirmed
+                                ) {
+                                  return;
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+            )}
           </tbody>
         </table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3.5 py-2.5">
-        <p className="text-[9px] text-slate-400">
-          Showing 1 to {customers.length} of {customers.length} customers
-        </p>
-
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="
-              flex h-7 w-7 items-center justify-center
-              rounded-md border border-slate-200
-              text-slate-400
-            "
-          >
-            ‹
-          </button>
-
-          <button
-            type="button"
-            className="
-              flex h-7 min-w-7 items-center justify-center
-              rounded-md bg-[#EAF5EF] px-1.5
-              text-[10px] font-semibold text-[#0B5D3B]
-            "
-          >
-            1
-          </button>
-
-          <button
-            type="button"
-            className="
-              flex h-7 w-7 items-center justify-center
-              rounded-md border border-slate-200
-              text-[10px] text-slate-500
-            "
-          >
-            2
-          </button>
-
-          <button
-            type="button"
-            className="
-              flex h-7 w-7 items-center justify-center
-              rounded-md border border-slate-200
-              text-slate-500
-            "
-          >
-            ›
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -2101,7 +2510,7 @@ const CustomerGridCard = ({
   onView,
   openMenuId,
   setOpenMenuId,
-}) =>  {
+}) => {
   const personal =
     getPersonal(customer);
 
@@ -2111,65 +2520,63 @@ const CustomerGridCard = ({
   const outstanding =
     getOutstanding(customer);
 
+  const customerId =
+    customer
+      ?.customer?.id;
+
   return (
     <div
-  className="
-    relative
-    rounded-xl
-    border
-    border-slate-200
-    bg-white
-    p-3
-    sm:p-3.5
-  "
->
-
+      className="
+        relative
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        p-3
+        sm:p-3.5
+      "
+    >
       <div className="flex items-start justify-between gap-2 sm:gap-3">
-
         <div className="flex min-w-0 items-center gap-2.5">
-
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EAF5EF] text-xs font-semibold text-[#0B5D3B]">
             {getInitials(
-              personal.name
+              personal?.name
             )}
           </div>
 
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-[#17221D]">
-              {personal.name ||
+              {personal?.name ||
                 "Unnamed Customer"}
             </p>
 
             <p className="mt-0.5 truncate text-[9px] text-slate-400">
-              {customer.customer
+              {customer
+                ?.customer
                 ?.customerNumber ||
-                customer.customer
-                  ?.id ||
+                customerId ||
                 "—"}
             </p>
           </div>
-
         </div>
 
         <div className="shrink-0">
           <StatusBadge
             status={
-              customer.customer
+              customer
+                ?.customer
                 ?.status ||
               "Unknown"
             }
           />
         </div>
-
       </div>
 
-
       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-
         <MobileDetail
           label="Mobile"
           value={
-            personal.mobileNumber ||
+            personal?.mobileNumber ||
             "—"
           }
         />
@@ -2184,7 +2591,7 @@ const CustomerGridCard = ({
         <MobileDetail
           label="Loan Amount"
           value={`₹${money(
-            loan.loanAmount
+            loan?.loanAmount
           )}`}
         />
 
@@ -2195,204 +2602,247 @@ const CustomerGridCard = ({
           )}`}
           green
         />
-
       </div>
 
-<div className="mt-3 flex items-center gap-1.5">
+      <div className="mt-3 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={
+            onView
+          }
+          className="
+            flex
+            h-8
+            flex-1
+            items-center
+            justify-center
+            gap-1.5
+            rounded-lg
+            border
+            border-slate-200
+            text-[10px]
+            font-semibold
+            text-slate-600
+            transition
+            hover:border-[#0B5D3B]
+            hover:text-[#0B5D3B]
+          "
+          title="View Customer"
+        >
+          <Eye
+            size={13}
+          />
+          View
+        </button>
 
-  {/* VIEW */}
-  <button
-    type="button"
-    onClick={onView}
-    className="
-      flex
-      h-8
-      flex-1
-      items-center
-      justify-center
-      gap-1.5
-      rounded-lg
-      border
-      border-slate-200
-      text-[10px]
-      font-semibold
-      text-slate-600
-      transition
-      hover:border-[#0B5D3B]
-      hover:text-[#0B5D3B]
-    "
-    title="View Customer"
-  >
-    <Eye size={13} />
-    View
-  </button>
+        <button
+          type="button"
+          className="
+            flex
+            h-8
+            w-8
+            shrink-0
+            items-center
+            justify-center
+            rounded-lg
+            border
+            border-slate-200
+            text-slate-500
+            transition
+            hover:border-slate-300
+            hover:text-slate-700
+          "
+          title="Activity History"
+        >
+          <Clock3
+            size={13}
+          />
+        </button>
 
-  {/* HISTORY */}
-  <button
-    type="button"
-    className="
-      flex
-      h-8
-      w-8
-      shrink-0
-      items-center
-      justify-center
-      rounded-lg
-      border
-      border-slate-200
-      text-slate-500
-      hover:border-slate-300
-      hover:text-slate-700
-    "
-    title="Activity History"
-  >
-    <Clock3 size={13} />
-  </button>
+        <button
+          type="button"
+          onClick={
+            onView
+          }
+          className="
+            flex
+            h-8
+            w-8
+            shrink-0
+            items-center
+            justify-center
+            rounded-lg
+            border
+            border-slate-200
+            text-slate-500
+            transition
+            hover:border-slate-300
+            hover:text-slate-700
+          "
+          title="Edit Customer"
+        >
+          <Pencil
+            size={13}
+          />
+        </button>
 
-  {/* EDIT */}
-  <button
-    type="button"
-    onClick={onView}
-    className="
-      flex
-      h-8
-      w-8
-      shrink-0
-      items-center
-      justify-center
-      rounded-lg
-      border
-      border-slate-200
-      text-slate-500
-      hover:border-slate-300
-      hover:text-slate-700
-    "
-    title="Edit Customer"
-  >
-    <Pencil size={13} />
-  </button>
+        <button
+          type="button"
+          onClick={() =>
+            setOpenMenuId(
+              openMenuId ===
+                customerId
+                ? null
+                : customerId
+            )
+          }
+          className="
+            flex
+            h-8
+            w-8
+            shrink-0
+            items-center
+            justify-center
+            rounded-lg
+            border
+            border-slate-200
+            text-slate-500
+            transition
+            hover:border-slate-300
+            hover:text-slate-700
+          "
+          title="More Actions"
+        >
+          <MoreVertical
+            size={14}
+          />
+        </button>
 
-  {/* MORE */}
-  <button
-    type="button"
-    onClick={() =>
-      setOpenMenuId(
-        openMenuId === customer.customer?.id
-          ? null
-          : customer.customer?.id
-      )
-    }
-    className="
-      flex
-      h-8
-      w-8
-      shrink-0
-      items-center
-      justify-center
-      rounded-lg
-      border
-      border-slate-200
-      text-slate-500
-      hover:border-slate-300
-      hover:text-slate-700
-    "
-    title="More Actions"
-  >
-    <MoreVertical size={14} />
-  </button>
-{openMenuId === customer.customer?.id && (
-  <div
-    className="
-      absolute
-      right-3
-      bottom-12
-      z-50
-      w-[235px]
-      max-w-[calc(100%-24px)]
-      overflow-hidden
-      rounded-lg
-      border
-      border-slate-200
-      bg-white
-      shadow-xl
-    "
-  >
-    <MenuItem
-      label="View Loan Details"
-      icon={Eye}
-      onClick={() => {
-        setOpenMenuId(null);
-        onView(customer);
-      }}
-    />
+        {openMenuId ===
+          customerId && (
+          <div
+            className="
+              absolute
+              bottom-12
+              right-3
+              z-50
+              w-[235px]
+              max-w-[calc(100%-24px)]
+              overflow-hidden
+              rounded-lg
+              border
+              border-slate-200
+              bg-white
+              shadow-xl
+            "
+          >
+            <MenuItem
+              label="View Loan Details"
+              icon={Eye}
+              onClick={() => {
+                setOpenMenuId(
+                  null
+                );
 
-    <MenuItem
-      label="Add Payment"
-      icon={IndianRupee}
-      onClick={() => {
-        setOpenMenuId(null);
-      }}
-    />
+                onView(
+                  customer
+                );
+              }}
+            />
 
-    <MenuItem
-      label="Upload Documents"
-      icon={Download}
-      onClick={() => {
-        setOpenMenuId(null);
-      }}
-    />
+            <MenuItem
+              label="Add Payment"
+              icon={
+                IndianRupee
+              }
+              onClick={() =>
+                setOpenMenuId(
+                  null
+                )
+              }
+            />
 
-    <MenuItem
-      label="Generate Statement"
-      icon={FileText}
-      onClick={() => {
-        setOpenMenuId(null);
-      }}
-    />
+            <MenuItem
+              label="Upload Documents"
+              icon={
+                Download
+              }
+              onClick={() =>
+                setOpenMenuId(
+                  null
+                )
+              }
+            />
 
-    <MenuItem
-      label="Download Documents"
-      icon={Download}
-      onClick={() => {
-        setOpenMenuId(null);
-      }}
-    />
+            <MenuItem
+              label="Generate Statement"
+              icon={
+                FileText
+              }
+              onClick={() =>
+                setOpenMenuId(
+                  null
+                )
+              }
+            />
 
-    <MenuItem
-      label="Send Payment Reminder"
-      icon={CalendarDays}
-      onClick={() => {
-        setOpenMenuId(null);
-      }}
-    />
+            <MenuItem
+              label="Download Documents"
+              icon={
+                Download
+              }
+              onClick={() =>
+                setOpenMenuId(
+                  null
+                )
+              }
+            />
 
-    <div className="border-t border-slate-100" />
+            <MenuItem
+              label="Send Payment Reminder"
+              icon={
+                CalendarDays
+              }
+              onClick={() =>
+                setOpenMenuId(
+                  null
+                )
+              }
+            />
 
-    <MenuItem
-      label="Deactivate Customer"
-      icon={UserCheck}
-      danger
-      onClick={() => {
-        setOpenMenuId(null);
+            <div className="border-t border-slate-100" />
 
-        const name =
-          customer.customer?.personal?.name ||
-          "this customer";
+            <MenuItem
+              label="Deactivate Customer"
+              icon={
+                UserCheck
+              }
+              danger
+              onClick={() => {
+                setOpenMenuId(
+                  null
+                );
 
-        const confirmed = window.confirm(
-          `Are you sure you want to deactivate ${name}?`
-        );
+                const name =
+                  personal?.name ||
+                  "this customer";
 
-        if (!confirmed) {
-          return;
-        }
-      }}
-    />
-  </div>
-)}
+                const confirmed =
+                  window.confirm(
+                    `Are you sure you want to deactivate ${name}?`
+                  );
 
-</div>
-</div>
+                if (
+                  !confirmed
+                ) {
+                  return;
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -2408,16 +2858,15 @@ const FilterSelect = ({
 }) => {
   return (
     <div className="min-w-0">
-
       <label className="mb-1 block text-[9px] font-medium text-slate-500">
         {label}
       </label>
 
       <select
         value={value}
-        onChange={(e) =>
+        onChange={(event) =>
           onChange(
-            e.target.value
+            event.target.value
           )
         }
         className="
@@ -2431,6 +2880,7 @@ const FilterSelect = ({
           text-[10px]
           text-slate-600
           outline-none
+          transition
           focus:border-[#0B5D3B]
         "
       >
@@ -2445,11 +2895,9 @@ const FilterSelect = ({
           )
         )}
       </select>
-
     </div>
   );
 };
-
 
 /* =========================================================
    FILTER INPUT
@@ -2463,7 +2911,6 @@ const FilterInput = ({
 }) => {
   return (
     <div className="min-w-0">
-
       <label className="mb-1 block text-[9px] font-medium text-slate-500">
         {label}
       </label>
@@ -2471,9 +2918,9 @@ const FilterInput = ({
       <input
         type={type}
         value={value}
-        onChange={(e) =>
+        onChange={(event) =>
           onChange(
-            e.target.value
+            event.target.value
           )
         }
         className="
@@ -2487,14 +2934,13 @@ const FilterInput = ({
           text-[10px]
           text-slate-600
           outline-none
+          transition
           focus:border-[#0B5D3B]
         "
       />
-
     </div>
   );
 };
-
 
 /* =========================================================
    RANGE FILTER
@@ -2509,22 +2955,20 @@ const RangeFilter = ({
 }) => {
   return (
     <div className="min-w-0">
-
       <label className="mb-1 block text-[9px] font-medium text-slate-500">
         {label}
       </label>
 
       <div className="flex items-center gap-1.5">
-
         <input
           type="number"
           value={minValue}
-          onChange={(e) =>
+          onChange={(event) =>
             onMinChange(
-              e.target.value
+              event.target.value
             )
           }
-          placeholder="Min Amount"
+          placeholder="Min"
           className="
             h-9
             min-w-0
@@ -2548,12 +2992,12 @@ const RangeFilter = ({
         <input
           type="number"
           value={maxValue}
-          onChange={(e) =>
+          onChange={(event) =>
             onMaxChange(
-              e.target.value
+              event.target.value
             )
           }
-          placeholder="Max Amount"
+          placeholder="Max"
           className="
             h-9
             min-w-0
@@ -2569,13 +3013,10 @@ const RangeFilter = ({
             focus:border-[#0B5D3B]
           "
         />
-
       </div>
-
     </div>
   );
 };
-
 
 /* =========================================================
    TAB
@@ -2589,7 +3030,9 @@ const TabButton = ({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className={`
         relative
         shrink-0
@@ -2597,7 +3040,7 @@ const TabButton = ({
         pb-2
         text-[10px]
         font-medium
-
+        transition
         ${
           active
             ? "text-[#0B5D3B]"
@@ -2624,7 +3067,6 @@ const TabButton = ({
   );
 };
 
-
 /* =========================================================
    STATUS
 ========================================================= */
@@ -2633,8 +3075,9 @@ const StatusBadge = ({
   status,
 }) => {
   const normalized =
-    String(status || "")
-      .toLowerCase();
+    String(
+      status || ""
+    ).toLowerCase();
 
   let classes =
     "bg-slate-100 text-slate-500";
@@ -2645,22 +3088,24 @@ const StatusBadge = ({
   ) {
     classes =
       "bg-[#EAF5EF] text-[#0B5D3B]";
-  }
-
-  if (
+  } else if (
     normalized ===
     "overdue"
   ) {
     classes =
       "bg-red-50 text-red-600";
-  }
-
-  if (
+  } else if (
     normalized ===
     "closed"
   ) {
     classes =
       "bg-[#F0ECFF] text-[#6D5BD0]";
+  } else if (
+    normalized ===
+    "inactive"
+  ) {
+    classes =
+      "bg-slate-100 text-slate-500";
   }
 
   return (
@@ -2681,7 +3126,6 @@ const StatusBadge = ({
   );
 };
 
-
 /* =========================================================
    MOBILE DETAIL
 ========================================================= */
@@ -2693,7 +3137,6 @@ const MobileDetail = ({
 }) => {
   return (
     <div className="min-w-0">
-
       <p className="text-[8px] uppercase tracking-wide text-slate-400">
         {label}
       </p>
@@ -2713,11 +3156,9 @@ const MobileDetail = ({
       >
         {value}
       </p>
-
     </div>
   );
 };
-
 
 /* =========================================================
    EMPTY CONTENT
@@ -2728,14 +3169,11 @@ const EmptyContent = ({
 }) => {
   return (
     <div className="flex flex-col items-center px-4 py-10 text-center sm:px-6 sm:py-14">
-
       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF5EF]">
-
         <Users
           size={20}
           className="text-[#0B5D3B]"
         />
-
       </div>
 
       <h3 className="mt-3 text-sm font-semibold text-[#17221D]">
@@ -2761,17 +3199,19 @@ const EmptyContent = ({
           text-[11px]
           font-semibold
           text-white
+          transition
           hover:bg-[#084A30]
         "
       >
-        <Plus size={14} />
+        <Plus
+          size={14}
+        />
+
         Add Customer
       </button>
-
     </div>
   );
 };
-
 
 /* =========================================================
    TABLE HEADER
@@ -2792,11 +3232,12 @@ const TableHeader = ({
         uppercase
         tracking-[0.08em]
         text-slate-400
-
         ${
-          align === "right"
+          align ===
+          "right"
             ? "text-right"
-            : align === "center"
+            : align ===
+              "center"
             ? "text-center"
             : "text-left"
         }
@@ -2807,7 +3248,6 @@ const TableHeader = ({
   );
 };
 
-
 /* =========================================================
    BRAND OPTIONS
 ========================================================= */
@@ -2815,12 +3255,14 @@ const TableHeader = ({
 const getBrandOptions = (
   customers
 ) => {
-  const brands = customers
-    .map(
-      (customer) =>
-        customer.vehicle?.brand
-    )
-    .filter(Boolean);
+  const brands =
+    customers
+      .map(
+        (customer) =>
+          customer?.vehicle
+            ?.brand
+      )
+      .filter(Boolean);
 
   return [
     "All Brands",
@@ -2830,7 +3272,6 @@ const getBrandOptions = (
   ];
 };
 
-
 /* =========================================================
    CITY OPTIONS
 ========================================================= */
@@ -2838,15 +3279,19 @@ const getBrandOptions = (
 const getCityOptions = (
   customers
 ) => {
-  const cities = customers
-    .flatMap(
-      (customer) => [
-        customer.customer
-          ?.personal?.area,
-        customer.rc?.location,
-      ]
-    )
-    .filter(Boolean);
+  const cities =
+    customers
+      .flatMap(
+        (customer) => [
+          customer
+            ?.customer
+            ?.personal?.area,
+          customer
+            ?.rc
+            ?.location,
+        ]
+      )
+      .filter(Boolean);
 
   return [
     "All Cities",
@@ -2855,7 +3300,6 @@ const getCityOptions = (
     ).sort(),
   ];
 };
-
 
 /* =========================================================
    NUMBER FORMAT
@@ -2887,6 +3331,11 @@ const formatCr = (
     "en-IN"
   )}`;
 };
+
+/* =========================================================
+   MENU ITEM
+========================================================= */
+
 const MenuItem = ({
   label,
   icon: Icon,
@@ -2896,7 +3345,9 @@ const MenuItem = ({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className={`
         flex
         w-full
@@ -2926,4 +3377,166 @@ const MenuItem = ({
     </button>
   );
 };
+
+/* =========================================================
+   PAGINATION
+========================================================= */
+
+const Pagination = ({
+  currentPage,
+  totalPages,
+  totalItems,
+  startIndex,
+  endIndex,
+  onPrevious,
+  onNext,
+  onPageChange,
+}) => {
+  const pages =
+    Array.from(
+      {
+        length:
+          totalPages,
+      },
+      (_, index) =>
+        index + 1
+    );
+
+  return (
+    <div
+      className="
+        mt-3
+        flex
+        flex-col
+        gap-2
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        px-3
+        py-2.5
+        sm:flex-row
+        sm:items-center
+        sm:justify-between
+      "
+    >
+      <p className="text-[9px] text-slate-400">
+        Showing{" "}
+        <span className="font-semibold text-slate-600">
+          {startIndex + 1}
+        </span>{" "}
+        to{" "}
+        <span className="font-semibold text-slate-600">
+          {endIndex}
+        </span>{" "}
+        of{" "}
+        <span className="font-semibold text-slate-600">
+          {totalItems}
+        </span>
+      </p>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={
+            onPrevious
+          }
+          disabled={
+            currentPage === 1
+          }
+          className="
+            flex
+            h-7
+            w-7
+            items-center
+            justify-center
+            rounded-md
+            border
+            border-slate-200
+            text-slate-500
+            transition
+            hover:border-[#A8D0BD]
+            hover:bg-[#F6FBF8]
+            hover:text-[#0B5D3B]
+            disabled:cursor-not-allowed
+            disabled:opacity-40
+          "
+          aria-label="Previous page"
+        >
+          <ChevronLeft
+            size={13}
+          />
+        </button>
+
+        {pages.map(
+          (page) => (
+            <button
+              key={page}
+              type="button"
+              onClick={() =>
+                onPageChange(
+                  page
+                )
+              }
+              className={`
+                flex
+                h-7
+                min-w-7
+                items-center
+                justify-center
+                rounded-md
+                px-1.5
+                text-[9px]
+                font-semibold
+                transition
+                ${
+                  page ===
+                  currentPage
+                    ? "bg-[#0B5D3B] text-white"
+                    : "border border-slate-200 text-slate-500 hover:border-[#A8D0BD] hover:bg-[#F6FBF8] hover:text-[#0B5D3B]"
+                }
+              `}
+            >
+              {page}
+            </button>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={
+            onNext
+          }
+          disabled={
+            currentPage ===
+            totalPages
+          }
+          className="
+            flex
+            h-7
+            w-7
+            items-center
+            justify-center
+            rounded-md
+            border
+            border-slate-200
+            text-slate-500
+            transition
+            hover:border-[#A8D0BD]
+            hover:bg-[#F6FBF8]
+            hover:text-[#0B5D3B]
+            disabled:cursor-not-allowed
+            disabled:opacity-40
+          "
+          aria-label="Next page"
+        >
+          <ChevronRight
+            size={13}
+          />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default CustomerPage;
