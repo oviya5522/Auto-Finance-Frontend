@@ -14,10 +14,20 @@ const PortfolioRisk = ({
   overdueAmount = 0,
   overdueLoanCount = 0,
   loans = [],
+
+  /* =====================================================
+     COLLECTION DATA
+  ====================================================== */
+
+  overduePayments = [],
+  overdueCollectionTodayAmount = 0,
 }) => {
   return (
     <section
       className="
+        w-full
+        min-w-0
+        overflow-hidden
         rounded-xl
         border
         border-slate-200
@@ -59,11 +69,23 @@ const PortfolioRisk = ({
         </div>
 
         <div className="min-w-0">
-          <h2 className="text-[13px] font-semibold text-[#17221D]">
+          <h2
+            className="
+              text-[13px]
+              font-semibold
+              text-[#17221D]
+            "
+          >
             Current Portfolio & Risk
           </h2>
 
-          <p className="mt-0.5 text-[9px] text-slate-400">
+          <p
+            className="
+              mt-0.5
+              text-[9px]
+              text-slate-400
+            "
+          >
             Portfolio health and overdue risk
           </p>
         </div>
@@ -73,70 +95,137 @@ const PortfolioRisk = ({
           MAIN PORTFOLIO LAYOUT
 
           LEFT:
-          4 compact metrics in 2 x 2
+          Portfolio summary
 
           RIGHT:
-          Aging + Recovery on the same line
+          Aging + Recovery Pipeline
       ================================================== */}
 
       <div
         className="
           grid
+          min-w-0
           grid-cols-1
-          gap-4
-          p-4
-          xl:grid-cols-[0.85fr_1.75fr]
+          gap-3
+          p-3
+          lg:gap-3
+          lg:p-3.5
+          xl:grid-cols-[minmax(330px,0.9fr)_minmax(0,2fr)]
+          2xl:grid-cols-[minmax(350px,0.85fr)_minmax(0,2.15fr)]
         "
       >
         {/* =============================================
-            LEFT — PORTFOLIO METRICS
+            LEFT
+            PORTFOLIO SUMMARY
         ============================================== */}
 
-        <div className="min-w-0">
+        <div
+          className="
+            min-w-0
+            w-full
+          "
+        >
           <PortfolioSummary
             totalOutstanding={
               totalOutstanding
             }
+
             activeLoans={
               activeLoans
             }
+
             overdueAmount={
               overdueAmount
             }
+
             overdueLoanCount={
               overdueLoanCount
             }
-            loans={loans}
+
+            loans={
+              loans
+            }
           />
         </div>
 
         {/* =============================================
-            RIGHT — VISUALIZATIONS
+            RIGHT
+            AGING + RECOVERY
 
-            Aging + Recovery stay side-by-side.
+            Always side-by-side on XL.
         ============================================== */}
 
         <div
           className="
             grid
             min-w-0
-            grid-cols-2
+            w-full
+            grid-cols-1
             gap-3
+            xl:grid-cols-2
           "
         >
-          <AgingBuckets
-            loans={loans}
-          />
+          {/* ===========================================
+              AGING
+          ============================================ */}
 
-          <RecoveryPipeline
-            recovery={{
-              total: 0,
-              contacted: 0,
-              promised: 0,
-              recovered: 0,
-              recoveredAmount: 0,
-            }}
-          />
+          <div
+            className="
+              min-w-0
+              w-full
+            "
+          >
+            <AgingBuckets
+              loans={
+                loans
+              }
+            />
+          </div>
+
+          {/* ===========================================
+              RECOVERY PIPELINE
+          ============================================ */}
+
+          <div
+            className="
+              min-w-0
+              w-full
+            "
+          >
+            <RecoveryPipeline
+              recovery={{
+                /*
+                 * Current overdue count.
+                 */
+                total:
+                  overdueLoanCount,
+
+                /*
+                 * Current overdue records.
+                 */
+                contacted:
+                  overduePayments.length,
+
+                /*
+                 * Pending recovery stage.
+                 */
+                promised: 0,
+
+                /*
+                 * Approved overdue collections
+                 * made today.
+                 */
+                recovered:
+                  overdueCollectionTodayAmount,
+
+                /*
+                 * Recovered amount.
+                 */
+                recoveredAmount:
+                  overdueCollectionTodayAmount,
+              }}
+            />
+          </div>
         </div>
       </div>
     </section>

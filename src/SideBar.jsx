@@ -8,8 +8,9 @@ import {
   HandCoins,
   Settings,
   ChevronLeft,
-  ChevronRight,Wallet
+  ChevronRight,Wallet,Receipt,ReceiptText,
 } from "lucide-react";
+
 
 /* =========================================================
    NAVIGATION
@@ -36,6 +37,16 @@ const NAV_ITEMS = [
     label: "Loan Management",
     icon: Wallet,
   },
+ {
+  id: "expense-control",
+  label: "Expense Control",
+  icon: Receipt,
+},
+{
+  id: "collections",
+  label: "Collections",
+  icon: ReceiptText,
+},
 ];
 
 const SETTINGS_ITEM = {

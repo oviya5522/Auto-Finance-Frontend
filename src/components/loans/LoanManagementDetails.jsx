@@ -53,7 +53,21 @@ const LoanManagementDetails = ({
     getOverdueDays(
       nextDue?.dueDate
     );
-
+    const overdueSchedule = getOverdueSchedule(
+  loan
+);
+const totalOverdueAmount =
+  overdueSchedule.reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row?.paymentAmount ??
+          row?.emiAmount ??
+          row?.amount ??
+          0
+      ),
+    0
+  );
   return (
     <aside
       className="
@@ -248,7 +262,19 @@ const LoanManagementDetails = ({
                 ? "text-red-600"
                 : "text-slate-500"
             }
+            
           />
+<DetailRow
+  label="Total Overdue Amount"
+  value={`₹${formatMoney(
+    totalOverdueAmount
+  )}`}
+  valueClass={
+    totalOverdueAmount > 0
+      ? "text-red-600"
+      : "text-slate-500"
+  }
+/>
         </div>
       </section>
 
@@ -549,6 +575,82 @@ const getOverdueDays = (
   return Math.max(
     difference,
     0
+  );
+};
+const getOverdueSchedule = (
+  loan
+) => {
+  const schedule = Array.isArray(
+    loan?.repaymentSchedule
+  )
+    ? loan.repaymentSchedule
+    : [];
+
+  const today = new Date();
+
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return schedule.filter(
+    (row) => {
+      const status = String(
+        row?.status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      // Already paid installments are not overdue.
+      if (
+        status === "paid" ||
+        status === "completed" ||
+        status === "closed" ||
+        status === "settled"
+      ) {
+        return false;
+      }
+
+      // Only unpaid/open installments can be overdue.
+      if (
+        status !== "pending" &&
+        status !== "overdue" &&
+        status !== "partially paid" &&
+        status !== "partially-paid"
+      ) {
+        return false;
+      }
+
+      if (!row?.dueDate) {
+        return false;
+      }
+
+      const dueDate = new Date(
+        row.dueDate
+      );
+
+      if (
+        Number.isNaN(
+          dueDate.getTime()
+        )
+      ) {
+        return false;
+      }
+
+      dueDate.setHours(
+        0,
+        0,
+        0,
+        0
+      );
+
+      return (
+        dueDate.getTime() <
+        today.getTime()
+      );
+    }
   );
 };
 

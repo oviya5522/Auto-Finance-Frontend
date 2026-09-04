@@ -7,11 +7,16 @@ import {
   Plus,
   UserPlus,
   WalletCards,
-  X,
+  X, LogOut,
 } from "lucide-react";
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+} from "react-router-dom";
 
 import useDashboardData from "../../hooks/dashboard/useDashboardData";
 
@@ -23,48 +28,63 @@ import PortfolioRisk from "../../components/dashboard/PortfolioRisk/PortfolioRis
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const [quickActionsOpen, setQuickActionsOpen] =
-    useState(false);
+  const [
+    quickActionsOpen,
+    setQuickActionsOpen,
+  ] = useState(false);
 
   const {
-  loading,
-  loans,
+    loading,
+    loans,
 
-  totalCustomers,
-  totalLoans,
+    totalCustomers,
+    totalLoans,
 
-  activeLoans,
-  closedLoans,
+    activeLoans,
+    closedLoans,
 
-  overdueLoanCount,
-  overdueAmount,
+    overdueLoanCount,
+    overdueAmount,
 
-  totalOutstanding,
+    totalOutstanding,
 
-  newLoansToday,
+    newLoansToday,
 
-  emiDueCount,
-  emiDueAmount,
+    emiDueCount,
+    emiDueAmount,
 
-  pendingLoans,
+    pendingLoans,
 
-  followUpQueue,
-  recentActions,
+    followUpQueue,
+    recentActions,
 
-  collectionVsDue,
-  cashBankUpi,
-  cashPosition,
-  pendingActions,
+    collectionVsDue,
+    cashBankUpi,
+    cashPosition,
+    pendingActions,
 
-  ptpDue,
-  expenses,
-} = useDashboardData();
+    ptpDue,
 
+    /* =====================================================
+       EXPENSE DATA
+    ====================================================== */
+
+    totalExpenseAmount,
+    todayExpenseAmount,
+    currentMonthExpenseAmount,
+    pendingExpenseCount,
+
+    /* =====================================================
+       COLLECTION DATA
+    ====================================================== */
+
+    overduePayments,
+    overdueCollectionTodayAmount,
+    todayScheduledDueAmount,
+  } = useDashboardData();
 
   /* =====================================================
      TODAY'S FOLLOW-UP
-     Only records due today.
-     Maximum 3 records.
   ====================================================== */
 
   const todayFollowUps = Array.isArray(
@@ -81,7 +101,7 @@ const Dashboard = () => {
     : [];
 
   /* =====================================================
-     RECENT ATTENTION / ACTIONS
+     RECENT ATTENTION
   ====================================================== */
 
   const recentAttention =
@@ -89,13 +109,22 @@ const Dashboard = () => {
       ? recentActions
           .filter(
             (action) =>
-              action?.type === "overdue" ||
-              action?.type === "loan_created" ||
-              action?.type === "customer_created"
+              action?.type ===
+                "overdue" ||
+              action?.type ===
+                "loan_created" ||
+              action?.type ===
+                "customer_created"
           )
           .slice(0, 3)
       : [];
+const handleLogout = () => {
+  localStorage.removeItem("auto_finance_auth");
 
+  navigate("/login", {
+    replace: true,
+  });
+};
   /* =====================================================
      LOADING
   ====================================================== */
@@ -105,8 +134,7 @@ const Dashboard = () => {
       <div
         className="
           flex
-          h-full
-          min-h-0
+          min-h-full
           items-center
           justify-center
           bg-[#F7F9F8]
@@ -138,7 +166,14 @@ const Dashboard = () => {
             />
           </div>
 
-          <p className="mt-2 text-sm font-medium text-slate-500">
+          <p
+            className="
+              mt-2
+              text-sm
+              font-medium
+              text-slate-500
+            "
+          >
             Loading dashboard...
           </p>
         </div>
@@ -152,78 +187,88 @@ const Dashboard = () => {
 
   return (
     <div
-      className="
-        relative
-        flex
-        h-full
-        min-h-0
-        flex-col
-        overflow-hidden
-        bg-[#F7F9F8]
-      "
-    >
+    className="
+      relative
+      flex
+      h-screen
+      min-h-0
+      w-full
+      max-w-full
+      flex-col
+      overflow-hidden
+      bg-[#F7F9F8]
+    "
+  >
       {/* =================================================
           HEADER
       ================================================== */}
 
-      <DashboardHeader
-        customerCount={totalCustomers}
-        loanCount={totalLoans}
-      />
+  <DashboardHeader
+  customerCount={
+    totalCustomers
+  }
+  loanCount={
+    totalLoans
+  }
+  onLogout={handleLogout}
+/>
 
       {/* =================================================
           CONTENT
 
-          Desktop:
-          No page scroll.
-
-          Mobile:
-          Allow vertical scrolling only when necessary.
+          IMPORTANT:
+          Allow vertical scrolling so PortfolioRisk,
+          Aging and Recovery Pipeline are never clipped.
       ================================================== */}
 
-      <main
-        className="
-          min-h-0
-          flex-1
-          overflow-hidden
-          px-3
-          py-3
-          sm:px-4
-          lg:px-5
-          max-md:overflow-y-auto
-        "
-      >
-        <div
-          className="
-            flex
-            min-h-0
-            flex-col
-            gap-3
-          "
-        >
+     <main
+  className="
+    min-h-0
+    min-w-0
+    w-full
+    max-w-full
+    flex-1
+    overflow-hidden
+    px-3
+    py-2
+    sm:px-4
+    lg:px-5
+  "
+>
+  <div
+    className="
+      flex
+      h-full
+      min-h-0
+      min-w-0
+      w-full
+      max-w-full
+      flex-col
+      gap-2
+      overflow-hidden
+    "
+  >
           {/* =================================================
               FINANCIAL OVERVIEW
           ================================================== */}
-<FinancialOverview
-  collectionVsDue={
-    collectionVsDue
-  }
-  cashBankUpi={
-    cashBankUpi
-  }
-  cashPosition={
-    cashPosition
-  }
-  pendingActions={
-    pendingActions
-  }
-/>
+
+          <FinancialOverview
+            collectionVsDue={
+              collectionVsDue
+            }
+            cashBankUpi={
+              cashBankUpi
+            }
+            cashPosition={
+              cashPosition
+            }
+            pendingActions={
+              pendingActions
+            }
+          />
 
           {/* =================================================
               KEY ACTIVITY
-
-              DISPLAY ONLY.
-              Clicking does nothing.
           ================================================== */}
 
           <KeyActivity
@@ -266,31 +311,52 @@ const Dashboard = () => {
             closedAmount={0}
 
             expenses={
-              expenses
+              totalExpenseAmount
             }
           />
 
           {/* =================================================
               CURRENT PORTFOLIO & RISK
-
-              Single main section.
           ================================================== */}
 
-          <div className="min-h-0">
+          <div
+            className="
+              min-h-0
+              w-full
+            "
+          >
             <PortfolioRisk
               totalOutstanding={
                 totalOutstanding
               }
+
               activeLoans={
                 activeLoans
               }
+
               overdueAmount={
                 overdueAmount
               }
+
               overdueLoanCount={
                 overdueLoanCount
               }
-              loans={loans}
+
+              loans={
+                loans
+              }
+
+              overduePayments={
+                overduePayments
+              }
+
+              overdueCollectionTodayAmount={
+                overdueCollectionTodayAmount
+              }
+
+              todayScheduledDueAmount={
+                todayScheduledDueAmount
+              }
             />
           </div>
         </div>
@@ -300,19 +366,19 @@ const Dashboard = () => {
           FLOATING QUICK ACTION
       ================================================== */}
 
-     <div
-  className="
-    pointer-events-none
-    absolute
-    right-4
-    top-1/2
-    z-50
-    -translate-y-1/2
-    sm:right-5
-  "
->
+      <div
+        className="
+          pointer-events-none
+          absolute
+          right-4
+          top-1/2
+          z-50
+          -translate-y-1/2
+          sm:right-5
+        "
+      >
         {/* =================================================
-            POPOVER
+            QUICK ACTION POPOVER
         ================================================== */}
 
         {quickActionsOpen && (
@@ -334,7 +400,7 @@ const Dashboard = () => {
               ring-black/5
             "
           >
-            {/* MENU HEADER */}
+            {/* HEADER */}
 
             <div
               className="
@@ -364,12 +430,25 @@ const Dashboard = () => {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-semibold text-[#17221D]">
+                  <p
+                    className="
+                      text-[11px]
+                      font-semibold
+                      text-[#17221D]
+                    "
+                  >
                     Quick Actions
                   </p>
 
-                  <p className="mt-0.5 text-[8px] text-slate-400">
-                    Finance operations & attention
+                  <p
+                    className="
+                      mt-0.5
+                      text-[8px]
+                      text-slate-400
+                    "
+                  >
+                    Finance operations &
+                    attention
                   </p>
                 </div>
               </div>
@@ -379,7 +458,14 @@ const Dashboard = () => {
                 PRIMARY ACTIONS
             ================================================== */}
 
-            <div className="grid grid-cols-2 gap-2 p-3">
+            <div
+              className="
+                grid
+                grid-cols-2
+                gap-2
+                p-3
+              "
+            >
               <QuickActionButton
                 icon={UserPlus}
                 label="Add Customer"
@@ -427,15 +513,34 @@ const Dashboard = () => {
                 py-3
               "
             >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div
+                className="
+                  mb-2
+                  flex
+                  items-center
+                  justify-between
+                "
+              >
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
                   <PhoneCall
                     size={13}
                     strokeWidth={2}
                     className="text-[#0B5D3B]"
                   />
 
-                  <p className="text-[9px] font-semibold text-[#17221D]">
+                  <p
+                    className="
+                      text-[9px]
+                      font-semibold
+                      text-[#17221D]
+                    "
+                  >
                     Today&apos;s Follow-up
                   </p>
                 </div>
@@ -445,14 +550,29 @@ const Dashboard = () => {
                   onClick={() =>
                     navigate("/loan")
                   }
-                  className="text-[8px] font-semibold text-[#0B5D3B] hover:underline"
+                  className="
+                    text-[8px]
+                    font-semibold
+                    text-[#0B5D3B]
+                    hover:underline
+                  "
                 >
                   View All
                 </button>
               </div>
 
-              {todayFollowUps.length === 0 ? (
-                <p className="rounded-lg bg-slate-50 px-3 py-2 text-[8px] text-slate-400">
+              {todayFollowUps.length ===
+              0 ? (
+                <p
+                  className="
+                    rounded-lg
+                    bg-slate-50
+                    px-3
+                    py-2
+                    text-[8px]
+                    text-slate-400
+                  "
+                >
                   No follow-ups today
                 </p>
               ) : (
@@ -476,20 +596,44 @@ const Dashboard = () => {
                         "
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-[9px] font-semibold text-[#17221D]">
+                          <p
+                            className="
+                              truncate
+                              text-[9px]
+                              font-semibold
+                              text-[#17221D]
+                            "
+                          >
                             {getCustomerName(
                               loan
                             )}
                           </p>
 
-                          <p className="mt-0.5 text-[8px] text-slate-400">
+                          <p
+                            className="
+                              mt-0.5
+                              text-[8px]
+                              text-slate-400
+                            "
+                          >
                             {loan?.loanNumber ||
                               "Loan"}
                           </p>
                         </div>
 
-                        <div className="shrink-0 text-right">
-                          <p className="text-[9px] font-semibold text-[#17221D]">
+                        <div
+                          className="
+                            shrink-0
+                            text-right
+                          "
+                        >
+                          <p
+                            className="
+                              text-[9px]
+                              font-semibold
+                              text-[#17221D]
+                            "
+                          >
                             ₹
                             {getPaymentAmount(
                               scheduleRow
@@ -507,7 +651,9 @@ const Dashboard = () => {
                                 String(
                                   scheduleRow?.status ||
                                     ""
-                                ).toLowerCase() ===
+                                )
+                                  .trim()
+                                  .toLowerCase() ===
                                 "overdue"
                                   ? "text-red-700"
                                   : "text-[#0B5D3B]"
@@ -525,93 +671,126 @@ const Dashboard = () => {
               )}
             </div>
 
-           
-{/* =================================================
-    RECENT ACTIONS
-================================================== */}
+            {/* =================================================
+                RECENT ACTIONS
+            ================================================== */}
 
-<div
-  className="
-    border-t
-    border-slate-100
-    px-3
-    py-3
-  "
->
-  <div className="flex items-center justify-between gap-3">
-    {/* LEFT */}
+            <div
+              className="
+                border-t
+                border-slate-100
+                px-3
+                py-3
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  gap-3
+                "
+              >
+                <div
+                  className="
+                    flex
+                    min-w-0
+                    items-center
+                    gap-3
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      h-9
+                      w-9
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-lg
+                      bg-[#EAF5EF]
+                    "
+                  >
+                    <Bell
+                      size={18}
+                      strokeWidth={2}
+                      className="text-[#0B5D3B]"
+                    />
+                  </div>
 
-    <div className="flex min-w-0 items-center gap-3">
-      <div
-        className="
-          flex
-          h-9
-          w-9
-          shrink-0
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#EAF5EF]
-        "
-      >
-        <Bell
-          size={18}
-          strokeWidth={2}
-          className="text-[#0B5D3B]"
-        />
-      </div>
+                  <div className="min-w-0">
+                    <p
+                      className="
+                        text-[11px]
+                        font-semibold
+                        text-[#17221D]
+                      "
+                    >
+                      Recent Activities
+                    </p>
 
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold text-[#17221D]">
-          Recent Activities
-        </p>
+                    <p
+                      className="
+                        mt-0.5
+                        text-[9px]
+                        text-slate-400
+                      "
+                    >
+                      Recent customer & loan
+                      activity
+                    </p>
+                  </div>
+                </div>
 
-        <p className="mt-0.5 text-[9px] text-slate-400">
-          Recent customer & loan activity
-        </p>
-      </div>
-    </div>
+                <div
+                  className="
+                    flex
+                    shrink-0
+                    items-center
+                    gap-3
+                  "
+                >
+                  <span
+                    className="
+                      inline-flex
+                      min-w-[30px]
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-[#EAF5EF]
+                      px-2
+                      py-1
+                      text-[12px]
+                      font-bold
+                      text-[#0B5D3B]
+                    "
+                  >
+                    {
+                      recentAttention.length
+                    }
+                  </span>
 
-    {/* COUNT + VIEW ALL */}
-
-    <div className="flex shrink-0 items-center gap-3">
-      <span
-        className="
-          inline-flex
-          min-w-[30px]
-          items-center
-          justify-center
-          rounded-full
-          bg-[#EAF5EF]
-          px-2
-          py-1
-          text-[12px]
-          font-bold
-          text-[#0B5D3B]
-        "
-      >
-        {recentAttention.length}
-      </span>
-
-      <button
-        type="button"
-        onClick={() =>
-          navigate("/activities")
-        }
-        className="
-          text-[9px]
-          font-semibold
-          text-[#0B5D3B]
-          transition
-          hover:text-[#084A30]
-          hover:underline
-        "
-      >
-        View All
-      </button>
-    </div>
-  </div>
-</div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        "/activities"
+                      )
+                    }
+                    className="
+                      text-[9px]
+                      font-semibold
+                      text-[#0B5D3B]
+                      transition
+                      hover:text-[#084A30]
+                      hover:underline
+                    "
+                  >
+                    View All
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -619,7 +798,12 @@ const Dashboard = () => {
             FLOATING BUTTON
         ================================================== */}
 
-        <div className="pointer-events-auto relative">
+        <div
+          className="
+            pointer-events-auto
+            relative
+          "
+        >
           {!quickActionsOpen && (
             <span
               className="
@@ -736,7 +920,15 @@ const QuickActionButton = ({
         />
       </div>
 
-      <span className="min-w-0 truncate text-[9px] font-semibold text-[#17221D]">
+      <span
+        className="
+          min-w-0
+          truncate
+          text-[9px]
+          font-semibold
+          text-[#17221D]
+        "
+      >
         {label}
       </span>
     </button>
@@ -754,9 +946,8 @@ const isDueToday = (
     return false;
   }
 
-  const dueDate = new Date(
-    value
-  );
+  const dueDate =
+    new Date(value);
 
   if (
     Number.isNaN(
@@ -766,7 +957,8 @@ const isDueToday = (
     return false;
   }
 
-  const today = new Date();
+  const today =
+    new Date();
 
   return (
     dueDate.getFullYear() ===
@@ -779,7 +971,7 @@ const isDueToday = (
 };
 
 /* =========================================================
-   DISPLAY HELPERS
+   CUSTOMER NAME
 ========================================================= */
 
 const getCustomerName = (
@@ -793,13 +985,18 @@ const getCustomerName = (
   );
 };
 
+/* =========================================================
+   PAYMENT AMOUNT
+========================================================= */
+
 const getPaymentAmount = (
   scheduleRow
 ) => {
   return Number(
-    scheduleRow?.paymentAmount ||
-      scheduleRow?.emiAmount ||
-      scheduleRow?.amount ||
+    scheduleRow?.remainingAmount ??
+      scheduleRow?.paymentAmount ??
+      scheduleRow?.emiAmount ??
+      scheduleRow?.amount ??
       0
   );
 };

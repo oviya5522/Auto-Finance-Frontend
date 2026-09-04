@@ -5,10 +5,12 @@ import {
   CalendarDays,
   ChevronDown,
 } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 const DashboardHeader = ({
   customerCount = 0,
   loanCount = 0,
+   onLogout,
 }) => {
   const today = new Date();
 
@@ -187,6 +189,35 @@ const DashboardHeader = ({
               "
             />
           </button>
+          <button
+  type="button"
+  onClick={onLogout}
+  className="
+    inline-flex
+    h-9
+    items-center
+    gap-1.5
+    rounded-lg
+    border
+    border-slate-200
+    bg-white
+    px-3
+    text-[10px]
+    font-semibold
+    text-slate-600
+    transition
+    hover:border-red-200
+    hover:bg-red-50
+    hover:text-red-600
+  "
+>
+  <LogOut
+    size={14}
+    strokeWidth={2}
+  />
+
+  Logout
+</button>
         </div>
       </div>
     </header>

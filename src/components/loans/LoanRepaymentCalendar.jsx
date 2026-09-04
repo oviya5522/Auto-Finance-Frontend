@@ -59,7 +59,8 @@ const LoanRepaymentCalendar = ({
           date,
 
           status: normalizeStatus(
-            row?.status
+            row?.status,
+            date,
           ),
 
           amount: Number(
@@ -1835,25 +1836,20 @@ const Legend = ({
    STATUS
 ========================================================= */
 
-const normalizeStatus = (
-  status
-) => {
-  const value = String(
-    status || ""
-  )
+const normalizeStatus = (status, dueDate) => {
+  const value = String(status || "")
     .trim()
     .toLowerCase();
 
   if (
     value === "paid" ||
-    value === "completed"
+    value === "completed" ||
+    value === "closed"
   ) {
     return "paid";
   }
 
-  if (
-    value === "overdue"
-  ) {
+  if (value === "overdue") {
     return "overdue";
   }
 
@@ -1862,10 +1858,35 @@ const normalizeStatus = (
     value === "partially-paid" ||
     value === "partial"
   ) {
+    if (isDateBeforeToday(dueDate)) {
+      return "overdue";
+    }
+
     return "partially-paid";
   }
 
+  if (
+    value === "pending" &&
+    isDateBeforeToday(dueDate)
+  ) {
+    return "overdue";
+  }
+
   return "upcoming";
+};
+
+const isDateBeforeToday = (date) => {
+  if (!date || Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const due = new Date(date);
+  due.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return due.getTime() < today.getTime();
 };
 
 const getStatusLabel = (

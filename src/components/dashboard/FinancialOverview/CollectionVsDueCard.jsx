@@ -1,143 +1,289 @@
 // src/components/dashboard/FinancialOverview/CollectionVsDueCard.jsx
 
+import { useState } from "react";
 import {
-  IndianRupee,
+  ArrowLeftRight,
+  TrendingUp,
 } from "lucide-react";
 
 const CollectionVsDueCard = ({
-  collected = 0,
-  due = 0,
+  collectionVsDue = {},
 }) => {
-  const safeCollected = Number(
-    collected || 0
+  const [showOverdue, setShowOverdue] =
+    useState(false);
+
+  const todayData =
+    collectionVsDue?.today || {
+      due: 0,
+      collected: 0,
+      accuracy: 0,
+    };
+
+  const overdueData =
+    collectionVsDue?.overdue || {
+      due: 0,
+      collected: 0,
+      accuracy: 0,
+    };
+
+  const activeData = showOverdue
+    ? overdueData
+    : todayData;
+
+  const collected = Number(
+    activeData?.collected || 0
   );
 
-  const safeDue = Number(
-    due || 0
+  const due = Number(
+    activeData?.due || 0
   );
 
-  const efficiency =
-    safeDue > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (safeCollected / safeDue) *
-              100
-          )
-        )
-      : 0;
+  const accuracy = Math.min(
+    Number(activeData?.accuracy || 0),
+    100
+  );
+
+  const formatMoney = (value) => {
+    return Number(value || 0).toLocaleString(
+      "en-IN",
+      {
+        maximumFractionDigits: 2,
+      }
+    );
+  };
 
   return (
     <div
       className="
+        flex
+        min-h-[150px]
+        h-full
+        w-full
+        flex-col
         rounded-xl
         border
         border-slate-200
         bg-white
-        px-4
-        py-3.5
-        transition
-        duration-200
-        hover:border-slate-300
+        p-3
       "
     >
-      {/* HEADER */}
+      {/* =================================================
+          HEADER
+      ================================================== */}
 
-      <div className="flex items-center gap-3">
-        <div
-          className="
-            flex
-            h-10
-            w-10
-            shrink-0
-            items-center
-            justify-center
-            rounded-lg
-            bg-[#EAF5EF]
-          "
-        >
-          <IndianRupee
-            size={19}
-            strokeWidth={2}
-            className="text-[#0B5D3B]"
-          />
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        {/* LEFT */}
 
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-[#17221D]">
-            Collection vs Due
-          </p>
-
-          <p className="mt-0.5 text-[9px] text-slate-400">
-            Today
-          </p>
-        </div>
-      </div>
-
-      {/* AMOUNT */}
-
-      <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-[21px] font-semibold tracking-tight text-[#17221D]">
-          ₹
-          {safeCollected.toLocaleString(
-            "en-IN",
-            {
-              maximumFractionDigits: 2,
-            }
-          )}
-        </span>
-
-        <span className="text-[12px] text-slate-300">
-          /
-        </span>
-
-        <span className="text-[12px] font-medium text-slate-500">
-          ₹
-          {safeDue.toLocaleString(
-            "en-IN",
-            {
-              maximumFractionDigits: 2,
-            }
-          )}
-        </span>
-      </div>
-
-      {/* PROGRESS */}
-
-      <div className="mt-3">
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="flex min-w-0 items-center gap-2.5">
           <div
             className="
+              flex
+              h-9
+              w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              bg-[#EAF5EF]
+            "
+          >
+            <TrendingUp
+              size={17}
+              strokeWidth={2}
+              className="text-[#0B5D3B]"
+            />
+          </div>
+
+          <div className="min-w-0">
+            <p
+              className="
+                truncate
+                text-[11px]
+                font-semibold
+                text-[#17221D]
+              "
+            >
+              Collection vs Due
+            </p>
+
+            <p
+              className="
+                mt-0.5
+                text-[8px]
+                text-slate-400
+              "
+            >
+              {showOverdue
+                ? "Overdue"
+                : "Today"}
+            </p>
+          </div>
+        </div>
+
+        {/* SWITCH */}
+
+        <button
+          type="button"
+          onClick={() =>
+            setShowOverdue(
+              (previous) =>
+                !previous
+            )
+          }
+          className={`
+            inline-flex
+            shrink-0
+            items-center
+            gap-1
+            rounded-full
+            border
+            px-2
+            py-1
+            text-[8px]
+            font-bold
+            transition
+            ${
+              showOverdue
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-[#B9DEC9] bg-[#F4FAF6] text-[#0B6B43]"
+            }
+          `}
+          title={
+            showOverdue
+              ? "Show today's collection"
+              : "Show overdue collection"
+          }
+        >
+          <ArrowLeftRight
+            size={10}
+            strokeWidth={2}
+          />
+
+          {showOverdue
+            ? "Today"
+            : "Overdue"}
+        </button>
+      </div>
+
+      {/* =================================================
+          AMOUNT
+      ================================================== */}
+
+      <div className="mt-4">
+        <div className="flex items-end gap-2">
+          <span
+            className={`
+              text-[24px]
+              font-extrabold
+              leading-none
+              tracking-tight
+              ${
+                showOverdue
+                  ? "text-red-600"
+                  : "text-[#0B6B43]"
+              }
+            `}
+          >
+            ₹{formatMoney(collected)}
+          </span>
+
+          <span
+            className="
+              pb-0.5
+              text-[13px]
+              font-semibold
+              text-slate-300
+            "
+          >
+            /
+          </span>
+
+          <span
+            className="
+              pb-0.5
+              text-[13px]
+              font-semibold
+              text-slate-400
+            "
+          >
+            ₹{formatMoney(due)}
+          </span>
+        </div>
+
+        <p
+          className="
+            mt-1
+            text-[8px]
+            font-medium
+            text-slate-400
+          "
+        >
+          {showOverdue
+            ? "Collected / remaining overdue"
+            : "Collected / today's due"}
+        </p>
+      </div>
+
+      {/* =================================================
+          ACCURACY
+      ================================================== */}
+
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between">
+          <span
+            className="
+              text-[8px]
+              font-medium
+              text-slate-400
+            "
+          >
+            Collection accuracy
+          </span>
+
+          <span
+            className={`
+              text-[9px]
+              font-extrabold
+              ${
+                showOverdue
+                  ? "text-red-600"
+                  : "text-[#0B6B43]"
+              }
+            `}
+          >
+            {accuracy.toFixed(1)}%
+          </span>
+        </div>
+
+        <div
+          className="
+            h-2
+            w-full
+            overflow-hidden
+            rounded-full
+            bg-slate-100
+          "
+        >
+          <div
+            className={`
               h-full
               rounded-full
-              bg-[#0B5D3B]
               transition-all
-              duration-500
-            "
+              duration-300
+              ${
+                showOverdue
+                  ? "bg-red-500"
+                  : "bg-[#0B6B43]"
+              }
+            `}
             style={{
-              width: `${efficiency}%`,
+              width: `${accuracy}%`,
             }}
           />
         </div>
-
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-400">
-            Collection efficiency
-          </span>
-
-          <span className="text-[10px] font-semibold text-[#0B5D3B]">
-            {efficiency}%
-          </span>
-        </div>
       </div>
 
-      {/* EMPTY / ZERO SOURCE */}
-
-      {safeDue === 0 && (
-        <p className="mt-1.5 text-[9px] text-slate-400">
-          No collection data available
-        </p>
-      )}
+      {/* NO EXTRA BOTTOM MESSAGE */}
     </div>
   );
 };
