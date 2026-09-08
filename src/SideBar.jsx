@@ -8,9 +8,16 @@ import {
   HandCoins,
   Settings,
   ChevronLeft,
-  ChevronRight,Wallet,Receipt,ReceiptText,
+  ChevronRight,
+  ChevronDown,
+  Wallet,
+  Receipt,
+  ReceiptText,
+  CarFront,
+  Repeat2,
+  Bell,
+  BarChart3,
 } from "lucide-react";
-
 
 /* =========================================================
    NAVIGATION
@@ -22,32 +29,87 @@ const NAV_ITEMS = [
     label: "Dashboard",
     icon: LayoutDashboard,
   },
+
   {
     id: "customers",
     label: "Customers",
     icon: Users,
   },
+
   {
     id: "loans",
     label: "Loans",
     icon: HandCoins,
   },
+
   {
     id: "loan-management",
     label: "Loan Management",
     icon: Wallet,
   },
- {
-  id: "expense-control",
-  label: "Expense Control",
-  icon: Receipt,
-},
-{
-  id: "collections",
-  label: "Collections",
-  icon: ReceiptText,
-},
+
+  {
+    id: "reloan",
+    label: "Re-loan",
+    icon: Repeat2,
+  },
+
+  {
+    id: "collections",
+    label: "Collections",
+    icon: ReceiptText,
+  },
+
+  {
+    id: "reminders",
+    label: "Reminders",
+    icon: Bell,
+  },
+
+  {
+    id: "control-center",
+    label: "Control Center",
+    icon: BarChart3,
+  },
+
+  {
+    id: "expense-control",
+    label: "Expense Control",
+    icon: Receipt,
+  },
+
+  {
+    id: "vehicles",
+    label: "Vehicles",
+    icon: CarFront,
+
+    children: [
+      {
+        id: "vehicles-all",
+        label: "All Vehicles",
+      },
+
+      {
+        id: "vehicles-seized",
+        label: "Seized Vehicles",
+      },
+
+      {
+        id: "vehicles-released",
+        label: "Released Vehicles",
+      },
+
+      {
+        id: "vehicles-sold",
+        label: "Sold Vehicles",
+      },
+    ],
+  },
 ];
+
+/* =========================================================
+   SETTINGS
+========================================================= */
 
 const SETTINGS_ITEM = {
   id: "settings",
@@ -55,124 +117,336 @@ const SETTINGS_ITEM = {
   icon: Settings,
 };
 
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
 const SideBar = ({
   activeItem,
   onNavigate,
 }) => {
-  const [collapsed, setCollapsed] =
-    useState(true);
+  const [
+    collapsed,
+    setCollapsed,
+  ] = useState(false);
+
+  const [
+    openMenu,
+    setOpenMenu,
+  ] = useState(
+    activeItem?.startsWith?.(
+      "vehicles-"
+    )
+      ? "vehicles"
+      : null
+  );
+
+  /* =====================================================
+     NAVIGATION
+  ====================================================== */
+
+  const handleItemClick = (
+    item
+  ) => {
+    if (
+      item.children?.length
+    ) {
+      setOpenMenu(
+        (previous) =>
+          previous ===
+          item.id
+            ? null
+            : item.id
+      );
+
+      return;
+    }
+
+    onNavigate(
+      item.id
+    );
+  };
+
+  /* =====================================================
+     CHILD NAVIGATION
+  ====================================================== */
+
+  const handleChildClick = (
+    child
+  ) => {
+    onNavigate(
+      child.id
+    );
+  };
 
   /* =====================================================
      NAV BUTTON
   ====================================================== */
 
-  const renderNavButton = (item) => {
-    const Icon = item.icon;
+  const renderNavButton = (
+    item
+  ) => {
+    const Icon =
+      item.icon;
+
+    const hasChildren =
+      Array.isArray(
+        item.children
+      ) &&
+      item.children.length >
+        0;
+
+    const childActive =
+      hasChildren
+        ? item.children.some(
+            (child) =>
+              activeItem ===
+              child.id
+          )
+        : false;
 
     const isActive =
-      activeItem === item.id;
+      activeItem ===
+        item.id ||
+      childActive;
+
+    const isOpen =
+      openMenu ===
+      item.id;
 
     return (
-      <button
-        key={item.id}
-        type="button"
-        title={
-          collapsed
-            ? item.label
-            : undefined
+      <div
+        key={
+          item.id
         }
-        onClick={() =>
-          onNavigate(item.id)
-        }
-        className={`
-          group
-          relative
-          flex
-          w-full
-          items-start
-          rounded-lg
-          text-left
-          transition-all
-          duration-200
-          ease-out
-
-          ${
-            collapsed
-              ? "justify-center px-2.5"
-              : "justify-start px-3"
-          }
-
-          py-2.5
-
-          ${
-            isActive
-              ? "bg-[#1C6848] text-white shadow-sm"
-              : "text-[#A8C2B3] hover:bg-[#174D38] hover:text-white"
-          }
-        `}
+        className="w-full"
       >
-        {/* ACTIVE INDICATOR */}
+        {/* =================================================
+            PARENT BUTTON
+        ================================================== */}
 
-        {isActive && (
-          <span
-            className="
-              absolute
-              left-0
-              top-1/2
-              h-6
-              w-[3px]
-              -translate-y-1/2
-              rounded-r-full
-              bg-[#72D3A2]
-            "
-          />
-        )}
-
-        {/* ICON */}
-
-        <span
-          className="
+        <button
+          type="button"
+          title={
+            collapsed
+              ? item.label
+              : undefined
+          }
+          onClick={() =>
+            handleItemClick(
+              item
+            )
+          }
+          className={`
+            group
+            relative
             flex
-            h-6
-            w-6
-            shrink-0
+            w-full
             items-center
-            justify-center
-          "
-        >
-          <Icon
-            size={19}
-            strokeWidth={2}
-            className={
-              isActive
-                ? "text-white"
-                : "text-[#A8C2B3]"
+            rounded-lg
+            text-left
+            transition-all
+            duration-200
+            ease-out
+
+            ${
+              collapsed
+                ? "justify-center px-2.5"
+                : "justify-start px-3"
             }
-          />
-        </span>
 
-        {/* LABEL */}
+            py-2.5
 
-        {!collapsed && (
+            ${
+              isActive
+                ? "bg-[#1C6848] text-white shadow-sm"
+                : "text-[#A8C2B3] hover:bg-[#174D38] hover:text-white"
+            }
+          `}
+        >
+          {/* ACTIVE INDICATOR */}
+
+          {isActive && (
+            <span
+              className="
+                absolute
+                left-0
+                top-1/2
+                h-6
+                w-[3px]
+                -translate-y-1/2
+                rounded-r-full
+                bg-[#72D3A2]
+              "
+            />
+          )}
+
+          {/* ICON */}
+
           <span
             className="
-              ml-3
-              min-w-0
-              flex-1
-              whitespace-normal
-              break-words
-              text-[13px]
-              font-medium
-              leading-5
-              text-inherit
+              flex
+              h-6
+              w-6
+              shrink-0
+              items-center
+              justify-center
             "
           >
-            {item.label}
+            <Icon
+              size={19}
+              strokeWidth={2}
+              className={
+                isActive
+                  ? "text-white"
+                  : "text-[#A8C2B3]"
+              }
+            />
           </span>
-        )}
-      </button>
+
+          {/* LABEL */}
+
+          {!collapsed && (
+            <>
+              <span
+                className="
+                  ml-3
+                  min-w-0
+                  flex-1
+                  whitespace-normal
+                  break-words
+                  text-[13px]
+                  font-medium
+                  leading-5
+                  text-inherit
+                "
+              >
+                {item.label}
+              </span>
+
+              {/* CHEVRON */}
+
+              {hasChildren && (
+                <span
+                  className="
+                    ml-2
+                    flex
+                    h-5
+                    w-5
+                    shrink-0
+                    items-center
+                    justify-center
+                    text-[#A8C2B3]
+                  "
+                >
+                  {isOpen ? (
+                    <ChevronDown
+                      size={15}
+                      strokeWidth={2}
+                    />
+                  ) : (
+                    <ChevronRight
+                      size={15}
+                      strokeWidth={2}
+                    />
+                  )}
+                </span>
+              )}
+            </>
+          )}
+        </button>
+
+        {/* =================================================
+            CHILDREN
+        ================================================== */}
+
+        {!collapsed &&
+          hasChildren &&
+          isOpen && (
+            <div
+              className="
+                relative
+                ml-4
+                mt-1
+                space-y-0.5
+                border-l
+                border-[#2A5A47]
+                pl-2.5
+              "
+            >
+              {item.children.map(
+                (child) => {
+                  const childIsActive =
+                    activeItem ===
+                    child.id;
+
+                  return (
+                    <button
+                      key={
+                        child.id
+                      }
+                      type="button"
+                      onClick={() =>
+                        handleChildClick(
+                          child
+                        )
+                      }
+                      className={`
+                        relative
+                        flex
+                        w-full
+                        items-center
+                        rounded-md
+                        px-3
+                        py-2
+                        text-left
+                        text-[11px]
+                        font-medium
+                        transition
+                        duration-150
+
+                        ${
+                          childIsActive
+                            ? "bg-[#174D38] text-white"
+                            : "text-[#A8C2B3] hover:bg-[#174D38] hover:text-white"
+                        }
+                      `}
+                    >
+                      {/* CHILD ACTIVE LINE */}
+
+                      {childIsActive && (
+                        <span
+                          className="
+                            absolute
+                            -left-[13px]
+                            top-1/2
+                            h-5
+                            w-[2px]
+                            -translate-y-1/2
+                            rounded-full
+                            bg-[#72D3A2]
+                          "
+                        />
+                      )}
+
+                      <span className="truncate">
+                        {
+                          child.label
+                        }
+                      </span>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          )}
+      </div>
     );
   };
+
+  /* =====================================================
+     SIDEBAR
+  ====================================================== */
 
   return (
     <aside
@@ -205,6 +479,7 @@ const SideBar = ({
           shrink-0
           border-b
           border-[#174D38]
+
           ${
             collapsed
               ? "px-2 py-3"
@@ -217,6 +492,7 @@ const SideBar = ({
             flex
             min-w-0
             items-center
+
             ${
               collapsed
                 ? "justify-center"
@@ -224,7 +500,7 @@ const SideBar = ({
             }
           `}
         >
-          {/* LOGO PLACEHOLDER */}
+          {/* LOGO */}
 
           <div
             className="
@@ -243,28 +519,57 @@ const SideBar = ({
             title="MotoLend logo"
           >
             <img
-    src="/Auto-Finance-Logo.png"
-    alt="MotoLend"
-    className="h-full w-full object-contain"
-  />
+              src="/Auto-Finance-Logo.png"
+              alt="MotoLend"
+              className="
+                h-full
+                w-full
+                object-contain
+              "
+            />
           </div>
 
           {/* PRODUCT NAME */}
 
           {!collapsed && (
-           <div className="ml-2.5 min-w-0 leading-tight">
-  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-white">
-  Moto<span className="text-[#78D6A4]">Lend</span>
-</p>
+            <div
+              className="
+                ml-2.5
+                min-w-0
+                leading-tight
+              "
+            >
+              <p
+                className="
+                  truncate
+                  text-[15px]
+                  font-bold
+                  tracking-[-0.02em]
+                  text-white
+                "
+              >
+                Moto
+                <span className="text-[#78D6A4]">
+                  Lend
+                </span>
+              </p>
 
-<p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-white">
-  POWERING{" "}
-  <span className="text-[#78D6A4]">
-    SMARTER
-  </span>{" "}
-  FINANCE
-</p>
-</div>
+              <p
+                className="
+                  text-[9px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.06em]
+                  text-white
+                "
+              >
+                POWERING{" "}
+                <span className="text-[#78D6A4]">
+                  SMARTER
+                </span>{" "}
+                FINANCE
+              </p>
+            </div>
           )}
         </div>
       </div>

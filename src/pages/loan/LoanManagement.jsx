@@ -19,6 +19,9 @@ import useLoanFilters from "../../hooks/loans/seLoanFilters";
 import LoanManagementDetails from "../../components/loans/LoanManagementDetails";
 import LoanRepaymentCalendar from "../../components/loans/LoanRepaymentCalendar";
 import LoanRepaymentScheduleModal from "../../components/loans/LoanRepaymentScheduleModal";
+import {
+  getSchedulePaidAmount,
+} from "../../services/repaymentStorage";
 
 const LoanManagement = () => {
   const {
@@ -51,128 +54,166 @@ const LoanManagement = () => {
 
      Original stored loan data is NOT mutated.
   ====================================================== */
+const displayLoans = useMemo(() => {
+  return loans.map((loan) => {
+    /*
+     * FORECLOSED / CLOSED / PAID_OFF loans must not
+     * generate any active repayment dues.
+     */
+    const loanStatus = String(
+      loan?.status || ""
+    )
+      .trim()
+      .toUpperCase();
 
-  const displayLoans = useMemo(() => {
-    return loans.map((loan) => {
-      const schedule = Array.isArray(
-        loan?.repaymentSchedule
-      )
-        ? loan.repaymentSchedule
-        : [];
+    const isForeclosed =
+      loanStatus === "FORECLOSED" ||
+      loanStatus === "CLOSED" ||
+      loanStatus === "PAID_OFF";
 
-      const updatedSchedule = schedule.map(
-        (row) => {
-          const scheduledAmount =
-            getRowAmount(row);
-
-          const approvedAmount =
-            getApprovedAmountForRow(
-              loan,
-              row,
-              approvedCollections
-            );
-
-          const remainingAmount =
-            Math.max(
-              scheduledAmount -
-                approvedAmount,
-              0
-            );
-
-          const originalStatus =
-            normalizeStatus(
-              row?.status
-            );
-
-          let displayStatus =
-            originalStatus;
-
-          /*
-           * Fully collected installment.
-           */
-          if (
-            remainingAmount <= 0 &&
-            scheduledAmount > 0
-          ) {
-            displayStatus = "Paid";
-          } else if (
-            approvedAmount > 0 &&
-            remainingAmount > 0
-          ) {
-            displayStatus =
-              "Partially Paid";
-          } else if (
-            isDateOverdue(row?.dueDate) &&
-            isOpenStatus(originalStatus)
-          ) {
-            displayStatus = "Overdue";
-          }
-
-          return {
-            ...row,
-
-            /*
-             * Keep original amount.
-             */
-            paymentAmount:
-              row?.paymentAmount ??
-              row?.emiAmount ??
-              row?.amount ??
-              0,
-
-            /*
-             * Derived values.
-             */
-            approvedAmount,
-            remainingAmount,
-
-            /*
-             * Display status.
-             */
-            status: displayStatus,
-
-            /*
-             * Helpful for schedule/detail UI.
-             */
-            paidAmount: Math.max(
-              Number(
-                row?.paidAmount || 0
-              ),
-              approvedAmount
-            ),
-
-            balance:
-              remainingAmount,
-          };
-        }
-      );
-
-      /*
-       * Build a display payment history
-       * without mutating original loan.
-       *
-       * Existing paymentHistory is preserved.
-       */
-      const paymentHistory =
-        buildDisplayPaymentHistory(
-          loan,
-          approvedCollections
-        );
-
+    /*
+     * Keep the loan visible in All Loans, but remove
+     * its active repayment schedule from the collection
+     * workflow once it is closed/foreclosed.
+     */
+    if (isForeclosed) {
       return {
         ...loan,
 
-        repaymentSchedule:
-          updatedSchedule,
+        repaymentSchedule: [],
 
-        paymentHistory,
+        paymentHistory: Array.isArray(
+          loan?.paymentHistory
+        )
+          ? loan.paymentHistory
+          : [],
       };
-    });
-  }, [
-    loans,
-    approvedCollections,
-  ]);
+    }
 
+    const schedule = Array.isArray(
+      loan?.repaymentSchedule
+    )
+      ? loan.repaymentSchedule
+      : [];
+
+    const updatedSchedule = schedule.map(
+      (row) => {
+        const scheduledAmount =
+          getRowAmount(row);
+
+        const approvedAmount =
+          getApprovedAmountForRow(
+            loan,
+            row,
+            approvedCollections
+          );
+
+        const paidAmount =
+          Math.max(
+            getSchedulePaidAmount(
+              row
+            ),
+            approvedAmount
+          );
+
+        const remainingAmount =
+          Math.max(
+            scheduledAmount -
+              paidAmount,
+            0
+          );
+
+        const originalStatus =
+          normalizeStatus(
+            row?.status
+          );
+
+        let displayStatus =
+          originalStatus;
+
+        /*
+         * Fully collected installment.
+         */
+        if (
+          remainingAmount <= 0 &&
+          scheduledAmount > 0
+        ) {
+          displayStatus = "Paid";
+        } else if (
+          paidAmount > 0 &&
+          remainingAmount > 0
+        ) {
+          displayStatus =
+            "Partially Paid";
+        } else if (
+          isDateOverdue(
+            row?.dueDate
+          ) &&
+          isOpenStatus(
+            originalStatus
+          )
+        ) {
+          displayStatus = "Overdue";
+        }
+
+        return {
+          ...row,
+
+          /*
+           * Keep original amount.
+           */
+          paymentAmount:
+            row?.paymentAmount ??
+            row?.emiAmount ??
+            row?.amount ??
+            0,
+
+          /*
+           * Derived values.
+           */
+          approvedAmount,
+          remainingAmount,
+
+          /*
+           * Display status.
+           */
+          status:
+            displayStatus,
+
+          /*
+           * Helpful for schedule/detail UI.
+           */
+          paidAmount,
+
+          balance:
+            remainingAmount,
+        };
+      }
+    );
+
+    /*
+     * Build a display payment history
+     * without mutating original loan.
+     */
+    const paymentHistory =
+      buildDisplayPaymentHistory(
+        loan,
+        approvedCollections
+      );
+
+    return {
+      ...loan,
+
+      repaymentSchedule:
+        updatedSchedule,
+
+      paymentHistory,
+    };
+  });
+}, [
+  loans,
+  approvedCollections,
+]);
   /* =====================================================
      FILTERS
   ====================================================== */
@@ -574,7 +615,9 @@ const LoanManagement = () => {
             <option>
               Seized
             </option>
-
+<option>
+  Foreclosed
+</option>
             <option>
               Written Off
             </option>
@@ -1583,54 +1626,80 @@ const ManagementStatus = ({
   dueStatus,
   overdueCount,
 }) => {
-  const rawStatus =
-    normalizeStatus(
-      loan?.status
-    );
+  const rawStatus = normalizeStatus(
+    loan?.status
+  );
 
-  let label =
-    "Active";
-
+  let label = "Active";
   let classes =
     "bg-[#EAF5EF] text-[#0B5D3B]";
 
+  /* =====================================================
+     FORECLOSED
+     Highest priority because a sold vehicle must end
+     with the related loan shown as Foreclosed.
+  ====================================================== */
+
   if (
+    rawStatus === "foreclosed"
+  ) {
+    label = "Foreclosed";
+
+    classes =
+      "bg-violet-50 text-violet-700";
+  }
+
+  /* =====================================================
+     CLOSED / PAID
+  ====================================================== */
+
+  else if (
+    rawStatus === "closed" ||
+    rawStatus === "paid" ||
+    rawStatus === "paid_off"
+  ) {
+    label = "Paid";
+
+    classes =
+      "bg-emerald-50 text-emerald-700";
+  }
+
+  /* =====================================================
+     OVERDUE
+  ====================================================== */
+
+  else if (
     overdueCount > 0 ||
     dueStatus === "Overdue"
   ) {
-    label =
-      "Overdue";
+    label = "Overdue";
 
     classes =
       "bg-red-50 text-red-700";
-  } else if (
-    dueStatus ===
-    "Completed"
+  }
+
+  /* =====================================================
+     COMPLETED
+  ====================================================== */
+
+  else if (
+    dueStatus === "Completed"
   ) {
-    label =
-      "Paid";
+    label = "Paid";
 
     classes =
       "bg-emerald-50 text-emerald-700";
-  } else if (
-    rawStatus ===
-    "closed" ||
-    rawStatus ===
-    "paid"
-  ) {
-    label =
-      "Paid";
+  }
 
-    classes =
-      "bg-emerald-50 text-emerald-700";
-  } else if (
-    dueStatus ===
-    "Due"
+  /* =====================================================
+     DUE
+  ====================================================== */
+
+  else if (
+    dueStatus === "Due"
   ) {
     const nextDue =
-      getNextRemainingDue(
-        loan
-      );
+      getNextRemainingDue(loan);
 
     const dueDate =
       parseLocalDate(
@@ -1648,36 +1717,30 @@ const ManagementStatus = ({
 
       const diffDays =
         Math.round(
-          (dueStart.getTime() -
-            today.getTime()) /
-            (1000 *
+          (
+            dueStart.getTime() -
+            today.getTime()
+          ) /
+            (
+              1000 *
               60 *
               60 *
-              24)
+              24
+            )
         );
 
-      if (
-        diffDays === 0
-      ) {
-        label =
-          "Due Today";
-      } else if (
-        diffDays === 1
-      ) {
-        label =
-          "Due Tomorrow";
-      } else if (
-        diffDays > 1
-      ) {
+      if (diffDays === 0) {
+        label = "Due Today";
+      } else if (diffDays === 1) {
+        label = "Due Tomorrow";
+      } else if (diffDays > 1) {
         label =
           `Due in ${diffDays} days`;
       } else {
-        label =
-          "Due";
+        label = "Due";
       }
     } else {
-      label =
-        "Due";
+      label = "Due";
     }
 
     classes =
@@ -2052,6 +2115,24 @@ const calculateUpcomingDue = (
 };
 
 /* =========================================================
+   LOAN STATUS HELPERS
+========================================================= */
+
+const isForeclosedLoan = (loan) => {
+  const status = String(
+    loan?.status || ""
+  )
+    .trim()
+    .toUpperCase();
+
+  return (
+    status === "FORECLOSED" ||
+    status === "CLOSED" ||
+    status === "PAID_OFF"
+  );
+};
+
+/* =========================================================
    DATE / DUE HELPERS
 ========================================================= */
 
@@ -2155,9 +2236,11 @@ const hasUpcomingRemainingDue = (
   );
 };
 
-const getRemainingSchedule = (
-  loan
-) => {
+const getRemainingSchedule = (loan) => {
+  if (isForeclosedLoan(loan)) {
+    return [];
+  }
+
   const schedule =
     Array.isArray(
       loan?.repaymentSchedule

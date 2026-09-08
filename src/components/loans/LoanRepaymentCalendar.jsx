@@ -1,6 +1,9 @@
 // src/components/loans/LoanRepaymentCalendar.jsx
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import {
   X,
@@ -11,30 +14,93 @@ import {
   IndianRupee,
 } from "lucide-react";
 
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import { DayPicker } from "react-day-picker";
 
-import { getOutstandingAmount } from "../../services/customerStorage";
+import {
+  getOutstandingAmount,
+} from "../../services/customerStorage";
 
 const LoanRepaymentCalendar = ({
   loan,
   onClose,
 }) => {
-  const schedule = Array.isArray(
-    loan?.repaymentSchedule
-  )
-    ? loan.repaymentSchedule
-    : [];
+  const navigate =
+    useNavigate();
+
+  const schedule =
+    Array.isArray(
+      loan?.repaymentSchedule
+    )
+      ? loan.repaymentSchedule
+      : [];
 
   const customerName =
     loan?.customerName ||
     loan?.customer?.personal?.name ||
     "Customer";
 
+  const customerId =
+    loan?.customerId ||
+    loan?.customer?.id ||
+    loan?.customer?.customerId ||
+    "";
+
+  const loanId =
+    loan?.id ||
+    "";
+
   const loanNumber =
     loan?.loanNumber || "—";
 
-  const [selectedDate, setSelectedDate] =
-    useState(null);
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] = useState(null);
+
+  /* =====================================================
+     OPEN REMINDER MODULE
+  ====================================================== */
+
+  const openReminder = () => {
+    const params =
+      new URLSearchParams();
+
+    if (loanId) {
+      params.set(
+        "loanId",
+        String(loanId)
+      );
+    }
+
+    if (loanNumber) {
+      params.set(
+        "loanNumber",
+        String(loanNumber)
+      );
+    }
+
+    if (customerId) {
+      params.set(
+        "customerId",
+        String(customerId)
+      );
+    }
+
+    if (customerName) {
+      params.set(
+        "customerName",
+        String(customerName)
+      );
+    }
+
+    navigate(
+      `/reminders?${params.toString()}`
+    );
+  };
 
   /* =====================================================
      REPAYMENT EVENTS
@@ -64,21 +130,24 @@ const LoanRepaymentCalendar = ({
           ),
 
           amount: Number(
-            row?.paymentAmount ??
+            row?.remainingAmount ??
+              row?.paymentAmount ??
               row?.emiAmount ??
               row?.amount ??
               0
           ),
 
           principal: Number(
-            row?.principal ??
+            row?.remainingPrincipal ??
+              row?.principal ??
               row?.principalAmount ??
               row?.principalComponent ??
               0
           ),
 
           interest: Number(
-            row?.interest ??
+            row?.remainingInterest ??
+              row?.interest ??
               row?.interestAmount ??
               row?.interestComponent ??
               0
@@ -91,7 +160,10 @@ const LoanRepaymentCalendar = ({
         };
       })
       .filter(Boolean);
-  }, [schedule, loanNumber]);
+  }, [
+    schedule,
+    loanNumber,
+  ]);
 
   /* =====================================================
      EVENT MAP
@@ -140,6 +212,13 @@ const LoanRepaymentCalendar = ({
     repaymentEvents.filter(
       (event) =>
         event.status === "overdue"
+    ).length;
+
+  const partiallyPaidCount =
+    repaymentEvents.filter(
+      (event) =>
+        event.status ===
+        "partially-paid"
     ).length;
 
   const totalInstallments =
@@ -305,7 +384,12 @@ const LoanRepaymentCalendar = ({
           />
 
           <Legend
-            dot="bg-[#EF4444]"
+            dot="bg-[#3B82F6]"
+            label="Due Today"
+          />
+
+          <Legend
+            dot="bg-[#D92D3A]"
             label="Overdue"
           />
 
@@ -350,7 +434,12 @@ const LoanRepaymentCalendar = ({
               paid={paidCount}
               pending={pendingCount}
               overdue={overdueCount}
-              outstanding={totalOutstanding}
+              partiallyPaid={
+                partiallyPaidCount
+              }
+              outstanding={
+                totalOutstanding
+              }
               totalEmi={totalEmi}
             />
           </div>
@@ -360,23 +449,25 @@ const LoanRepaymentCalendar = ({
           ================================================== */}
 
           <section
-  className="
-    min-w-0
-    self-start
-    h-fit
-    rounded-xl
-    border
-    border-slate-200
-    bg-white
-    p-2.5
-    sm:p-3
-  "
->
+            className="
+              min-w-0
+              self-start
+              h-fit
+              rounded-xl
+              border
+              border-slate-200
+              bg-white
+              p-2.5
+              sm:p-3
+            "
+          >
             <div className="calendar-shell">
               <DayPicker
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={
+                  setSelectedDate
+                }
                 defaultMonth={
                   defaultMonth
                 }
@@ -410,29 +501,31 @@ const LoanRepaymentCalendar = ({
                       );
 
                     return (
-                   <button
-  {...buttonProps}
-  type="button"
-  className={`
-    calendar-day-button
-    repayment-day-button
-    ${
-      modifiers.today
-        ? "is-today"
-        : ""
-    }
-    ${
-      modifiers.outside
-        ? "is-outside"
-        : ""
-    }
-  `}
-  style={{
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-  }}
->
+                      <button
+                        {...buttonProps}
+                        type="button"
+                        className={`
+                          calendar-day-button
+                          repayment-day-button
+                          ${
+                            modifiers.today
+                              ? "is-today"
+                              : ""
+                          }
+                          ${
+                            modifiers.outside
+                              ? "is-outside"
+                              : ""
+                          }
+                        `}
+                        style={{
+                          width:
+                            "100%",
+                          maxWidth:
+                            "100%",
+                          minWidth: 0,
+                        }}
+                      >
                         <span className="calendar-date-number">
                           {day.date.getDate()}
                         </span>
@@ -512,1012 +605,893 @@ const LoanRepaymentCalendar = ({
                     date.toLocaleDateString(
                       "en-US",
                       {
-                        weekday: "short",
+                        weekday:
+                          "short",
                       }
                     ),
                 }}
-              footer={
-  <div className="calendar-footer-area">
-    {selectedEvent ? (
-      <SelectedPayment
-        event={selectedEvent}
-      />
-    ) : (
-      <div className="calendar-helper">
-        Select a repayment date to see payment details.
-      </div>
-    )}
-<div className="calendar-reminder">
-  <div className="calendar-reminder-content">
-    <div className="calendar-reminder-icon">
-      <CalendarDays size={18} strokeWidth={1.8} />
-    </div>
+                footer={
+                  <div className="calendar-footer-area">
+                    {selectedEvent ? (
+                      <SelectedPayment
+                        event={
+                          selectedEvent
+                        }
+                      />
+                    ) : (
+                      <div className="calendar-helper">
+                        Select a repayment date to see payment details.
+                      </div>
+                    )}
 
-    <div className="calendar-reminder-text-content">
-      <p className="calendar-reminder-title">
-        Stay on Track!
-      </p>
+                    {/* =================================================
+                        PAYMENT REMINDER
+                    ================================================== */}
 
-      <p className="calendar-reminder-text">
-        Keep your payments on time to maintain a good credit score.
-      </p>
-    </div>
-  </div>
+                    <div className="calendar-reminder">
+                      <div className="calendar-reminder-content">
+                        <div className="calendar-reminder-icon">
+                          <Bell
+                            size={18}
+                            strokeWidth={1.8}
+                          />
+                        </div>
 
-  <button
-    type="button"
-    className="calendar-reminder-button"
-  >
-   <Bell size={12} strokeWidth={2} />
-    Set Payment Reminder
-  </button>
-</div>
-  </div>
-}
+                        <div className="calendar-reminder-text-content">
+                          <p className="calendar-reminder-title">
+                            Payment Reminder
+                          </p>
+
+                          <p className="calendar-reminder-text">
+                            Set a reminder for this customer&apos;s loan payment and follow-up schedule.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="calendar-reminder-button"
+                        onClick={
+                          openReminder
+                        }
+                      >
+                        <Bell
+                          size={12}
+                          strokeWidth={2}
+                        />
+
+                        Set Payment Reminder
+                      </button>
+                    </div>
+                  </div>
+                }
               />
             </div>
           </section>
         </div>
-
-     
       </div>
 
       {/* =================================================
           CALENDAR CSS
       ================================================== */}
 
-<style>{`
-  /* =====================================================
-     CALENDAR SHELL
-  ====================================================== */
+      <style>{`
+        /* =====================================================
+           CALENDAR SHELL
+        ====================================================== */
+
+        .calendar-shell {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          overflow: hidden;
+        }
 
-  .calendar-shell {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-    overflow: hidden;
-  }
+        .calendar-months,
+        .calendar-month {
+          width: 100%;
+        }
 
-  .calendar-months,
-  .calendar-month {
-    width: 100%;
-  }
+        /* =====================================================
+           MONTH HEADER
+        ====================================================== */
 
+        .calendar-caption {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1px 2px 8px;
+        }
 
-  /* =====================================================
-     MONTH HEADER
-  ====================================================== */
+        .calendar-caption-label {
+          font-size: 16px;
+          line-height: 1;
+          font-weight: 800;
+          color: #243253;
+        }
 
-  .calendar-caption {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1px 2px 8px;
-  }
+        .calendar-nav {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
 
-  .calendar-caption-label {
-    font-size: 16px;
-    line-height: 1;
-    font-weight: 800;
-    color: #243253;
-  }
+        .calendar-nav-button {
+          width: 31px;
+          height: 31px;
 
-  .calendar-nav {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
+          display: flex;
+          align-items: center;
+          justify-content: center;
 
-  .calendar-nav-button {
-    width: 31px;
-    height: 31px;
+          border: 1px solid #E4E8EF;
+          border-radius: 8px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+          background: #FFFFFF;
+          color: #71809B;
 
-    border: 1px solid #E4E8EF;
-    border-radius: 8px;
+          cursor: pointer;
 
-    background: #FFFFFF;
-    color: #71809B;
+          transition:
+            background 150ms ease,
+            border-color 150ms ease,
+            color 150ms ease;
+        }
 
-    cursor: pointer;
+        .calendar-nav-button:hover {
+          background: #F7F4FF;
+          border-color: #D7CCFF;
+          color: #6D4AFF;
+        }
 
-    transition:
-      background 150ms ease,
-      border-color 150ms ease,
-      color 150ms ease;
-  }
+        /* =====================================================
+           CALENDAR GRID
+        ====================================================== */
 
-  .calendar-nav-button:hover {
-    background: #F7F4FF;
-    border-color: #D7CCFF;
-    color: #6D4AFF;
-  }
+        .calendar-grid {
+          width: 100%;
 
+          border-collapse: separate;
+          border-spacing: 0;
 
-  /* =====================================================
-     CALENDAR GRID
-  ====================================================== */
+          border: 1px solid #E5E9F0;
+          border-radius: 11px;
 
-  .calendar-grid {
-    width: 100%;
+          overflow: hidden;
 
-    border-collapse: separate;
-    border-spacing: 0;
+          table-layout: fixed;
+        }
 
-    border: 1px solid #E5E9F0;
-    border-radius: 11px;
+        /* =====================================================
+           WEEKDAY HEADER
+        ====================================================== */
 
-    overflow: hidden;
+        .calendar-weekdays {
+          background: #FBFCFE;
+        }
 
-    table-layout: fixed;
-  }
+        .calendar-weekday {
+          height: 31px;
 
+          padding: 0 2px;
 
-  /* =====================================================
-     WEEKDAY HEADER
-  ====================================================== */
+          font-size: 8px;
+          line-height: 1;
 
-  .calendar-weekdays {
-    background: #FBFCFE;
-  }
+          font-weight: 800;
 
-  .calendar-weekday {
-    height: 31px;
+          color: #7D8BA5;
 
-    padding: 0 2px;
+          text-align: center;
+          text-transform: uppercase;
 
-    font-size: 8px;
-    line-height: 1;
+          white-space: nowrap;
 
-    font-weight: 800;
+          border-bottom: 1px solid #E5E9F0;
+        }
 
-    color: #7D8BA5;
+        /* =====================================================
+           WEEK
+        ====================================================== */
 
-    text-align: center;
-    text-transform: uppercase;
+        .calendar-week {
+          background: #FFFFFF;
+        }
 
-    white-space: nowrap;
+        /* =====================================================
+           DAY CELL
+        ====================================================== */
 
-    border-bottom: 1px solid #E5E9F0;
-  }
+        .calendar-day {
+          position: relative;
 
+          width: 14.285%;
+          height: 54px;
 
-  /* =====================================================
-     WEEK
-  ====================================================== */
+          padding: 0;
 
-  .calendar-week {
-    background: #FFFFFF;
-  }
+          border-right: 1px solid #EEF1F5;
+          border-bottom: 1px solid #EEF1F5;
 
+          vertical-align: top;
+        }
 
-  /* =====================================================
-     DAY CELL
-  ====================================================== */
+        .calendar-week:last-child .calendar-day {
+          border-bottom: 0;
+        }
 
-  .calendar-day {
-    position: relative;
+        .calendar-day:last-child {
+          border-right: 0;
+        }
 
-    width: 14.285%;
-    height: 54px;
+        /* =====================================================
+           DAY BUTTON
+        ====================================================== */
 
-    padding: 0;
+        .calendar-day-button {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
 
-    border-right: 1px solid #EEF1F5;
-    border-bottom: 1px solid #EEF1F5;
+          width: 100%;
+          height: 100%;
 
-    vertical-align: top;
-  }
+          min-height: 56px;
 
-  .calendar-week:last-child .calendar-day {
-    border-bottom: 0;
-  }
+          padding: 3px 2px;
 
-  .calendar-day:last-child {
-    border-right: 0;
-  }
+          border: 0;
 
+          background: transparent;
 
-  /* =====================================================
-     DAY BUTTON
-  ====================================================== */
+          text-align: center;
 
-  .calendar-day-button {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+          cursor: pointer;
 
-    width: 100%;
-    height: 100%;
+          box-sizing: border-box;
+        }
 
-    min-height: 56px;
+        .calendar-day-button:hover {
+          background: #FAFBFD;
+        }
 
-    padding: 3px 2px;
+        /* =====================================================
+           DATE NUMBER
+        ====================================================== */
 
-    border: 0;
+        .calendar-date-number {
+          display: block;
 
-    background: transparent;
+          width: 100%;
 
-    text-align: center;
+          margin: 0;
 
-    cursor: pointer;
+          font-size: 10px;
+          line-height: 1;
 
-    box-sizing: border-box;
-  }
+          font-weight: 900;
 
-  .calendar-day-button:hover {
-    background: #FAFBFD;
-  }
+          color: #243253;
 
+          text-align: center;
+        }
 
-  /* =====================================================
-     DATE NUMBER
-  ====================================================== */
+        .calendar-outside .calendar-date-number {
+          color: #C7CED9;
+        }
 
-  .calendar-date-number {
-    display: block;
+        .calendar-today {
+          background: #F8F5FF !important;
+        }
 
-    width: 100%;
+        .calendar-selected {
+          background: #F1EDFF !important;
+        }
 
-    margin: 0;
+        /* =====================================================
+           REPAYMENT CARD
+        ====================================================== */
 
-    font-size: 10px;
-    line-height: 1;
+        .repayment-card {
+          display: flex;
+          flex-direction: column;
 
-    font-weight: 900;
+          align-items: center;
+          justify-content: center;
 
-    color: #243253;
+          width: 100%;
 
-    text-align: center;
-  }
+          box-sizing: border-box;
 
-  .calendar-outside .calendar-date-number {
-    color: #C7CED9;
-  }
+          margin: 4px 0 0;
 
-  .calendar-today {
-    background: #F8F5FF !important;
-  }
+          padding: 5px 3px;
 
-  .calendar-selected {
-    background: #F1EDFF !important;
-  }
+          min-height: 31px;
 
+          gap: 2px;
 
-  /* =====================================================
-     REPAYMENT CARD
-  ====================================================== */
+          border-radius: 7px;
 
-  .repayment-card {
-    display: flex;
-    flex-direction: column;
+          border: 1px solid transparent;
 
-    align-items: center;
-    justify-content: center;
+          overflow: visible;
 
-    width: 100%;
+          text-align: center;
+        }
 
-    box-sizing: border-box;
+        .repayment-due-today {
+          background: #FFF8E1;
+          border-color: #FFE8A3;
+          color: #B7791F;
+        }
 
-    margin: 4px 0 0;
+        .repayment-upcoming {
+          background: #F1EDFF;
+          border-color: #DCD2FF;
+          color: #6243DB;
+        }
 
-    padding: 5px 3px;
+        .repayment-overdue {
+          background: #FFF0F1;
+          border-color: #FFD4D8;
+          color: #D92D3A;
+        }
 
-    min-height: 31px;
+        .repayment-paid {
+          background: #EAFBF5;
+          border-color: #CDEFE2;
+          color: #159A78;
+        }
 
-    gap: 2px;
+        .repayment-partially-paid {
+          background: #FFF4E8;
+          border-color: #FFE0BB;
+          color: #D67819;
+        }
 
-    border-radius: 7px;
+        /* =====================================================
+           REPAYMENT AMOUNT
+        ====================================================== */
 
-    border: 1px solid transparent;
+        .repayment-amount {
+          display: block;
 
-    overflow: visible;
+          width: 100%;
 
-    text-align: center;
-  }
+          margin: 0;
 
+          font-size: 9.5px;
+          line-height: 1.1;
 
-  /* =====================================================
-     UPCOMING
-  ====================================================== */
+          font-weight: 900;
 
-  .repayment-upcoming {
-    background: #F1EDFF;
-    border-color: #DCD2FF;
-    color: #6243DB;
-  }
+          letter-spacing: -0.01em;
 
+          color: inherit;
 
-  /* =====================================================
-     OVERDUE
-  ====================================================== */
+          text-align: center;
 
-  .repayment-overdue {
-    background: #FFF0F1;
-    border-color: #FFD4D8;
-    color: #D92D3A;
-  }
+          white-space: nowrap;
 
+          overflow: visible;
 
-  /* =====================================================
-     PAID
-  ====================================================== */
+          text-overflow: clip;
+        }
 
-  .repayment-paid {
-    background: #EAFBF5;
-    border-color: #CDEFE2;
-    color: #159A78;
-  }
+        /* =====================================================
+           STATUS ROW
+        ====================================================== */
 
+        .repayment-status-row {
+          display: flex;
 
-  /* =====================================================
-     PARTIALLY PAID
-  ====================================================== */
+          align-items: center;
+          justify-content: center;
 
-  .repayment-partially-paid {
-    background: #FFF4E8;
-    border-color: #FFE0BB;
-    color: #D67819;
-  }
+          width: 100%;
 
+          gap: 4px;
 
-  /* =====================================================
-     REPAYMENT AMOUNT
-  ====================================================== */
+          margin: 0;
 
-  .repayment-amount {
-    display: block;
+          font-size: 7px;
+          line-height: 1;
 
-    width: 100%;
+          font-weight: 800;
 
-    margin: 0;
+          color: inherit;
 
-    font-size: 9.5px;
-    line-height: 1.1;
+          text-align: center;
 
-    font-weight: 900;
+          white-space: nowrap;
 
-    letter-spacing: -0.01em;
+          overflow: visible;
+        }
 
-    color: inherit;
+        .repayment-status-row > span:first-child {
+          display: block;
 
-    text-align: center;
+          min-width: max-content;
 
-    white-space: nowrap;
+          overflow: visible;
 
-    overflow: visible;
+          white-space: nowrap;
 
-    text-overflow: clip;
-  }
+          text-overflow: clip;
+        }
 
+        /* =====================================================
+           STATUS DOT
+        ====================================================== */
 
-  /* =====================================================
-     STATUS ROW
-  ====================================================== */
+        .repayment-dot {
+          width: 5px;
+          height: 5px;
 
-  .repayment-status-row {
-    display: flex;
+          flex-shrink: 0;
 
-    align-items: center;
-    justify-content: center;
+          border-radius: 999px;
+        }
 
-    width: 100%;
+        .dot-upcoming {
+          background: #6D4AFF;
+        }
 
-    gap: 4px;
+        .dot-due-today {
+          background: #3B82F6;
+        }
 
-    margin: 0;
+        .dot-overdue {
+          background: #EF4444;
+        }
 
-    font-size: 7px;
-    line-height: 1;
+        .dot-paid {
+          background: #36C69B;
+        }
 
-    font-weight: 800;
+        .dot-partially-paid {
+          background: #FF9C42;
+        }
 
-    color: inherit;
+        /* =====================================================
+           CALENDAR HELPER
+        ====================================================== */
 
-    text-align: center;
+        .calendar-helper {
+          margin-top: 6px;
 
-    white-space: nowrap;
+          border-radius: 7px;
 
-    overflow: visible;
-  }
+          background: #F8FAFD;
 
-  .repayment-status-row > span:first-child {
-    display: block;
+          padding: 6px 8px;
 
-    min-width: max-content;
+          font-size: 8px;
 
-    overflow: visible;
+          color: #8A95AA;
 
-    white-space: nowrap;
+          text-align: center;
+        }
 
-    text-overflow: clip;
-  }
+        /* =====================================================
+           SELECTED PAYMENT
+        ====================================================== */
 
+        .selected-payment {
+          margin-top: 6px;
 
-  /* =====================================================
-     STATUS DOT
-  ====================================================== */
+          display: grid;
 
-  .repayment-dot {
-    width: 5px;
-    height: 5px;
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
 
-    flex-shrink: 0;
+          gap: 5px;
 
-    border-radius: 999px;
-  }
+          border-radius: 7px;
 
-  .dot-upcoming {
-    background: #6D4AFF;
-  }
+          background: #F8FAFD;
 
-  .dot-overdue {
-    background: #EF4444;
-  }
+          padding: 6px;
+        }
 
-  .dot-paid {
-    background: #36C69B;
-  }
+        .selected-payment-item {
+          min-width: 0;
+          text-align: center;
+        }
 
-  .dot-partially-paid {
-    background: #FF9C42;
-  }
+        .selected-payment-item p:first-child {
+          margin: 0 0 2px;
 
+          font-size: 7px;
+          line-height: 1;
 
-  /* =====================================================
-     CALENDAR HELPER
-  ====================================================== */
+          color: #8A95AA;
+        }
 
-  .calendar-helper {
-    margin-top: 6px;
+        .selected-payment-item p:last-child {
+          margin: 0;
 
-    border-radius: 7px;
+          font-size: 9px;
+          line-height: 1.1;
 
-    background: #F8FAFD;
+          font-weight: 700;
 
-    padding: 6px 8px;
+          color: #253252;
 
-    font-size: 8px;
+          white-space: nowrap;
 
-    color: #8A95AA;
+          overflow: hidden;
 
-    text-align: center;
-  }
+          text-overflow: ellipsis;
+        }
 
+        /* =====================================================
+           FOOTER AREA
+        ====================================================== */
 
-  /* =====================================================
-     SELECTED PAYMENT
-  ====================================================== */
+        .calendar-footer-area {
+          width: 100%;
 
-  .selected-payment {
-    margin-top: 6px;
+          margin-top: 5px;
+        }
 
-    display: grid;
+        /* =====================================================
+           PAYMENT REMINDER
+        ====================================================== */
 
-    grid-template-columns:
-      repeat(3, minmax(0, 1fr));
+        .calendar-reminder {
+          width: 100%;
 
-    gap: 5px;
+          min-height: 68px;
 
-    border-radius: 7px;
+          margin-top: 7px;
 
-    background: #F8FAFD;
+          padding: 11px 16px;
 
-    padding: 6px;
-  }
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
 
-  .selected-payment-item {
-    min-width: 0;
-    text-align: center;
-  }
+          box-sizing: border-box;
 
-  .selected-payment-item p:first-child {
-    margin: 0 0 2px;
+          border: 1px solid #E9E5FF;
 
-    font-size: 7px;
-    line-height: 1;
+          border-radius: 10px;
 
-    color: #8A95AA;
-  }
+          background: linear-gradient(
+            90deg,
+            #F8F6FF 0%,
+            #FCFBFF 100%
+          );
+        }
 
-  .selected-payment-item p:last-child {
-    margin: 0;
+        .calendar-reminder-content {
+          display: flex;
 
-    font-size: 9px;
-    line-height: 1.1;
+          align-items: center;
 
-    font-weight: 700;
+          flex: 1;
 
-    color: #253252;
+          min-width: 0;
 
-    white-space: nowrap;
+          gap: 10px;
+        }
 
-    overflow: hidden;
+        .calendar-reminder-icon {
+          width: 42px;
+          height: 42px;
 
-    text-overflow: ellipsis;
-  }
+          flex-shrink: 0;
 
+          display: flex;
+          align-items: center;
+          justify-content: center;
 
-  /* =====================================================
-     FOOTER AREA
-  ====================================================== */
+          border-radius: 9px;
 
-  .calendar-footer-area {
-    width: 100%;
+          background: #EEEAFE;
 
-    margin-top: 5px;
-  }
+          color: #6D4AFF;
+        }
 
+        .calendar-reminder-text-content {
+          display: flex;
 
-  /* =====================================================
-     PAYMENT REMINDER
-  ====================================================== */
+          flex-direction: column;
 
-  .calendar-reminder {
-    width: 100%;
+          justify-content: center;
 
-    min-height: 64px;
+          min-width: 0;
 
-    margin-top: 7px;
+          gap: 4px;
+        }
 
-    padding: 10px 14px;
+        .calendar-reminder-title {
+          margin: 0 !important;
+          padding: 0 !important;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+          font-size: 14px !important;
+          line-height: 1.2 !important;
 
-    box-sizing: border-box;
+          font-weight: 800 !important;
 
-    border: 1px solid #E9E5FF;
+          color: #243253 !important;
+        }
 
-    border-radius: 10px;
+        .calendar-reminder-text {
+          margin: 0 !important;
+          padding: 0 !important;
 
-    background: linear-gradient(
-      90deg,
-      #F8F6FF 0%,
-      #FCFBFF 100%
-    );
-  }
+          font-size: 11px !important;
+          line-height: 1.3 !important;
 
+          font-weight: 500 !important;
 
-  /* =====================================================
-     REMINDER LEFT CONTENT
-  ====================================================== */
+          color: #8792AA !important;
+        }
 
-  .calendar-reminder-content {
-    display: flex;
+        .calendar-reminder-button {
+          height: 36px;
 
-    align-items: center;
+          margin-left: 16px;
+          padding: 0 16px;
 
-    flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
 
-    min-width: 0;
+          border: none;
+          border-radius: 8px;
 
-    gap: 10px;
-  }
+          background: #7252F5;
+          color: #FFFFFF;
 
+          font-size: 11px !important;
+          line-height: 1 !important;
 
-  /* =====================================================
-     REMINDER ICON
-  ====================================================== */
+          font-weight: 700 !important;
 
-  .calendar-reminder-icon {
-    width: 38px;
-    height: 38px;
+          white-space: nowrap;
 
-    flex-shrink: 0;
+          cursor: pointer;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+          transition:
+            background 150ms ease,
+            transform 150ms ease;
+        }
 
-    border-radius: 9px;
+        .calendar-reminder-button:hover {
+          background: #6345DF;
+          transform: translateY(-1px);
+        }
 
-    background: #EEEAFE;
+        .calendar-reminder-button svg {
+          width: 15px !important;
+          height: 15px !important;
 
-    color: #6D4AFF;
-  }
+          flex-shrink: 0;
+        }
 
+        /* =====================================================
+           LEFT LOAN SUMMARY
+        ====================================================== */
 
-  /* =====================================================
-     REMINDER TEXT CONTENT
-  ====================================================== */
+        .loan-summary-panel {
+          overflow: hidden;
 
-  .calendar-reminder-text-content {
-    display: flex;
+          border: 1px solid #DDD5FF;
 
-    flex-direction: column;
+          border-radius: 14px;
 
-    justify-content: center;
+          background:
+            linear-gradient(
+              145deg,
+              #F0ECFF 0%,
+              #F8F6FF 55%,
+              #FFFFFF 100%
+            );
 
-    min-width: 0;
+          box-shadow:
+            0 4px 14px rgba(109, 74, 255, 0.05);
+        }
 
-    gap: 3px;
-  }
+        .loan-summary-header {
+          padding: 11px 14px;
 
+          background:
+            linear-gradient(
+              90deg,
+              #7050F3 0%,
+              #8060F7 50%,
+              #8B6AFF 100%
+            );
 
-  /* =====================================================
-   LAPTOP / DESKTOP REMINDER
-===================================================== */
+          color: #FFFFFF;
+        }
 
-.calendar-reminder {
-  min-height: 68px;
-  padding: 11px 16px;
-}
+        .loan-summary-title {
+          margin: 0;
 
+          font-size: 11px;
 
-/* Reminder icon */
+          line-height: 1.1;
 
-.calendar-reminder-icon {
-  width: 42px;
-  height: 42px;
-}
+          font-weight: 800;
+        }
 
-.calendar-reminder-icon svg {
-  width: 19px;
-  height: 19px;
-}
+        .loan-summary-body {
+          padding: 13px 14px;
+        }
 
+        .loan-summary-label {
+          margin: 0;
 
-/* Text wrapper */
+          font-size: 8px;
 
-.calendar-reminder-text-content {
-  gap: 4px;
-}
+          line-height: 1.1;
 
+          font-weight: 600;
 
-/* Title */
+          color: #8490A8;
+        }
 
-.calendar-reminder-title {
-  margin: 0 !important;
-  padding: 0 !important;
+        .loan-summary-value {
+          margin: 2px 0 0;
 
-  font-size: 14px !important;
-  line-height: 1.2 !important;
+          font-size: 10px;
 
-  font-weight: 800 !important;
+          line-height: 1.2;
 
-  color: #243253 !important;
-}
+          font-weight: 800;
 
+          color: #253252;
+        }
 
-/* Description */
+        /* =====================================================
+           DESKTOP
+        ====================================================== */
 
-.calendar-reminder-text {
-  margin: 0 !important;
-  padding: 0 !important;
+        @media (min-width: 1200px) {
+          .calendar-day {
+            height: 56px;
+          }
 
-  font-size: 11px !important;
-  line-height: 1.3 !important;
+          .calendar-day-button {
+            min-height: 56px;
+          }
 
-  font-weight: 500 !important;
+          .repayment-card {
+            min-height: 31px;
+          }
 
-  color: #8792AA !important;
-}
+          .repayment-amount {
+            font-size: 9.5px;
+          }
 
+          .repayment-status-row {
+            font-size: 7px;
+          }
+        }
 
-/* Button */
+        /* =====================================================
+           TABLET
+        ====================================================== */
 
-.calendar-reminder-button {
-  height: 36px;
+        @media (max-width: 900px) {
+          .calendar-weekday {
+            font-size: 7px;
+          }
 
-  margin-left: 16px;
-  padding: 0 16px;
+          .calendar-day {
+            height: 52px;
+          }
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+          .calendar-day-button {
+            min-height: 52px;
+            padding: 3px 2px;
+          }
 
-  border: none;
-  border-radius: 8px;
+          .calendar-date-number {
+            font-size: 9px;
+          }
 
-  background: #7252F5;
-  color: #FFFFFF;
+          .repayment-card {
+            min-height: 29px;
+            margin-top: 3px;
+            padding: 4px 3px;
+            gap: 2px;
+          }
 
-  font-size: 11px !important;
-  line-height: 1 !important;
+          .repayment-amount {
+            font-size: 8.5px;
+          }
 
-  font-weight: 700 !important;
+          .repayment-status-row {
+            font-size: 6.5px;
+          }
+        }
 
-  white-space: nowrap;
+        /* =====================================================
+           MOBILE
+        ====================================================== */
 
-  cursor: pointer;
-}
+        @media (max-width: 700px) {
+          .calendar-reminder {
+            min-height: 58px;
+            padding: 8px 10px;
+          }
 
+          .calendar-reminder-content {
+            gap: 8px;
+          }
 
-/* Bell */
+          .calendar-reminder-icon {
+            width: 32px;
+            height: 32px;
+          }
 
-.calendar-reminder-button svg {
-  width: 15px !important;
-  height: 15px !important;
+          .calendar-reminder-icon svg {
+            width: 15px;
+            height: 15px;
+          }
 
-  flex-shrink: 0;
-}
+          .calendar-reminder-title {
+            font-size: 9px !important;
+          }
 
-.reminder-button-icon {
-  margin-left: 6px;
+          .calendar-reminder-text {
+            font-size: 7px !important;
+          }
 
-  font-size: 10px;
-  font-weight: 700;
+          .calendar-reminder-button {
+            height: 27px;
+            margin-left: 7px;
+            padding: 0 8px;
+            gap: 4px;
+            font-size: 7px !important;
+          }
 
-  line-height: 1;
-}
+          .calendar-reminder-button svg {
+            width: 11px !important;
+            height: 11px !important;
+          }
 
-  /* =====================================================
-     LEFT LOAN SUMMARY
-  ====================================================== */
+          .repayment-day-button .repayment-card {
+            width: 100%;
+            max-width: none;
+            box-sizing: border-box;
+          }
 
-  .loan-summary-panel {
-    overflow: hidden;
+          .repayment-day-button .repayment-amount {
+            width: 100%;
+            font-size: 9.5px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: clip;
+          }
 
-    border: 1px solid #DDD5FF;
+          .repayment-day-button .repayment-status-row {
+            width: 100%;
+            justify-content: center;
+            font-size: 7px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: visible;
+          }
 
-    border-radius: 14px;
-
-    background:
-      linear-gradient(
-        145deg,
-        #F0ECFF 0%,
-        #F8F6FF 55%,
-        #FFFFFF 100%
-      );
-
-    box-shadow:
-      0 4px 14px rgba(109, 74, 255, 0.05);
-  }
-
-  .loan-summary-header {
-    padding: 11px 14px;
-
-    background:
-      linear-gradient(
-        90deg,
-        #7050F3 0%,
-        #8060F7 50%,
-        #8B6AFF 100%
-      );
-
-    color: #FFFFFF;
-  }
-
-  .loan-summary-title {
-    margin: 0;
-
-    font-size: 11px;
-
-    line-height: 1.1;
-
-    font-weight: 800;
-  }
-
-  .loan-summary-body {
-    padding: 13px 14px;
-  }
-
-  .loan-summary-label {
-    margin: 0;
-
-    font-size: 8px;
-
-    line-height: 1.1;
-
-    font-weight: 600;
-
-    color: #8490A8;
-  }
-
-  .loan-summary-value {
-    margin: 2px 0 0;
-
-    font-size: 10px;
-
-    line-height: 1.2;
-
-    font-weight: 800;
-
-    color: #253252;
-  }
-
-
-  /* =====================================================
-     DESKTOP
-  ====================================================== */
-
-  @media (min-width: 1200px) {
-
-    .calendar-day {
-      height: 56px;
-    }
-
-    .calendar-day-button {
-      min-height: 56px;
-    }
-
-    .repayment-card {
-      min-height: 31px;
-    }
-
-    .repayment-amount {
-      font-size: 9.5px;
-    }
-
-    .repayment-status-row {
-      font-size: 7px;
-    }
-  }
-
-
-  /* =====================================================
-     TABLET
-  ====================================================== */
-
-  @media (max-width: 900px) {
-
-    .calendar-weekday {
-      font-size: 7px;
-    }
-
-    .calendar-day {
-      height: 52px;
-    }
-
-    .calendar-day-button {
-      min-height: 52px;
-
-      padding: 3px 2px;
-    }
-
-    .calendar-date-number {
-      font-size: 9px;
-    }
-
-    .repayment-card {
-      min-height: 29px;
-
-      margin-top: 3px;
-
-      padding: 4px 3px;
-
-      gap: 2px;
-    }
-
-    .repayment-amount {
-      font-size: 8.5px;
-    }
-
-    .repayment-status-row {
-      font-size: 6.5px;
-    }
-  }
-
-
-  /* =====================================================
-     MOBILE
-  ====================================================== */
-
- @media (max-width: 700px) {
-
-  .calendar-reminder-button {
-    height: 30px;
-
-    margin-left: 7px;
-    padding: 0 10px;
-
-    font-size: 8px;
-  }
-
-  .calendar-reminder-button svg {
-    width: 11px;
-    height: 11px;
-  }
-
-  .reminder-button-icon {
-    margin-left: 5px;
-    font-size: 8px;
-  }
-}
-
-
-    /* ================================
-       MOBILE REPAYMENT CARD
-    ================================= */
-
-    .repayment-day-button .repayment-card {
-      width: 100%;
-
-      max-width: none;
-
-      box-sizing: border-box;
-    }
-
-    .repayment-day-button .repayment-amount {
-      width: 100%;
-
-      font-size: 9.5px;
-
-      font-weight: 900;
-
-      white-space: nowrap;
-
-      overflow: visible;
-
-      text-overflow: clip;
-    }
-
-    .repayment-day-button .repayment-status-row {
-      width: 100%;
-
-      justify-content: center;
-
-      font-size: 7px;
-
-      font-weight: 800;
-
-      white-space: nowrap;
-
-      overflow: visible;
-    }
-
-    .repayment-day-button
-    .repayment-status-row
-    > span:first-child {
-      min-width: max-content;
-
-      overflow: visible;
-
-      white-space: nowrap;
-
-      text-overflow: clip;
-    }
-
-
-    /* ================================
-       MOBILE REMINDER
-    ================================= */
-
-    .calendar-reminder {
-      min-height: 58px;
-
-      padding: 8px 10px;
-    }
-
-    .calendar-reminder-content {
-      gap: 8px;
-    }
-
-    .calendar-reminder-icon {
-      width: 32px;
-      height: 32px;
-    }
-
-    .calendar-reminder-title {
-      font-size: 9px !important;
-    }
-
-    .calendar-reminder-text {
-      font-size: 7px !important;
-    }
-
-    .calendar-reminder-button {
-      height: 27px;
-
-      margin-left: 7px;
-
-      padding: 0 8px;
-
-      font-size: 7px;
-    }
-
-    .reminder-button-icon {
-      margin-left: 4px;
-
-      font-size: 7px;
-    }
-  }
-`}</style>
+          .repayment-day-button
+          .repayment-status-row
+          > span:first-child {
+            min-width: max-content;
+            overflow: visible;
+            white-space: nowrap;
+            text-overflow: clip;
+          }
+        }
+      `}</style>
     </div>
   );
 };
@@ -1625,6 +1599,7 @@ const QuickStats = ({
   paid,
   pending,
   overdue,
+  partiallyPaid,
   outstanding,
   totalEmi,
 }) => {
@@ -1666,6 +1641,12 @@ const QuickStats = ({
           label="Overdue"
           value={overdue}
           badge="bg-[#FFF0F1] text-[#E04B58]"
+        />
+
+        <StatRow
+          label="Partially Paid"
+          value={partiallyPaid}
+          badge="bg-[#FFF4E8] text-[#D67819]"
         />
       </div>
 
@@ -1836,57 +1817,157 @@ const Legend = ({
    STATUS
 ========================================================= */
 
-const normalizeStatus = (status, dueDate) => {
-  const value = String(status || "")
+const normalizeStatus = (
+  status,
+  dueDate
+) => {
+  const value = String(
+    status || ""
+  )
     .trim()
     .toLowerCase();
+
+  /* PAID */
 
   if (
     value === "paid" ||
     value === "completed" ||
-    value === "closed"
+    value === "closed" ||
+    value === "settled"
   ) {
     return "paid";
   }
 
-  if (value === "overdue") {
-    return "overdue";
-  }
+  /* PARTIALLY PAID */
 
   if (
     value === "partially paid" ||
     value === "partially-paid" ||
     value === "partial"
   ) {
-    if (isDateBeforeToday(dueDate)) {
+    if (
+      isDateBeforeToday(
+        dueDate
+      )
+    ) {
       return "overdue";
     }
 
     return "partially-paid";
   }
 
+  /* OVERDUE */
+
   if (
-    value === "pending" &&
-    isDateBeforeToday(dueDate)
+    value === "overdue" ||
+    (
+      isDateBeforeToday(
+        dueDate
+      ) &&
+      (
+        value === "pending" ||
+        value === "due" ||
+        value === "due today"
+      )
+    )
   ) {
     return "overdue";
   }
 
+  /* DUE TODAY */
+
+  if (
+    (
+      value === "pending" ||
+      value === "due" ||
+      value === "due today"
+    ) &&
+    isDateToday(
+      dueDate
+    )
+  ) {
+    return "due-today";
+  }
+
+  /* UPCOMING */
+
   return "upcoming";
 };
 
-const isDateBeforeToday = (date) => {
-  if (!date || Number.isNaN(date.getTime())) {
+const isDateBeforeToday = (
+  date
+) => {
+  if (
+    !date ||
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return false;
   }
 
-  const due = new Date(date);
-  due.setHours(0, 0, 0, 0);
+  const due =
+    new Date(date);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  due.setHours(
+    0,
+    0,
+    0,
+    0
+  );
 
-  return due.getTime() < today.getTime();
+  const today =
+    new Date();
+
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return (
+    due.getTime() <
+    today.getTime()
+  );
+};
+
+const isDateToday = (
+  date
+) => {
+  if (
+    !date ||
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return false;
+  }
+
+  const due =
+    new Date(date);
+
+  const today =
+    new Date();
+
+  due.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return (
+    due.getTime() ===
+    today.getTime()
+  );
 };
 
 const getStatusLabel = (
@@ -1901,6 +1982,9 @@ const getStatusLabel = (
 
     case "partially-paid":
       return "Partially Paid";
+
+    case "due-today":
+      return "Due Today";
 
     default:
       return "Upcoming";
@@ -1918,15 +2002,34 @@ const parseLocalDate = (
     return null;
   }
 
-  const raw = String(value);
+  if (
+    value instanceof Date
+  ) {
+    const date =
+      new Date(value);
 
-  const match = raw.match(
-    /^(\d{4})-(\d{2})-(\d{2})/
-  );
+    return Number.isNaN(
+      date.getTime()
+    )
+      ? null
+      : date;
+  }
+
+  const raw =
+    String(value);
+
+  const match =
+    raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
 
   if (match) {
-    const [, year, month, day] =
-      match;
+    const [
+      ,
+      year,
+      month,
+      day,
+    ] = match;
 
     return new Date(
       Number(year),
@@ -1935,7 +2038,8 @@ const parseLocalDate = (
     );
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
   return Number.isNaN(
     date.getTime()
@@ -1947,6 +2051,10 @@ const parseLocalDate = (
 const getDateKey = (
   date
 ) => {
+  if (!date) {
+    return "";
+  }
+
   return [
     date.getFullYear(),
     String(

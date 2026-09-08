@@ -2,6 +2,12 @@ import {
   formatDate,
   money,
 } from "../../utils/loan/loanHelpers";
+import {
+  getScheduleAmount,
+  getSchedulePaidAmount,
+  getScheduleRemainingAmount,
+  getScheduleDisplayStatus,
+} from "../../services/repaymentStorage";
 
 const LoanRepaymentSchedule = ({
   loan,
@@ -54,7 +60,9 @@ const LoanRepaymentSchedule = ({
                   </td>
                   <td>
                     ₹{money(
-                      row.paymentAmount
+                      getScheduleAmount(
+                        row
+                      )
                     )}
                   </td>
                   <td>
@@ -69,16 +77,22 @@ const LoanRepaymentSchedule = ({
                   </td>
                   <td>
                     ₹{money(
-                      row.paidAmount
+                      getSchedulePaidAmount(
+                        row
+                      )
                     )}
                   </td>
                   <td>
                     ₹{money(
-                      row.balance
+                      getScheduleRemainingAmount(
+                        row
+                      )
                     )}
                   </td>
                   <td>
-                    {row.status}
+                    {getScheduleDisplayStatus(
+                      row
+                    )}
                   </td>
                 </tr>
               )

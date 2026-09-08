@@ -52,20 +52,21 @@ export const CUSTOMER_SCHEMA = {
   /**
    * Vehicle information
    */
-  vehicle: {
-    id: "",
+vehicle: {
+  id: "",
+  vehicleId: "",
 
-    vehicleType: "",
-    brand: "",
-    model: "",
-    variant: "",
-    colour: "",
+  vehicleType: "",
+  brand: "",
+  model: "",
+  variant: "",
+  colour: "",
 
-    manufacturingYear: "",
-    fuelType: "",
+  manufacturingYear: "",
+  fuelType: "",
 
-    vehicleValue: 0,
-  },
+  vehicleValue: 0,
+},
 
   /**
    * RC / Registration / Insurance information
@@ -157,140 +158,71 @@ export const CUSTOMER_SCHEMA = {
    * 2. Reducing Balance + EMI
    * 3. Reducing Balance + Principal
    */
-  loan: {
-    id: "",
-    loanNumber: "",
+loan: {
+  id: "",
+  loanNumber: "",
 
-    /**
-     * Vehicle / finance amount
-     */
-    vehicleAmount: 0,
-    downPayment: 0,
-    loanAmount: 0,
+  vehicleAmount: 0,
+  downPayment: 0,
+  loanAmount: 0,
 
-    /**
-     * Interest configuration
-     *
-     * type:
-     * Flat
-     * Reducing
-     */
-    interest: {
-      rate: 0,
-      type: "Flat",
-    },
-
-    /**
-     * Repayment configuration
-     *
-     * method:
-     * EMI
-     * Principal
-     *
-     * NOTE:
-     * For Flat interest, repayment.method is ignored.
-     *
-     * For Reducing Balance:
-     * EMI      = fixed EMI
-     * Principal = fixed principal
-     */
-   repayment: {
-  method: "EMI",
-  frequency: "Monthly",
-  tenure: 0,
-  tenureUnit: "Months",
-},
-
-    /**
-     * System-calculated values.
-     *
-     * These should not normally be entered manually.
-     */
-    calculation: {
-      principal: 0,
-
-      interestAmount: 0,
-
-      totalDue: 0,
-
-      /**
-       * Used only for Reducing + EMI.
-       *
-       * Flat uses paymentAmount.
-       * Reducing + Principal uses firstPayment/paymentAmount.
-       */
-      emiAmount: null,
-
-      numberOfPayments: 0,
-
-      /**
-       * Principal per payment.
-       */
-      principalPerPayment: 0,
-
-      /**
-       * Interest per payment.
-       */
-      interestPerPayment: 0,
-
-      /**
-       * First scheduled payment.
-       */
-      firstPayment: 0,
-
-      /**
-       * Last scheduled payment.
-       */
-      lastPayment: 0,
-
-      /**
-       * General payment amount.
-       *
-       * Flat:
-       *   fixed payment
-       *
-       * Reducing + EMI:
-       *   EMI amount
-       *
-       * Reducing + Principal:
-       *   first payment amount
-       */
-      paymentAmount: 0,
-    },
-
-    /**
-     * First repayment date
-     */
-    firstDueDate: "",
-
-    /**
-     * Additional charges / adjustments
-     */
-    charges: {
-      defaultInterest: 0,
-      graceDays: 0,
-
-      advanceEmi: 0,
-      documentCharge: 0,
-      differenceInitial: 0,
-      insuranceAmount: 0,
-      fineAmount: 0,
-    },
-
-    /**
-     * Initial receipt / collection
-     */
-    collection: {
-      payMode: "",
-      receiptAmount: 0,
-      receiptMode: "",
-    },
-
-    remarks: "",
-
-    status: "Draft",
-    createdAt: "",
+  interest: {
+    rate: 0,
+    type: "Flat",
   },
+
+  repayment: {
+    method: "EMI",
+    frequency: "Monthly",
+    tenure: 0,
+    tenureUnit: "Months",
+  },
+
+  calculation: {
+    principal: 0,
+    interestAmount: 0,
+    totalDue: 0,
+    emiAmount: null,
+    numberOfPayments: 0,
+    principalPerPayment: 0,
+    interestPerPayment: 0,
+    firstPayment: 0,
+    lastPayment: 0,
+    paymentAmount: 0,
+  },
+
+  firstDueDate: "",
+
+  charges: {
+    defaultInterest: 0,
+
+    graceDays: 0,
+
+    penalty: {
+      enabled: true,
+      type: "Fixed",
+      amount: 0,
+      maxAmount: 0,
+    },
+
+    advanceEmi: 0,
+    documentCharge: 0,
+    differenceInitial: 0,
+    insuranceAmount: 0,
+    fineAmount: 0,
+  },
+
+  collection: {
+    payMode: "",
+    receiptAmount: 0,
+    receiptMode: "",
+  },
+
+  remarks: "",
+
+  status: "Draft",
+  createdAt: "",
+},
 };
 
 

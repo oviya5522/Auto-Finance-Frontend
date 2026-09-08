@@ -11,6 +11,10 @@ import {
 
 import SideBar from "./SideBar";
 
+/* =========================================================
+   ADMIN PAGES
+========================================================= */
+
 import CustomerPage from "./pages/customers/CustomerPage";
 import CustomerOnboarding from "./pages/customers/CustomerOnboarding";
 import LoanPage from "./pages/loan/Loan";
@@ -21,11 +25,58 @@ import Settings from "./pages/settings/Settings";
 import LoanManagement from "./pages/loan/LoanManagement";
 import ExpenseControl from "./pages/expense/ExpenseControl";
 
+import ReLoanEligibility from "./pages/reloan/ReLoanEligibility";
+import ReLoan from "./pages/reloan/ReLoan";
+
+/* =========================================================
+   CONTROL CENTER
+========================================================= */
+
+import ControlCenter from "./pages/controlcenter/ControlCenter";
+
+/* =========================================================
+   REMINDERS
+========================================================= */
+
+import Reminder from "./pages/reminder/Reminder";
+
+/* =========================================================
+   AUTH
+========================================================= */
+
 import Login from "./pages/auth/Login";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+/* =========================================================
+   STAFF
+========================================================= */
+
 import StaffCollection from "./pages/staff/StaffCollection";
+
+/* =========================================================
+   COLLECTION
+========================================================= */
+
 import CollectionManagement from "./pages/collection/CollectionManagement";
 
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+/* =========================================================
+   REPAYMENT
+========================================================= */
+
+import Repayment from "./pages/repayment/Repayment";
+
+/* =========================================================
+   VEHICLES
+========================================================= */
+
+import Vehicle from "./pages/vehicle/Vehicle";
+import SeizedVehicles from "./pages/vehicle/SeizedVehicles";
+import ReleasedVehicles from "./pages/vehicle/ReleasedVehicles";
+import SoldVehicles from "./pages/vehicle/SoldVehicles";
+
+/* =========================================================
+   AUTH STORAGE
+========================================================= */
 
 import {
   getSession,
@@ -43,9 +94,6 @@ const AppLayout = () => {
 
   /* =====================================================
      LOGIN PAGE
-
-     IMPORTANT:
-     Login must NOT show sidebar.
   ====================================================== */
 
   if (location.pathname === "/login") {
@@ -72,15 +120,13 @@ const AppLayout = () => {
   /* =====================================================
      STAFF AREA
 
-     Staff gets ONLY staff collection UI.
-     No Admin sidebar.
+     Staff receives ONLY the Staff Collection page.
+     Admin sidebar is never rendered for staff.
   ====================================================== */
 
   if (
     session?.role === "staff" &&
-    location.pathname.startsWith(
-      "/staff"
-    )
+    location.pathname.startsWith("/staff")
   ) {
     return (
       <Routes>
@@ -111,57 +157,77 @@ const AppLayout = () => {
   ====================================================== */
 
   const getActiveItem = () => {
-    if (
-      location.pathname.startsWith(
-        "/customers"
-      )
-    ) {
+    const path = location.pathname;
+
+    if (path.startsWith("/customers")) {
       return "customers";
     }
 
-    if (
-      location.pathname === "/loan"
-    ) {
+    if (path === "/loan") {
       return "loans";
     }
 
-    if (
-      location.pathname.startsWith(
-        "/loan-management"
-      )
-    ) {
+    if (path.startsWith("/loan-management")) {
       return "loan-management";
     }
 
+    if (path.startsWith("/reloan")) {
+      return "reloan";
+    }
+
+    if (path.startsWith("/collections")) {
+      return "collections";
+    }
+
+    /*
+     * Repayment route is still supported for backward
+     * compatibility, but it is no longer shown in the
+     * sidebar.
+     */
+    if (path.startsWith("/repayment")) {
+      return null;
+    }
+
+    if (path.startsWith("/reminders")) {
+      return "reminders";
+    }
+
     if (
-      location.pathname.startsWith(
-        "/expense-control"
-      )
+      path.startsWith("/control-center")
     ) {
+      return "control-center";
+    }
+
+    if (path.startsWith("/expense-control")) {
       return "expense-control";
     }
 
     if (
-      location.pathname.startsWith(
-        "/collections"
-      )
+      path === "/vehicles" ||
+      path === "/vehicles/all"
     ) {
-      return "collections";
+      return path === "/vehicles/all"
+        ? "vehicles-all"
+        : "vehicles";
     }
 
-    if (
-      location.pathname.startsWith(
-        "/settings"
-      )
-    ) {
+    if (path.startsWith("/vehicles/seized")) {
+      return "vehicles-seized";
+    }
+
+    if (path.startsWith("/vehicles/released")) {
+      return "vehicles-released";
+    }
+
+    if (path.startsWith("/vehicles/sold")) {
+      return "vehicles-sold";
+    }
+
+    if (path.startsWith("/settings")) {
       return "settings";
     }
 
-    if (
-      location.pathname.startsWith(
-        "/activities"
-      )
-    ) {
+    if (path.startsWith("/activities")) {
       return "dashboard";
     }
 
@@ -187,19 +253,55 @@ const AppLayout = () => {
         break;
 
       case "loan-management":
-        navigate(
-          "/loan-management"
-        );
+        navigate("/loan-management");
         break;
 
-      case "expense-control":
-        navigate(
-          "/expense-control"
-        );
+      case "reloan":
+        navigate("/reloan");
         break;
 
       case "collections":
         navigate("/collections");
+        break;
+
+      /*
+       * Repayment is intentionally removed from the sidebar.
+       * Existing repayment routes remain functional.
+       */
+      case "repayment":
+        navigate("/repayment");
+        break;
+
+      case "reminders":
+        navigate("/reminders");
+        break;
+
+      case "control-center":
+        navigate("/control-center");
+        break;
+
+      case "expense-control":
+        navigate("/expense-control");
+        break;
+
+      case "vehicles":
+        navigate("/vehicles");
+        break;
+
+      case "vehicles-all":
+        navigate("/vehicles/all");
+        break;
+
+      case "vehicles-seized":
+        navigate("/vehicles/seized");
+        break;
+
+      case "vehicles-released":
+        navigate("/vehicles/released");
+        break;
+
+      case "vehicles-sold":
+        navigate("/vehicles/sold");
         break;
 
       case "settings":
@@ -247,10 +349,9 @@ const AppLayout = () => {
         "
       >
         <Routes>
-
-          {/* =============================================
+          {/* =================================================
               ROOT
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/"
@@ -262,9 +363,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
               DASHBOARD
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/dashboard"
@@ -275,9 +376,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
               CUSTOMERS
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/customers"
@@ -306,9 +407,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
               LOANS
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/loan"
@@ -319,9 +420,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
               LOAN MANAGEMENT
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/loan-management"
@@ -332,22 +433,31 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
-              EXPENSE CONTROL
-          ============================================== */}
+          {/* =================================================
+              RE-LOAN
+          ================================================== */}
 
           <Route
-            path="/expense-control"
+            path="/reloan"
             element={
               <ProtectedRoute role="admin">
-                <ExpenseControl />
+                <ReLoan />
               </ProtectedRoute>
             }
           />
 
-          {/* =============================================
+          <Route
+            path="/reloan/eligibility/:loanId"
+            element={
+              <ProtectedRoute role="admin">
+                <ReLoanEligibility />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
               COLLECTION MANAGEMENT
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/collections"
@@ -358,9 +468,96 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
+              REPAYMENT
+
+              Hidden from sidebar, but routes remain
+              functional for existing application flow.
+          ================================================== */}
+
+          <Route
+            path="/repayment"
+            element={
+              <ProtectedRoute role="admin">
+                <Repayment />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/repayment/*"
+            element={
+              <ProtectedRoute role="admin">
+                <Repayment />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
+              REMINDERS
+
+              Dedicated ADMIN reminder module.
+
+              Supports query parameters such as:
+
+              /reminders?loanId=...
+              /reminders?loanNumber=...
+              /reminders?customerId=...
+              /reminders?customerName=...
+          ================================================== */}
+
+          <Route
+            path="/reminders"
+            element={
+              <ProtectedRoute role="admin">
+                <Reminder />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/reminders/*"
+            element={
+              <ProtectedRoute role="admin">
+                <Reminder />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
+              CONTROL CENTER
+
+              Admin-only monitoring/dashboard module.
+
+              Expected page file:
+              src/pages/control-center/ControlCenter.jsx
+          ================================================== */}
+
+          <Route
+            path="/control-center"
+            element={
+              <ProtectedRoute role="admin">
+                <ControlCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
+              EXPENSE CONTROL
+          ================================================== */}
+
+          <Route
+            path="/expense-control"
+            element={
+              <ProtectedRoute role="admin">
+                <ExpenseControl />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
               ACTIVITIES
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/activities"
@@ -371,9 +568,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
               SETTINGS
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/settings"
@@ -384,13 +581,58 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
+          {/* =================================================
+              VEHICLES
+          ================================================== */}
+
+          <Route
+            path="/vehicles"
+            element={
+              <ProtectedRoute role="admin">
+                <Vehicle />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/vehicles/all"
+            element={
+              <ProtectedRoute role="admin">
+                <Vehicle />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/vehicles/seized"
+            element={
+              <ProtectedRoute role="admin">
+                <SeizedVehicles />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/vehicles/released"
+            element={
+              <ProtectedRoute role="admin">
+                <ReleasedVehicles />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/vehicles/sold"
+            element={
+              <ProtectedRoute role="admin">
+                <SoldVehicles />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
               STAFF
-              
-              Direct staff route is still protected.
-              If staff gets here, outer layout will
-              normally handle it without sidebar.
-          ============================================== */}
+          ================================================== */}
 
           <Route
             path="/staff/collection"
@@ -401,9 +643,9 @@ const AppLayout = () => {
             }
           />
 
-          {/* =============================================
-              UNKNOWN ROUTE
-          ============================================== */}
+          {/* =================================================
+              UNKNOWN
+          ================================================== */}
 
           <Route
             path="*"

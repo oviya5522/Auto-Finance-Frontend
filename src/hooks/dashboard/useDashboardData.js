@@ -21,6 +21,26 @@ import {
   getCollections,
 } from "../../services/collectionStorage";
 
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
+const TERMINAL_LOAN_STATUSES = new Set([
+  "closed",
+  "foreclosed",
+  "paid_off",
+  "paid off",
+  "settled",
+]);
+
+const TERMINAL_VEHICLE_STATUSES = new Set([
+  "sold",
+]);
+
+/* =========================================================
+   MAIN HOOK
+========================================================= */
+
 const useDashboardData = () => {
   const [customers, setCustomers] =
     useState([]);
@@ -37,9 +57,9 @@ const useDashboardData = () => {
   const [loading, setLoading] =
     useState(true);
 
-  /* =====================================================
+  /* =======================================================
      LOAD
-  ====================================================== */
+  ======================================================== */
 
   const loadDashboardData =
     useCallback(() => {
@@ -102,11 +122,9 @@ const useDashboardData = () => {
       }
     }, []);
 
-  /* =====================================================
+  /* =======================================================
      DATA UPDATE LISTENER
-
-     Auto Finance only.
-  ====================================================== */
+  ======================================================== */
 
   useEffect(() => {
     loadDashboardData();
@@ -117,6 +135,11 @@ const useDashboardData = () => {
 
     window.addEventListener(
       "auto-finance:data-updated",
+      handleUpdate
+    );
+
+    window.addEventListener(
+      "fleetopz:data-updated",
       handleUpdate
     );
 
@@ -132,15 +155,105 @@ const useDashboardData = () => {
       );
 
       window.removeEventListener(
+        "fleetopz:data-updated",
+        handleUpdate
+      );
+
+      window.removeEventListener(
         "storage",
         handleUpdate
       );
     };
   }, [loadDashboardData]);
 
-  /* =====================================================
+  /* =======================================================
+     STATUS HELPERS
+  ======================================================== */
+
+  const normalizeStatus =
+    useCallback((value) => {
+      return String(
+        value || ""
+      )
+        .trim()
+        .toLowerCase()
+        .replace(/[-\s]+/g, "_");
+    }, []);
+
+  /*
+   * IMPORTANT:
+   *
+   * A loan is terminal when:
+   *
+   * FORECLOSED
+   * CLOSED
+   * PAID_OFF
+   * OR its vehicle has already been SOLD.
+   *
+   * This prevents sold/foreclosed accounts from appearing
+   * anywhere in today's collection/due calculations.
+   */
+
+  const isTerminalLoan =
+    useCallback(
+      (loan) => {
+        const loanStatus =
+          normalizeStatus(
+            loan?.status
+          );
+
+        const vehicleStatus =
+          normalizeStatus(
+            loan?.vehicle?.status
+          );
+
+        if (
+          TERMINAL_LOAN_STATUSES.has(
+            loanStatus
+          )
+        ) {
+          return true;
+        }
+
+        if (
+          TERMINAL_VEHICLE_STATUSES.has(
+            vehicleStatus
+          )
+        ) {
+          return true;
+        }
+
+        return false;
+      },
+      [normalizeStatus]
+    );
+
+  /*
+   * Collection-eligible loans only.
+   *
+   * These are the loans that may generate:
+   * - Today's Due
+   * - Overdue
+   * - Upcoming Due
+   * - Follow-up
+   */
+
+  const collectionLoans =
+    useMemo(() => {
+      return loans.filter(
+        (loan) =>
+          !isTerminalLoan(
+            loan
+          )
+      );
+    }, [
+      loans,
+      isTerminalLoan,
+    ]);
+
+  /* =======================================================
      BASIC COUNTS
-  ====================================================== */
+  ======================================================== */
 
   const totalCustomers =
     customers.length;
@@ -151,43 +264,54 @@ const useDashboardData = () => {
   const activeLoans =
     loans.filter(
       (loan) =>
-        String(
-          loan?.status || ""
+        normalizeStatus(
+          loan?.status
+        ) === "active" &&
+        !isTerminalLoan(
+          loan
         )
-          .trim()
-          .toLowerCase() ===
-        "active"
     ).length;
 
   const closedLoans =
     loans.filter(
       (loan) =>
-        String(
-          loan?.status || ""
-        )
-          .trim()
-          .toLowerCase() ===
-        "closed"
+        normalizeStatus(
+          loan?.status
+        ) === "closed"
     ).length;
 
   const pendingLoans =
     loans.filter(
       (loan) =>
-        String(
-          loan?.status || ""
-        )
-          .trim()
-          .toLowerCase() ===
-        "pending"
+        normalizeStatus(
+          loan?.status
+        ) === "pending"
     ).length;
 
-  /* =====================================================
+  const foreclosedLoans =
+    loans.filter(
+      (loan) =>
+        normalizeStatus(
+          loan?.status
+        ) === "foreclosed" ||
+        (
+          normalizeStatus(
+            loan?.vehicle?.status
+          ) === "sold"
+        )
+    ).length;
+
+  /* =======================================================
      OUTSTANDING
-  ====================================================== */
+     
+     IMPORTANT:
+     Do not count SOLD / FORECLOSED / CLOSED accounts
+     as active portfolio outstanding.
+  ======================================================== */
 
   const totalOutstanding =
     useMemo(() => {
-      return loans.reduce(
+      return collectionLoans.reduce(
         (total, loan) =>
           total +
           Number(
@@ -197,60 +321,109 @@ const useDashboardData = () => {
           ),
         0
       );
-    }, [loans]);
+    }, [collectionLoans]);
 
-  /* =====================================================
-     DATE HELPERS
-  ====================================================== */
+  /* =======================================================
+     DAILY DATE
+  ======================================================== */
+
+  const getTodayKey = () => {
+    const now =
+      new Date();
+
+    return [
+      now.getFullYear(),
+      String(
+        now.getMonth() + 1
+      ).padStart(2, "0"),
+      String(
+        now.getDate()
+      ).padStart(2, "0"),
+    ].join("-");
+  };
+
+  const [
+    todayKey,
+    setTodayKey,
+  ] = useState(
+    getTodayKey()
+  );
+
+  useEffect(() => {
+    const refreshDay =
+      () => {
+        const latestKey =
+          getTodayKey();
+
+        setTodayKey(
+          (currentKey) =>
+            currentKey ===
+            latestKey
+              ? currentKey
+              : latestKey
+        );
+      };
+
+    refreshDay();
+
+    const interval =
+      setInterval(
+        refreshDay,
+        60 * 1000
+      );
+
+    return () => {
+      clearInterval(
+        interval
+      );
+    };
+  }, []);
 
   const todayStart =
     useMemo(() => {
-      const date =
-        new Date();
+      const [
+        year,
+        month,
+        day,
+      ] = todayKey
+        .split("-")
+        .map(Number);
 
-      date.setHours(
+      return new Date(
+        year,
+        month - 1,
+        day,
         0,
         0,
         0,
         0
       );
-
-      return date;
-    }, []);
+    }, [todayKey]);
 
   const todayEnd =
     useMemo(() => {
-      const date =
-        new Date();
+      const [
+        year,
+        month,
+        day,
+      ] = todayKey
+        .split("-")
+        .map(Number);
 
-      date.setHours(
+      return new Date(
+        year,
+        month - 1,
+        day,
         23,
         59,
         59,
         999
       );
+    }, [todayKey]);
 
-      return date;
-    }, []);
-
-  const todayKey =
-    useMemo(() => {
-      return [
-        todayStart.getFullYear(),
-
-        String(
-          todayStart.getMonth() + 1
-        ).padStart(2, "0"),
-
-        String(
-          todayStart.getDate()
-        ).padStart(2, "0"),
-      ].join("-");
-    }, [todayStart]);
-
-  /* =====================================================
+  /* =======================================================
      LOCAL DATE PARSER
-  ====================================================== */
+  ======================================================== */
 
   const parseScheduleDate =
     useCallback(
@@ -324,7 +497,9 @@ const useDashboardData = () => {
     useCallback(
       (value) => {
         const date =
-          getDayStart(value);
+          getDayStart(
+            value
+          );
 
         if (!date) {
           return "";
@@ -345,20 +520,32 @@ const useDashboardData = () => {
       [getDayStart]
     );
 
-  /* =====================================================
+  /* =======================================================
      REPAYMENT HELPERS
-  ====================================================== */
+  ======================================================== */
 
   const getSchedule =
     useCallback(
       (loan) => {
+        /*
+         * Terminal loans have no active schedule for
+         * dashboard collection purposes.
+         */
+        if (
+          isTerminalLoan(
+            loan
+          )
+        ) {
+          return [];
+        }
+
         return Array.isArray(
           loan?.repaymentSchedule
         )
           ? loan.repaymentSchedule
           : [];
       },
-      []
+      [isTerminalLoan]
     );
 
   const getRowAmount =
@@ -374,36 +561,85 @@ const useDashboardData = () => {
       []
     );
 
+  /* =======================================================
+     TODAY'S SCHEDULED DUE
+  ======================================================== */
 
-const todayScheduledDueAmount = useMemo(() => {
-  return loans.reduce((total, loan) => {
-    const schedule = getSchedule(loan);
+  const todayScheduledDueAmount =
+    useMemo(() => {
+      return collectionLoans.reduce(
+        (
+          total,
+          loan
+        ) => {
+          const schedule =
+            getSchedule(
+              loan
+            );
 
-    return (
-      total +
-      schedule.reduce((sum, row) => {
-        const dueDate = getDateKey(
-          row?.dueDate
-        );
+          return (
+            total +
+            schedule.reduce(
+              (
+                sum,
+                row
+              ) => {
+                const dueDate =
+                  getDateKey(
+                    row?.dueDate
+                  );
 
-        if (dueDate !== todayKey) {
-          return sum;
-        }
+                if (
+                  dueDate !==
+                  todayKey
+                ) {
+                  return sum;
+                }
 
-        return (
-          sum +
-          getRowAmount(row)
-        );
-      }, 0)
-    );
-  }, 0);
-}, [
-  loans,
-  getSchedule,
-  getDateKey,
-  getRowAmount,
-  todayKey,
-]);
+                const status =
+                  normalizeStatus(
+                    row?.status
+                  );
+
+                if (
+                  [
+                    "paid",
+                    "completed",
+                    "closed",
+                    "settled",
+                    "foreclosed",
+                  ].includes(
+                    status
+                  )
+                ) {
+                  return sum;
+                }
+
+                return (
+                  sum +
+                  getRowAmount(
+                    row
+                  )
+                );
+              },
+              0
+            )
+          );
+        },
+        0
+      );
+    }, [
+      collectionLoans,
+      getSchedule,
+      getDateKey,
+      getRowAmount,
+      normalizeStatus,
+      todayKey,
+    ]);
+
+  /* =======================================================
+     PAYMENT STATUS
+  ======================================================== */
 
   const normalizePaymentStatus =
     useCallback(
@@ -433,7 +669,9 @@ const todayScheduledDueAmount = useMemo(() => {
           normalized ===
             "closed" ||
           normalized ===
-            "settled"
+            "settled" ||
+          normalized ===
+            "foreclosed"
         );
       },
       [normalizePaymentStatus]
@@ -467,9 +705,9 @@ const todayScheduledDueAmount = useMemo(() => {
       [normalizePaymentStatus]
     );
 
-  /* =====================================================
+  /* =======================================================
      APPROVED COLLECTIONS
-  ====================================================== */
+  ======================================================== */
 
   const approvedCollections =
     useMemo(() => {
@@ -485,9 +723,37 @@ const todayScheduledDueAmount = useMemo(() => {
       normalizePaymentStatus,
     ]);
 
-  /* =====================================================
+  /* =======================================================
+     TODAY'S APPROVED COLLECTIONS
+  ======================================================== */
+
+  const todayApprovedCollections =
+    useMemo(() => {
+      return approvedCollections.filter(
+        (collection) => {
+          const collectedDate =
+            getDateKey(
+              collection?.collectedDate ||
+                collection?.collectionDate ||
+                collection?.submittedAt ||
+                collection?.approvedAt
+            );
+
+          return (
+            collectedDate ===
+            todayKey
+          );
+        }
+      );
+    }, [
+      approvedCollections,
+      getDateKey,
+      todayKey,
+    ]);
+
+  /* =======================================================
      PENDING COLLECTIONS
-  ====================================================== */
+  ======================================================== */
 
   const pendingCollections =
     useMemo(() => {
@@ -509,7 +775,10 @@ const todayScheduledDueAmount = useMemo(() => {
   const pendingCollectionAmount =
     useMemo(() => {
       return pendingCollections.reduce(
-        (total, collection) =>
+        (
+          total,
+          collection
+        ) =>
           total +
           Number(
             collection?.amount ||
@@ -517,16 +786,21 @@ const todayScheduledDueAmount = useMemo(() => {
           ),
         0
       );
-    }, [pendingCollections]);
+    }, [
+      pendingCollections,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      APPROVED COLLECTION TOTAL
-  ====================================================== */
+  ======================================================== */
 
   const approvedCollectionAmount =
     useMemo(() => {
       return approvedCollections.reduce(
-        (total, collection) =>
+        (
+          total,
+          collection
+        ) =>
           total +
           Number(
             collection?.amount ||
@@ -534,15 +808,32 @@ const todayScheduledDueAmount = useMemo(() => {
           ),
         0
       );
-    }, [approvedCollections]);
+    }, [
+      approvedCollections,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      APPROVED AMOUNT FOR ONE INSTALLMENT
-  ====================================================== */
+  ======================================================== */
 
   const getApprovedAmountForRow =
     useCallback(
-      (loan, row) => {
+      (
+        loan,
+        row
+      ) => {
+        /*
+         * Terminal loans should never participate
+         * in collection calculation.
+         */
+        if (
+          isTerminalLoan(
+            loan
+          )
+        ) {
+          return 0;
+        }
+
         const loanId =
           loan?.id ||
           loan?.loanNumber ||
@@ -559,7 +850,9 @@ const todayScheduledDueAmount = useMemo(() => {
 
         return approvedCollections
           .filter(
-            (collection) => {
+            (
+              collection
+            ) => {
               const collectionLoanId =
                 collection?.loanId ||
                 collection?.loanNumber ||
@@ -574,10 +867,6 @@ const todayScheduledDueAmount = useMemo(() => {
                   collection?.dueDate
                 );
 
-              /*
-               * Best match:
-               * repayment schedule ID.
-               */
               if (
                 scheduleId &&
                 collectionScheduleId
@@ -592,10 +881,6 @@ const todayScheduledDueAmount = useMemo(() => {
                 );
               }
 
-              /*
-               * Fallback:
-               * loan + due date.
-               */
               return (
                 String(
                   collectionLoanId
@@ -609,7 +894,10 @@ const todayScheduledDueAmount = useMemo(() => {
             }
           )
           .reduce(
-            (total, collection) =>
+            (
+              total,
+              collection
+            ) =>
               total +
               Number(
                 collection?.amount ||
@@ -621,12 +909,13 @@ const todayScheduledDueAmount = useMemo(() => {
       [
         approvedCollections,
         getDateKey,
+        isTerminalLoan,
       ]
     );
 
-  /* =====================================================
+  /* =======================================================
      NEW LOANS TODAY
-  ====================================================== */
+  ======================================================== */
 
   const newLoansToday =
     useMemo(() => {
@@ -660,12 +949,9 @@ const todayScheduledDueAmount = useMemo(() => {
       todayEnd,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      OVERDUE RULE
-
-     Unpaid installment with a due date
-     before today.
-  ====================================================== */
+  ======================================================== */
 
   const isOverdueScheduleRow =
     useCallback(
@@ -705,20 +991,20 @@ const todayScheduledDueAmount = useMemo(() => {
       ]
     );
 
-  /* =====================================================
+  /* =======================================================
      TODAY'S EMI DUE
-
-     Remaining unpaid amount.
-  ====================================================== */
+  ======================================================== */
 
   const dueToday =
     useMemo(() => {
       const rows = [];
 
-      loans.forEach(
+      collectionLoans.forEach(
         (loan) => {
           const schedule =
-            getSchedule(loan);
+            getSchedule(
+              loan
+            );
 
           schedule.forEach(
             (row) => {
@@ -794,7 +1080,7 @@ const todayScheduledDueAmount = useMemo(() => {
 
       return rows;
     }, [
-      loans,
+      collectionLoans,
       getSchedule,
       normalizePaymentStatus,
       isCompletedPaymentStatus,
@@ -811,7 +1097,10 @@ const todayScheduledDueAmount = useMemo(() => {
   const emiDueAmount =
     useMemo(() => {
       return dueToday.reduce(
-        (total, item) =>
+        (
+          total,
+          item
+        ) =>
           total +
           Number(
             item?.scheduleRow
@@ -820,22 +1109,24 @@ const todayScheduledDueAmount = useMemo(() => {
           ),
         0
       );
-    }, [dueToday]);
+    }, [
+      dueToday,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      OVERDUE PAYMENTS
-
-     Current remaining overdue only.
-  ====================================================== */
+  ======================================================== */
 
   const overduePayments =
     useMemo(() => {
       const rows = [];
 
-      loans.forEach(
+      collectionLoans.forEach(
         (loan) => {
           const schedule =
-            getSchedule(loan);
+            getSchedule(
+              loan
+            );
 
           schedule.forEach(
             (row) => {
@@ -951,7 +1242,7 @@ const todayScheduledDueAmount = useMemo(() => {
         }
       );
     }, [
-      loans,
+      collectionLoans,
       getSchedule,
       normalizePaymentStatus,
       isCompletedPaymentStatus,
@@ -961,34 +1252,39 @@ const todayScheduledDueAmount = useMemo(() => {
       todayStart,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      UNIQUE OVERDUE LOANS
-  ====================================================== */
+  ======================================================== */
 
   const overdueLoanIds =
     useMemo(() => {
       return new Set(
         overduePayments.map(
-          ({ loan }) =>
+          ({
+            loan,
+          }) =>
             loan?.id ||
             loan?.loanNumber
         )
       );
-    }, [overduePayments]);
+    }, [
+      overduePayments,
+    ]);
 
   const overdueLoanCount =
     overdueLoanIds.size;
 
-  /* =====================================================
+  /* =======================================================
      CURRENT OVERDUE AMOUNT
-
-     Only remaining amount.
-  ====================================================== */
+  ======================================================== */
 
   const overdueAmount =
     useMemo(() => {
       return overduePayments.reduce(
-        (total, item) =>
+        (
+          total,
+          item
+        ) =>
           total +
           Number(
             item?.scheduleRow
@@ -997,11 +1293,13 @@ const todayScheduledDueAmount = useMemo(() => {
           ),
         0
       );
-    }, [overduePayments]);
+    }, [
+      overduePayments,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      TODAY'S APPROVED COLLECTION
-  ====================================================== */
+  ======================================================== */
 
   const todayCollectionAmount =
     useMemo(() => {
@@ -1023,7 +1321,10 @@ const todayScheduledDueAmount = useMemo(() => {
           }
         )
         .reduce(
-          (total, collection) =>
+          (
+            total,
+            collection
+          ) =>
             total +
             Number(
               collection?.amount ||
@@ -1037,9 +1338,9 @@ const todayScheduledDueAmount = useMemo(() => {
       todayKey,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      TODAY NORMAL COLLECTION
-  ====================================================== */
+  ======================================================== */
 
   const todayDueCollectionAmount =
     useMemo(() => {
@@ -1068,7 +1369,10 @@ const todayScheduledDueAmount = useMemo(() => {
           }
         )
         .reduce(
-          (total, collection) =>
+          (
+            total,
+            collection
+          ) =>
             total +
             Number(
               collection?.amount ||
@@ -1082,9 +1386,9 @@ const todayScheduledDueAmount = useMemo(() => {
       todayKey,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      OVERDUE COLLECTION MADE TODAY
-  ====================================================== */
+  ======================================================== */
 
   const overdueCollectionTodayAmount =
     useMemo(() => {
@@ -1120,7 +1424,10 @@ const todayScheduledDueAmount = useMemo(() => {
           }
         )
         .reduce(
-          (total, collection) =>
+          (
+            total,
+            collection
+          ) =>
             total +
             Number(
               collection?.amount ||
@@ -1134,37 +1441,24 @@ const todayScheduledDueAmount = useMemo(() => {
       todayKey,
     ]);
 
-  /* =====================================================
-     ORIGINAL OVERDUE AMOUNT FOR TODAY
+  /* =======================================================
+     ORIGINAL OVERDUE AMOUNT
+  ======================================================== */
 
-     IMPORTANT FIX.
+  const originalOverdueAmount =
+    useMemo(() => {
+      return (
+        overdueAmount +
+        overdueCollectionTodayAmount
+      );
+    }, [
+      overdueAmount,
+      overdueCollectionTodayAmount,
+    ]);
 
-     Current overdue decreases when Staff collection
-     is approved.
-
-     For accuracy, we reconstruct the amount that was
-     overdue before today's approved overdue recovery:
-
-        Original overdue
-        =
-        Current remaining overdue
-        +
-        Today's approved overdue collection
-  ====================================================== */
-
-const originalOverdueAmount = useMemo(() => {
-  return (
-    overdueAmount +
-    overdueCollectionTodayAmount
-  );
-}, [
-  overdueAmount,
-  overdueCollectionTodayAmount,
-]);
-
-  /* =====================================================
+  /* =======================================================
      TODAY COLLECTION ACCURACY
-  ====================================================== */
+  ======================================================== */
 
   const todayCollectionAccuracy =
     useMemo(() => {
@@ -1187,99 +1481,88 @@ const originalOverdueAmount = useMemo(() => {
       todayScheduledDueAmount,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      OVERDUE RECOVERY ACCURACY
+  ======================================================== */
 
-     IMPORTANT:
-     Use ORIGINAL overdue as denominator.
+  const overdueCollectionAccuracy =
+    useMemo(() => {
+      if (
+        originalOverdueAmount <=
+        0
+      ) {
+        return 0;
+      }
 
-     Do NOT use current overdueAmount here.
-  ====================================================== */
-const overdueCollectionAccuracy =
-  useMemo(() => {
-    if (
-      originalOverdueAmount <= 0
-    ) {
-      return 0;
-    }
+      return Math.min(
+        100,
+        (
+          overdueCollectionTodayAmount /
+          originalOverdueAmount
+        ) * 100
+      );
+    }, [
+      overdueCollectionTodayAmount,
+      originalOverdueAmount,
+    ]);
 
-    return Math.min(
-      100,
-      (
-        overdueCollectionTodayAmount /
-        originalOverdueAmount
-      ) * 100
-    );
-  }, [
-    overdueCollectionTodayAmount,
-    originalOverdueAmount,
-  ]);
-
-  /* =====================================================
+  /* =======================================================
      COLLECTION VS DUE
+  ======================================================== */
 
-     The UI can display current overdue,
-     while accuracy uses original overdue.
-  ====================================================== */
-const collectionVsDue = useMemo(() => {
-  return {
-    today: {
-      due:
-        todayScheduledDueAmount,
+  const collectionVsDue =
+    useMemo(() => {
+      return {
+        today: {
+          due:
+            todayScheduledDueAmount,
 
-      collected:
-        todayDueCollectionAmount,
+          collected:
+            todayDueCollectionAmount,
 
-      accuracy:
-        todayScheduledDueAmount > 0
-          ? Math.min(
-              100,
-              (
-                todayDueCollectionAmount /
-                todayScheduledDueAmount
-              ) * 100
-            )
-          : 0,
-    },
+          accuracy:
+            todayScheduledDueAmount >
+            0
+              ? Math.min(
+                  100,
+                  (
+                    todayDueCollectionAmount /
+                    todayScheduledDueAmount
+                  ) * 100
+                )
+              : 0,
+        },
 
-    overdue: {
-      /*
-       * IMPORTANT:
-       * Do NOT use current overdueAmount here.
-       * current overdue can become ₹0 after payment.
-       *
-       * The card must compare:
-       * original overdue vs collected overdue.
-       */
-      due:
-        originalOverdueAmount,
+        overdue: {
+          due:
+            originalOverdueAmount,
 
-      collected:
-        overdueCollectionTodayAmount,
+          collected:
+            overdueCollectionTodayAmount,
 
-      accuracy:
-        overdueCollectionAccuracy,
-    },
-  };
-}, [
-  todayScheduledDueAmount,
-  todayDueCollectionAmount,
+          accuracy:
+            overdueCollectionAccuracy,
+        },
+      };
+    }, [
+      todayScheduledDueAmount,
+      todayDueCollectionAmount,
+      originalOverdueAmount,
+      overdueCollectionTodayAmount,
+      overdueCollectionAccuracy,
+    ]);
 
-  originalOverdueAmount,
-  overdueCollectionTodayAmount,
-  overdueCollectionAccuracy,
-]);
-
-  /* =====================================================
-     CASH / BANK / UPI
-
-     ALL APPROVED COLLECTIONS.
-  ====================================================== */
+  /* =======================================================
+     TODAY CASH / BANK / UPI
+  ======================================================== */
 
   const cashBankUpi =
     useMemo(() => {
-      return approvedCollections.reduce(
-        (totals, collection) => {
+      return todayApprovedCollections.reduce(
+        (
+          totals,
+          collection
+        ) => {
           const mode =
             String(
               collection?.paymentMode ||
@@ -1324,12 +1607,12 @@ const collectionVsDue = useMemo(() => {
         }
       );
     }, [
-      approvedCollections,
+      todayApprovedCollections,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      CASH POSITION
-  ====================================================== */
+  ======================================================== */
 
   const cashPosition =
     useMemo(() => {
@@ -1338,22 +1621,24 @@ const collectionVsDue = useMemo(() => {
         cashBankUpi.bank +
         cashBankUpi.upi
       );
-    }, [cashBankUpi]);
+    }, [
+      cashBankUpi,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      UPCOMING DUE
-
-     Future unpaid installments only.
-  ====================================================== */
+  ======================================================== */
 
   const upcomingDueLoans =
     useMemo(() => {
       const rows = [];
 
-      loans.forEach(
+      collectionLoans.forEach(
         (loan) => {
           const schedule =
-            getSchedule(loan);
+            getSchedule(
+              loan
+            );
 
           const futurePayments =
             schedule.filter(
@@ -1487,7 +1772,7 @@ const collectionVsDue = useMemo(() => {
         }
       );
     }, [
-      loans,
+      collectionLoans,
       getSchedule,
       normalizePaymentStatus,
       isCompletedPaymentStatus,
@@ -1497,17 +1782,17 @@ const collectionVsDue = useMemo(() => {
       todayStart,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      OVERDUE + PENDING
-  ====================================================== */
+  ======================================================== */
 
   const overduePendingCount =
     overdueLoanCount +
     pendingLoans;
 
-  /* =====================================================
+  /* =======================================================
      CLOSED LOANS TODAY
-  ====================================================== */
+  ======================================================== */
 
   const closedLoansToday =
     useMemo(() => {
@@ -1520,7 +1805,9 @@ const collectionVsDue = useMemo(() => {
 
           if (
             status !==
-            "closed"
+              "closed" &&
+            status !==
+              "foreclosed"
           ) {
             return false;
           }
@@ -1555,11 +1842,9 @@ const collectionVsDue = useMemo(() => {
       normalizePaymentStatus,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      FOLLOW-UP QUEUE
-
-     Fully collected installments are removed.
-  ====================================================== */
+  ======================================================== */
 
   const followUpQueue =
     useMemo(() => {
@@ -1655,9 +1940,9 @@ const collectionVsDue = useMemo(() => {
       getDayStart,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      RECENT LOANS
-  ====================================================== */
+  ======================================================== */
 
   const recentLoans =
     useMemo(() => {
@@ -1682,11 +1967,13 @@ const collectionVsDue = useMemo(() => {
           );
         })
         .slice(0, 5);
-    }, [loans]);
+    }, [
+      loans,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      RECENT CUSTOMERS
-  ====================================================== */
+  ======================================================== */
 
   const recentCustomers =
     useMemo(() => {
@@ -1715,11 +2002,13 @@ const collectionVsDue = useMemo(() => {
           );
         })
         .slice(0, 5);
-    }, [customers]);
+    }, [
+      customers,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
      RECENT ACTIONS
-  ====================================================== */
+  ======================================================== */
 
   const recentActions =
     useMemo(() => {
@@ -1786,6 +2075,10 @@ const collectionVsDue = useMemo(() => {
         }
       );
 
+      /*
+       * Only active collection loans can generate
+       * overdue dashboard activities.
+       */
       overduePayments.forEach(
         ({
           loan,
@@ -1816,18 +2109,20 @@ const collectionVsDue = useMemo(() => {
       );
 
       return actions
-        .sort((a, b) => {
-          return (
-            new Date(
-              b.timestamp ||
-                0
-            ).getTime() -
-            new Date(
-              a.timestamp ||
-                0
-            ).getTime()
-          );
-        })
+        .sort(
+          (a, b) => {
+            return (
+              new Date(
+                b.timestamp ||
+                  0
+              ).getTime() -
+              new Date(
+                a.timestamp ||
+                  0
+              ).getTime()
+            );
+          }
+        )
         .slice(0, 10);
     }, [
       customers,
@@ -1835,16 +2130,16 @@ const collectionVsDue = useMemo(() => {
       overduePayments,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      PENDING ACTIONS
-  ====================================================== */
+  ======================================================== */
 
   const pendingActions =
     0;
 
-  /* =====================================================
+  /* =======================================================
      PTP
-  ====================================================== */
+  ======================================================== */
 
   const ptpDue =
     useMemo(
@@ -1855,11 +2150,9 @@ const collectionVsDue = useMemo(() => {
       []
     );
 
-  /* =====================================================
+  /* =======================================================
      EXPENSES
-
-     ONLY PAID expenses affect dashboard totals.
-  ====================================================== */
+  ======================================================== */
 
   const isPaidExpense =
     useCallback(
@@ -1881,7 +2174,10 @@ const collectionVsDue = useMemo(() => {
           isPaidExpense
         )
         .reduce(
-          (total, expense) =>
+          (
+            total,
+            expense
+          ) =>
             total +
             Number(
               expense?.amount ||
@@ -1916,7 +2212,10 @@ const collectionVsDue = useMemo(() => {
           }
         )
         .reduce(
-          (total, expense) =>
+          (
+            total,
+            expense
+          ) =>
             total +
             Number(
               expense?.amount ||
@@ -1968,7 +2267,10 @@ const collectionVsDue = useMemo(() => {
           }
         )
         .reduce(
-          (total, expense) =>
+          (
+            total,
+            expense
+          ) =>
             total +
             Number(
               expense?.amount ||
@@ -2003,7 +2305,10 @@ const collectionVsDue = useMemo(() => {
   const pendingExpenseAmount =
     useMemo(() => {
       return pendingExpenseRecords.reduce(
-        (total, expense) =>
+        (
+          total,
+          expense
+        ) =>
           total +
           Number(
             expense?.amount ||
@@ -2015,9 +2320,9 @@ const collectionVsDue = useMemo(() => {
       pendingExpenseRecords,
     ]);
 
-  /* =====================================================
+  /* =======================================================
      RETURN
-  ====================================================== */
+  ======================================================== */
 
   return {
     loading,
@@ -2033,6 +2338,7 @@ const collectionVsDue = useMemo(() => {
     activeLoans,
     closedLoans,
     pendingLoans,
+    foreclosedLoans,
 
     /* Outstanding */
     totalOutstanding,
@@ -2080,6 +2386,7 @@ const collectionVsDue = useMemo(() => {
 
     originalOverdueAmount,
     overdueCollectionAccuracy,
+    todayCollectionAccuracy,
 
     pendingCollectionCount,
     pendingCollectionAmount,
@@ -2094,6 +2401,11 @@ const collectionVsDue = useMemo(() => {
 
     /* PTP */
     ptpDue,
+
+    todayApprovedCollections,
+
+    /* Useful for dashboard/components */
+    collectionLoans,
 
     /* Reload */
     reloadDashboard:

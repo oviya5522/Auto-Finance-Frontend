@@ -7,7 +7,10 @@ import {
   Plus,
   UserPlus,
   WalletCards,
-  X, LogOut,
+  X,
+  LogIn,
+  ReceiptText,
+  HandCoins,
 } from "lucide-react";
 
 import {
@@ -24,6 +27,10 @@ import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import FinancialOverview from "../../components/dashboard/FinancialOverview/FinancialOverview";
 import KeyActivity from "../../components/dashboard/KeyActivity/KeyActivity";
 import PortfolioRisk from "../../components/dashboard/PortfolioRisk/PortfolioRisk";
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -83,29 +90,36 @@ const Dashboard = () => {
     todayScheduledDueAmount,
   } = useDashboardData();
 
-  /* =====================================================
+  /* =========================================================
      TODAY'S FOLLOW-UP
-  ====================================================== */
+  ========================================================= */
 
   const todayFollowUps = Array.isArray(
     followUpQueue
   )
     ? followUpQueue
         .filter(
-          ({ scheduleRow }) =>
+          ({
+            scheduleRow,
+          }) =>
             isDueToday(
               scheduleRow?.dueDate
             )
         )
-        .slice(0, 3)
+        .slice(
+          0,
+          3
+        )
     : [];
 
-  /* =====================================================
+  /* =========================================================
      RECENT ATTENTION
-  ====================================================== */
+  ========================================================= */
 
   const recentAttention =
-    Array.isArray(recentActions)
+    Array.isArray(
+      recentActions
+    )
       ? recentActions
           .filter(
             (action) =>
@@ -116,18 +130,70 @@ const Dashboard = () => {
               action?.type ===
                 "customer_created"
           )
-          .slice(0, 3)
+          .slice(
+            0,
+            3
+          )
       : [];
-const handleLogout = () => {
-  localStorage.removeItem("auto_finance_auth");
 
-  navigate("/login", {
-    replace: true,
-  });
-};
-  /* =====================================================
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
+
+  const handleLogout = () => {
+    localStorage.removeItem(
+      "auto_finance_auth"
+    );
+
+    navigate(
+      "/login",
+      {
+        replace: true,
+      }
+    );
+  };
+
+  /* =========================================================
+     NAVIGATION HELPERS
+  ========================================================= */
+
+  /*
+   * View Due
+   *
+   * Takes Admin to Loan Management where the
+   * due / overdue loan work can be reviewed.
+   */
+  const handleViewDue = () => {
+    setQuickActionsOpen(false);
+
+    navigate(
+      "/loan-management"
+    );
+  };
+
+  /*
+   * View Follow-up
+   *
+   * Takes Admin to the dedicated Reminder module.
+   */
+  
+
+  /*
+   * Today's Follow-up → View All
+   *
+   * Always opens the Reminder module, not Loan.
+   */
+  const handleViewAllFollowUps = () => {
+    setQuickActionsOpen(false);
+
+    navigate(
+      "/reminders"
+    );
+  };
+
+  /* =========================================================
      LOADING
-  ====================================================== */
+  ========================================================= */
 
   if (loading) {
     return (
@@ -181,73 +247,71 @@ const handleLogout = () => {
     );
   }
 
-  /* =====================================================
+  /* =========================================================
      MAIN
-  ====================================================== */
+  ========================================================= */
 
   return (
     <div
-    className="
-      relative
-      flex
-      h-screen
-      min-h-0
-      w-full
-      max-w-full
-      flex-col
-      overflow-hidden
-      bg-[#F7F9F8]
-    "
-  >
+      className="
+        relative
+        flex
+        h-screen
+        min-h-0
+        w-full
+        max-w-full
+        flex-col
+        overflow-hidden
+        bg-[#F7F9F8]
+      "
+    >
       {/* =================================================
           HEADER
       ================================================== */}
 
-  <DashboardHeader
-  customerCount={
-    totalCustomers
-  }
-  loanCount={
-    totalLoans
-  }
-  onLogout={handleLogout}
-/>
+      <DashboardHeader
+        customerCount={
+          totalCustomers
+        }
+        loanCount={
+          totalLoans
+        }
+        onLogout={
+          handleLogout
+        }
+      />
 
       {/* =================================================
           CONTENT
-
-          IMPORTANT:
-          Allow vertical scrolling so PortfolioRisk,
-          Aging and Recovery Pipeline are never clipped.
       ================================================== */}
 
-     <main
-  className="
-    min-h-0
-    min-w-0
-    w-full
-    max-w-full
-    flex-1
-    overflow-hidden
-    px-3
-    py-2
-    sm:px-4
-    lg:px-5
-  "
->
-  <div
-    className="
-      flex
-      h-full
-      min-h-0
-      min-w-0
-      w-full
-      max-w-full
-      flex-col
-      gap-2
-      overflow-hidden
-    "
-  >
+      <main
+        className="
+          min-h-0
+          min-w-0
+          w-full
+          max-w-full
+          flex-1
+          overflow-hidden
+          px-3
+          py-2
+          sm:px-4
+          lg:px-5
+        "
+      >
+        <div
+          className="
+            flex
+            h-full
+            min-h-0
+            min-w-0
+            w-full
+            max-w-full
+            flex-col
+            gap-2
+            overflow-hidden
+          "
+        >
           {/* =================================================
               FINANCIAL OVERVIEW
           ================================================== */}
@@ -297,21 +361,26 @@ const handleLogout = () => {
             }
 
             ptpDueCount={
-              ptpDue?.count || 0
+              ptpDue?.count ||
+              0
             }
 
             ptpDueAmount={
-              ptpDue?.amount || 0
+              ptpDue?.amount ||
+              0
             }
 
             closedLoans={
               closedLoans
             }
 
-            closedAmount={0}
+            closedAmount={
+              0
+            }
 
+            /* TODAY'S PAID EXPENSE ONLY */
             expenses={
-              totalExpenseAmount
+              todayExpenseAmount
             }
           />
 
@@ -388,7 +457,7 @@ const handleLogout = () => {
               absolute
               bottom-16
               right-0
-              w-[300px]
+              w-[330px]
               max-w-[calc(100vw-24px)]
               overflow-hidden
               rounded-2xl
@@ -400,7 +469,9 @@ const handleLogout = () => {
               ring-black/5
             "
           >
-            {/* HEADER */}
+            {/* =================================================
+                HEADER
+            ================================================== */}
 
             <div
               className="
@@ -410,7 +481,13 @@ const handleLogout = () => {
                 py-3
               "
             >
-              <div className="flex items-center gap-2.5">
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2.5
+                "
+              >
                 <div
                   className="
                     flex
@@ -467,38 +544,64 @@ const handleLogout = () => {
               "
             >
               <QuickActionButton
-                icon={UserPlus}
+                icon={
+                  UserPlus
+                }
                 label="Add Customer"
-                onClick={() =>
+                onClick={() => {
+                  setQuickActionsOpen(
+                    false
+                  );
+
                   navigate(
                     "/customers/onboarding"
-                  )
-                }
+                  );
+                }}
               />
 
               <QuickActionButton
-                icon={WalletCards}
+                icon={
+                  WalletCards
+                }
                 label="Create New Loan"
-                onClick={() =>
+                onClick={() => {
+                  setQuickActionsOpen(
+                    false
+                  );
+
                   navigate(
                     "/customers/onboarding"
-                  )
-                }
+                  );
+                }}
               />
 
               <QuickActionButton
-                icon={WalletCards}
+                icon={
+                  WalletCards
+                }
                 label="Record Payment"
                 disabled
               />
 
+              {/* =================================================
+                  VIEW DUE
+              ================================================== */}
+
               <QuickActionButton
-                icon={PhoneCall}
-                label="View Due / Follow-up"
-                onClick={() =>
-                  navigate("/loan")
+                icon={
+                  HandCoins
+                }
+                label="View Due"
+                onClick={
+                  handleViewDue
                 }
               />
+
+              {/* =================================================
+                  VIEW FOLLOW-UP
+              ================================================== */}
+
+          
             </div>
 
             {/* =================================================
@@ -528,11 +631,7 @@ const handleLogout = () => {
                     gap-2
                   "
                 >
-                  <PhoneCall
-                    size={13}
-                    strokeWidth={2}
-                    className="text-[#0B5D3B]"
-                  />
+                 
 
                   <p
                     className="
@@ -541,14 +640,15 @@ const handleLogout = () => {
                       text-[#17221D]
                     "
                   >
-                    Today&apos;s Follow-up
+                    Today&apos;s
+                    Follow-up
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate("/loan")
+                  onClick={
+                    handleViewAllFollowUps
                   }
                   className="
                     text-[8px]
@@ -576,16 +676,45 @@ const handleLogout = () => {
                   No follow-ups today
                 </p>
               ) : (
-                <div className="space-y-1.5">
+                <div
+                  className="
+                    space-y-1.5
+                  "
+                >
                   {todayFollowUps.map(
                     ({
                       loan,
                       scheduleRow,
                     }) => (
-                      <div
+                      <button
                         key={`${loan?.id || loan?.loanNumber}-${scheduleRow?.dueDate}`}
+                        type="button"
+                        onClick={() => {
+                          setQuickActionsOpen(
+                            false
+                          );
+
+                          navigate(
+                            `/reminders?loanId=${encodeURIComponent(
+                              loan?.id ||
+                                ""
+                            )}&loanNumber=${encodeURIComponent(
+                              loan?.loanNumber ||
+                                ""
+                            )}&customerId=${encodeURIComponent(
+                              loan?.customerId ||
+                                loan?.customer?.id ||
+                                ""
+                            )}&customerName=${encodeURIComponent(
+                              getCustomerName(
+                                loan
+                              )
+                            )}`
+                          );
+                        }}
                         className="
                           flex
+                          w-full
                           items-center
                           justify-between
                           gap-2
@@ -593,6 +722,9 @@ const handleLogout = () => {
                           bg-slate-50
                           px-3
                           py-2
+                          text-left
+                          transition
+                          hover:bg-[#F0F8F3]
                         "
                       >
                         <div className="min-w-0">
@@ -664,7 +796,7 @@ const handleLogout = () => {
                               "Pending"}
                           </p>
                         </div>
-                      </div>
+                      </button>
                     )
                   )}
                 </div>
@@ -672,7 +804,7 @@ const handleLogout = () => {
             </div>
 
             {/* =================================================
-                RECENT ACTIONS
+                RECENT ACTIVITIES
             ================================================== */}
 
             <div
@@ -772,11 +904,15 @@ const handleLogout = () => {
 
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      setQuickActionsOpen(
+                        false
+                      );
+
                       navigate(
                         "/activities"
-                      )
-                    }
+                      );
+                    }}
                     className="
                       text-[9px]
                       font-semibold
@@ -947,13 +1083,11 @@ const isDueToday = (
   }
 
   const dueDate =
-    new Date(value);
+    parseLocalDate(
+      value
+    );
 
-  if (
-    Number.isNaN(
-      dueDate.getTime()
-    )
-  ) {
+  if (!dueDate) {
     return false;
   }
 
@@ -968,6 +1102,62 @@ const isDueToday = (
     dueDate.getDate() ===
       today.getDate()
   );
+};
+
+/* =========================================================
+   LOCAL DATE PARSER
+========================================================= */
+
+const parseLocalDate = (
+  value
+) => {
+  if (!value) {
+    return null;
+  }
+
+  if (
+    value instanceof Date
+  ) {
+    const date =
+      new Date(value);
+
+    return Number.isNaN(
+      date.getTime()
+    )
+      ? null
+      : date;
+  }
+
+  const raw =
+    String(value);
+
+  const match =
+    raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+  if (match) {
+    return new Date(
+      Number(
+        match[1]
+      ),
+      Number(
+        match[2]
+      ) - 1,
+      Number(
+        match[3]
+      )
+    );
+  }
+
+  const date =
+    new Date(value);
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
 };
 
 /* =========================================================

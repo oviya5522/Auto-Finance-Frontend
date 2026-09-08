@@ -13,7 +13,6 @@ import {
   Receipt,
   IndianRupee,
   Clock3,
-  CheckCircle2,
   Eye,
   Pencil,
   X,
@@ -22,6 +21,10 @@ import {
   Car,
   Building2,
   UserRound,
+  CalendarDays,
+  BarChart3,
+  Filter,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -29,6 +32,9 @@ import {
   addExpense,
   updateExpense,
   deleteExpense,
+  getExpenseHistory,
+  getExpenseHistorySummary,
+  getMonthlyExpenseSummary,
 } from "../../services/expenseStorage";
 
 /* =========================================================
@@ -36,40 +42,105 @@ import {
 ========================================================= */
 
 const ExpenseControl = () => {
-  const [expenses, setExpenses] =
-    useState(() => getExpenses());
+  const [
+    expenses,
+    setExpenses,
+  ] = useState(
+    () => getExpenses()
+  );
 
-  const [search, setSearch] =
-    useState("");
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const [categoryFilter, setCategoryFilter] =
-    useState("All Categories");
+  const [
+    categoryFilter,
+    setCategoryFilter,
+  ] = useState(
+    "All Categories"
+  );
 
-  const [statusFilter, setStatusFilter] =
-    useState("All Status");
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState(
+    "All Status"
+  );
 
-  const [dateFilter, setDateFilter] =
-    useState("");
+  const [
+    dateFilter,
+    setDateFilter,
+  ] = useState("");
 
-  const [showAddModal, setShowAddModal] =
-    useState(false);
+  /* =======================================================
+     HISTORY VIEW
+  ======================================================= */
 
-  const [selectedExpense, setSelectedExpense] =
-    useState(null);
+  const [
+    historyOpen,
+    setHistoryOpen,
+  ] = useState(false);
 
-  const [editingExpense, setEditingExpense] =
-    useState(null);
+  const [
+    historyPeriod,
+    setHistoryPeriod,
+  ] = useState(
+    "This Month"
+  );
 
-  /* =====================================================
+  const [
+    historyStartDate,
+    setHistoryStartDate,
+  ] = useState("");
+
+  const [
+    historyEndDate,
+    setHistoryEndDate,
+  ] = useState("");
+
+  const [
+    historySearch,
+    setHistorySearch,
+  ] = useState("");
+
+  /* =======================================================
+     MODALS
+  ======================================================= */
+
+  const [
+    showAddModal,
+    setShowAddModal,
+  ] = useState(false);
+
+  const [
+    selectedExpense,
+    setSelectedExpense,
+  ] = useState(null);
+
+  const [
+    editingExpense,
+    setEditingExpense,
+  ] = useState(null);
+
+  /* =======================================================
      LOAD / SYNC
-  ====================================================== */
+  ======================================================= */
 
   useEffect(() => {
-    const reloadExpenses = () => {
-      setExpenses(getExpenses());
-    };
+    const reloadExpenses =
+      () => {
+        setExpenses(
+          getExpenses()
+        );
+      };
 
     reloadExpenses();
+
+    window.addEventListener(
+      "auto-finance:data-updated",
+      reloadExpenses
+    );
 
     window.addEventListener(
       "fleetopz:data-updated",
@@ -83,6 +154,11 @@ const ExpenseControl = () => {
 
     return () => {
       window.removeEventListener(
+        "auto-finance:data-updated",
+        reloadExpenses
+      );
+
+      window.removeEventListener(
         "fleetopz:data-updated",
         reloadExpenses
       );
@@ -94,176 +170,138 @@ const ExpenseControl = () => {
     };
   }, []);
 
-  /* =====================================================
-     PAID / PENDING HELPERS
-  ====================================================== */
+  /* =======================================================
+     DATE
+  ======================================================= */
 
-  const paidExpenses = useMemo(() => {
-    return expenses.filter(
-      (expense) =>
-        String(
-          expense?.status || ""
-        )
-          .trim()
-          .toLowerCase() === "paid"
+  const today =
+    useMemo(
+      () =>
+        getTodayDateKey(),
+      []
     );
-  }, [expenses]);
+
+  const currentMonth =
+    today.slice(
+      0,
+      7
+    );
+
+  /* =======================================================
+     STATUS
+  ======================================================= */
+
+  const paidExpenses =
+    useMemo(() => {
+      return expenses.filter(
+        (expense) =>
+          normalize(
+            expense?.status
+          ) ===
+          "paid"
+      );
+    }, [
+      expenses,
+    ]);
 
   const pendingExpenseRecords =
     useMemo(() => {
       return expenses.filter(
         (expense) =>
-          String(
-            expense?.status || ""
-          )
-            .trim()
-            .toLowerCase() === "pending"
+          normalize(
+            expense?.status
+          ) ===
+          "pending"
       );
-    }, [expenses]);
+    }, [
+      expenses,
+    ]);
 
-  /* =====================================================
-     FILTERED DATA
-  ====================================================== */
+  /* =======================================================
+     TOTAL EXPENSE
+  ======================================================= */
 
-  const filteredExpenses = useMemo(() => {
-    const query =
-      search.trim().toLowerCase();
-
-    return expenses.filter((expense) => {
-      const searchableText = [
-        expense?.id,
-        expense?.category,
-        expense?.subCategory,
-        expense?.description,
-        expense?.paidBy,
-        expense?.vendor,
-        expense?.reference,
-        expense?.paymentMode,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch =
-        !query ||
-        searchableText.includes(query);
-
-      const matchesCategory =
-        categoryFilter ===
-          "All Categories" ||
-        expense?.category ===
-          categoryFilter;
-
-      const matchesStatus =
-        statusFilter === "All Status" ||
-        expense?.status ===
-          statusFilter;
-
-      const matchesDate =
-        !dateFilter ||
-        expense?.date === dateFilter;
-
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesStatus &&
-        matchesDate
-      );
-    });
-  }, [
-    expenses,
-    search,
-    categoryFilter,
-    statusFilter,
-    dateFilter,
-  ]);
-
-  /* =====================================================
-     DATE
-  ====================================================== */
-
-  const today = useMemo(() => {
-    return new Date()
-      .toISOString()
-      .slice(0, 10);
-  }, []);
-
-  const currentMonth =
-    today.slice(0, 7);
-
-  /* =====================================================
-     TOTAL PAID EXPENSE
-  ====================================================== */
-
-  const totalExpenses = useMemo(() => {
-    return paidExpenses.reduce(
-      (sum, expense) =>
-        sum +
-        Number(
-          expense?.amount || 0
-        ),
-      0
-    );
-  }, [paidExpenses]);
-
-  /* =====================================================
-     TODAY'S PAID EXPENSE
-  ====================================================== */
-
-  const todayExpenses = useMemo(() => {
-    return paidExpenses
-      .filter(
-        (expense) =>
-          String(
-            expense?.date || ""
-          ) === today
-      )
-      .reduce(
-        (sum, expense) =>
+  const totalExpenses =
+    useMemo(() => {
+      return paidExpenses.reduce(
+        (
+          sum,
+          expense
+        ) =>
           sum +
-          Number(
-            expense?.amount || 0
+          toNumber(
+            expense?.amount
           ),
         0
       );
-  }, [
-    paidExpenses,
-    today,
-  ]);
+    }, [
+      paidExpenses,
+    ]);
 
-  /* =====================================================
-     THIS MONTH'S PAID EXPENSE
-  ====================================================== */
+  /* =======================================================
+     TODAY
+  ======================================================= */
 
-  const monthExpenses = useMemo(() => {
-    return paidExpenses
-      .filter(
-        (expense) =>
-          String(
-            expense?.date || ""
-          ).startsWith(
-            currentMonth
-          )
-      )
-      .reduce(
-        (sum, expense) =>
-          sum +
-          Number(
-            expense?.amount || 0
-          ),
-        0
-      );
-  }, [
-    paidExpenses,
-    currentMonth,
-  ]);
+  const todayExpenses =
+    useMemo(() => {
+      return paidExpenses
+        .filter(
+          (expense) =>
+            getDateKey(
+              expense?.date
+            ) ===
+            today
+        )
+        .reduce(
+          (
+            sum,
+            expense
+          ) =>
+            sum +
+            toNumber(
+              expense?.amount
+            ),
+          0
+        );
+    }, [
+      paidExpenses,
+      today,
+    ]);
 
-  /* =====================================================
+  /* =======================================================
+     THIS MONTH
+  ======================================================= */
+
+  const monthExpenses =
+    useMemo(() => {
+      return paidExpenses
+        .filter(
+          (expense) =>
+            getDateKey(
+              expense?.date
+            ).startsWith(
+              currentMonth
+            )
+        )
+        .reduce(
+          (
+            sum,
+            expense
+          ) =>
+            sum +
+            toNumber(
+              expense?.amount
+            ),
+          0
+        );
+    }, [
+      paidExpenses,
+      currentMonth,
+    ]);
+
+  /* =======================================================
      PENDING
-     
-     Pending is displayed separately.
-     Pending is NEVER included in totalExpenses.
-  ====================================================== */
+  ======================================================= */
 
   const pendingExpenses =
     pendingExpenseRecords.length;
@@ -271,10 +309,13 @@ const ExpenseControl = () => {
   const pendingExpenseAmount =
     useMemo(() => {
       return pendingExpenseRecords.reduce(
-        (sum, expense) =>
+        (
+          sum,
+          expense
+        ) =>
           sum +
-          Number(
-            expense?.amount || 0
+          toNumber(
+            expense?.amount
           ),
         0
       );
@@ -282,71 +323,360 @@ const ExpenseControl = () => {
       pendingExpenseRecords,
     ]);
 
-  /* =====================================================
-     RESET
-  ====================================================== */
+  /* =======================================================
+     FILTERED DATA
+  ======================================================= */
 
-  const resetFilters = () => {
-    setSearch("");
-    setCategoryFilter(
-      "All Categories"
-    );
-    setStatusFilter(
-      "All Status"
-    );
-    setDateFilter("");
-  };
+  const filteredExpenses =
+    useMemo(() => {
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-  /* =====================================================
+      return expenses
+        .filter(
+          (expense) => {
+            const searchableText =
+              [
+                expense?.id,
+                expense?.category,
+                expense?.subCategory,
+                expense?.description,
+                expense?.paidBy,
+                expense?.vendor,
+                expense?.reference,
+                expense?.paymentMode,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            const matchesSearch =
+              !query ||
+              searchableText.includes(
+                query
+              );
+
+            const matchesCategory =
+              categoryFilter ===
+                "All Categories" ||
+              expense?.category ===
+                categoryFilter;
+
+            const matchesStatus =
+              statusFilter ===
+                "All Status" ||
+              expense?.status ===
+                statusFilter;
+
+            const matchesDate =
+              !dateFilter ||
+              getDateKey(
+                expense?.date
+              ) ===
+                dateFilter;
+
+            return (
+              matchesSearch &&
+              matchesCategory &&
+              matchesStatus &&
+              matchesDate
+            );
+          }
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            new Date(
+              b?.date ||
+                b?.createdAt ||
+                0
+            ).getTime() -
+            new Date(
+              a?.date ||
+                a?.createdAt ||
+                0
+            ).getTime()
+        );
+    }, [
+      expenses,
+      search,
+      categoryFilter,
+      statusFilter,
+      dateFilter,
+    ]);
+
+  /* =======================================================
+     HISTORY RANGE
+  ======================================================= */
+
+  const historyRange =
+    useMemo(() => {
+      const current =
+        new Date();
+
+      if (
+        historyPeriod ===
+        "This Month"
+      ) {
+        const start =
+          new Date(
+            current.getFullYear(),
+            current.getMonth(),
+            1
+          );
+
+        const end =
+          new Date(
+            current.getFullYear(),
+            current.getMonth() + 1,
+            0
+          );
+
+        return {
+          startDate:
+            formatDateInput(
+              start
+            ),
+          endDate:
+            formatDateInput(
+              end
+            ),
+        };
+      }
+
+      if (
+        historyPeriod ===
+        "Last Month"
+      ) {
+        const start =
+          new Date(
+            current.getFullYear(),
+            current.getMonth() -
+              1,
+            1
+          );
+
+        const end =
+          new Date(
+            current.getFullYear(),
+            current.getMonth(),
+            0
+          );
+
+        return {
+          startDate:
+            formatDateInput(
+              start
+            ),
+          endDate:
+            formatDateInput(
+              end
+            ),
+        };
+      }
+
+      if (
+        historyPeriod ===
+        "Last 30 Days"
+      ) {
+        const start =
+          new Date(
+            current
+          );
+
+        start.setDate(
+          start.getDate() -
+            29
+        );
+
+        return {
+          startDate:
+            formatDateInput(
+              start
+            ),
+          endDate:
+            formatDateInput(
+              current
+            ),
+        };
+      }
+
+      if (
+        historyPeriod ===
+        "All Time"
+      ) {
+        return {
+          startDate: "",
+          endDate: "",
+        };
+      }
+
+      if (
+        historyPeriod ===
+        "Custom"
+      ) {
+        return {
+          startDate:
+            historyStartDate,
+          endDate:
+            historyEndDate,
+        };
+      }
+
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    }, [
+      historyPeriod,
+      historyStartDate,
+      historyEndDate,
+    ]);
+
+  /* =======================================================
+     HISTORY RECORDS
+  ======================================================= */
+
+  const historyRecords =
+    useMemo(() => {
+      return getExpenseHistory({
+        startDate:
+          historyRange.startDate,
+        endDate:
+          historyRange.endDate,
+        status:
+          "Paid",
+        search:
+          historySearch,
+      });
+    }, [
+      historyRange,
+      historySearch,
+    ]);
+
+  /* =======================================================
+     HISTORY SUMMARY
+  ======================================================= */
+
+  const historySummary =
+    useMemo(() => {
+      return getExpenseHistorySummary({
+        startDate:
+          historyRange.startDate,
+        endDate:
+          historyRange.endDate,
+        status:
+          "Paid",
+        search:
+          historySearch,
+      });
+    }, [
+      historyRange,
+      historySearch,
+    ]);
+
+  /* =======================================================
+     RESET FILTERS
+  ======================================================= */
+
+  const resetFilters =
+    () => {
+      setSearch("");
+
+      setCategoryFilter(
+        "All Categories"
+      );
+
+      setStatusFilter(
+        "All Status"
+      );
+
+      setDateFilter("");
+    };
+
+  /* =======================================================
      SAVE
-  ====================================================== */
+  ======================================================= */
 
-  const handleSaveExpense = (
-    expense
-  ) => {
-    if (editingExpense) {
-      updateExpense(
-        editingExpense.id,
+  const handleSaveExpense =
+    (
+      expense
+    ) => {
+      if (
+        editingExpense
+      ) {
+        updateExpense(
+          editingExpense.id,
+          expense
+        );
+      } else {
+        addExpense(
+          expense
+        );
+      }
+
+      setExpenses(
+        getExpenses()
+      );
+
+      setShowAddModal(
+        false
+      );
+
+      setEditingExpense(
+        null
+      );
+    };
+
+  /* =======================================================
+     EDIT
+  ======================================================= */
+
+  const handleEditExpense =
+    (
+      expense
+    ) => {
+      setSelectedExpense(
+        null
+      );
+
+      setEditingExpense(
         expense
       );
-    } else {
-      addExpense(expense);
-    }
 
-    setExpenses(getExpenses());
+      setShowAddModal(
+        true
+      );
+    };
 
-    setShowAddModal(false);
-    setEditingExpense(null);
-  };
-
-  /* =====================================================
-     EDIT
-  ====================================================== */
-
-  const handleEditExpense = (
-    expense
-  ) => {
-    setSelectedExpense(null);
-    setEditingExpense(expense);
-    setShowAddModal(true);
-  };
-
-  /* =====================================================
+  /* =======================================================
      DELETE
-  ====================================================== */
+  ======================================================= */
 
-  const handleDeleteExpense = (
-    expenseId
-  ) => {
-    deleteExpense(expenseId);
+  const handleDeleteExpense =
+    (
+      expenseId
+    ) => {
+      deleteExpense(
+        expenseId
+      );
 
-    setExpenses(getExpenses());
-    setSelectedExpense(null);
-  };
+      setExpenses(
+        getExpenses()
+      );
 
-  /* =====================================================
+      setSelectedExpense(
+        null
+      );
+    };
+
+  /* =======================================================
      RENDER
-  ====================================================== */
+  ======================================================= */
 
   return (
     <div
@@ -361,6 +691,7 @@ const ExpenseControl = () => {
         lg:py-5
       "
     >
+
       {/* =================================================
           HEADER
       ================================================== */}
@@ -377,16 +708,40 @@ const ExpenseControl = () => {
         "
       >
         <div>
-          <h1
+          <div
             className="
-              text-[21px]
-              font-extrabold
-              tracking-tight
-              text-[#17221D]
+              flex
+              items-center
+              gap-2
             "
           >
-            Expense Control
-          </h1>
+            <h1
+              className="
+                text-[21px]
+                font-extrabold
+                tracking-tight
+                text-[#17221D]
+              "
+            >
+              Expense Control
+            </h1>
+
+            <span
+              className="
+                rounded-full
+                bg-[#EAF5EF]
+                px-2
+                py-1
+                text-[7px]
+                font-bold
+                uppercase
+                tracking-wide
+                text-[#0B5D3B]
+              "
+            >
+              Admin
+            </span>
+          </div>
 
           <p
             className="
@@ -396,38 +751,973 @@ const ExpenseControl = () => {
               text-slate-400
             "
           >
-            Track and manage business expenses
+            Track, manage and review
+            historical business expenses.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setEditingExpense(null);
-            setShowAddModal(true);
-          }}
+        <div
           className="
-            inline-flex
-            h-9
+            flex
+            flex-wrap
             items-center
-            justify-center
             gap-2
-            rounded-lg
-            bg-[#0B6B43]
-            px-4
-            text-[9px]
-            font-bold
-            text-white
-            shadow-[0_5px_15px_rgba(11,107,67,0.18)]
-            transition
-            hover:bg-[#095B3B]
-            hover:shadow-md
           "
         >
-          <Plus size={14} />
-          Add Expense
-        </button>
+          <button
+            type="button"
+            onClick={() =>
+              setHistoryOpen(
+                (previous) =>
+                  !previous
+              )
+            }
+            className="
+              inline-flex
+              h-9
+              items-center
+              justify-center
+              gap-1.5
+              rounded-lg
+              border
+              border-[#D8E9DF]
+              bg-[#F6FBF8]
+              px-3
+              text-[9px]
+              font-bold
+              text-[#0B5D3B]
+              transition
+              hover:bg-[#EAF5EF]
+            "
+          >
+            <BarChart3
+              size={13}
+            />
+
+            {historyOpen
+              ? "Hide Expense Data"
+              : "View Expense Data"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingExpense(
+                null
+              );
+
+              setShowAddModal(
+                true
+              );
+            }}
+            className="
+              inline-flex
+              h-9
+              items-center
+              justify-center
+              gap-2
+              rounded-lg
+              bg-[#0B6B43]
+              px-4
+              text-[9px]
+              font-bold
+              text-white
+              shadow-[0_5px_15px_rgba(11,107,67,0.18)]
+              transition
+              hover:bg-[#095B3B]
+            "
+          >
+            <Plus
+              size={14}
+            />
+
+            Add Expense
+          </button>
+        </div>
       </div>
+
+      {/* =================================================
+          HISTORY
+      ================================================== */}
+
+      {historyOpen && (
+        <section
+          className="
+            mb-4
+            overflow-hidden
+            rounded-2xl
+            border
+            border-[#D8E9DF]
+            bg-white
+            shadow-sm
+          "
+        >
+          {/* HEADER */}
+
+          <div
+            className="
+              border-b
+              border-slate-100
+              bg-[#F6FBF8]
+              px-4
+              py-3.5
+            "
+          >
+            <div
+              className="
+                flex
+                flex-col
+                gap-3
+                lg:flex-row
+                lg:items-center
+                lg:justify-between
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+                "
+              >
+                <div
+                  className="
+                    flex
+                    h-8
+                    w-8
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-[#EAF5EF]
+                    text-[#0B5D3B]
+                  "
+                >
+                  <BarChart3
+                    size={14}
+                  />
+                </div>
+
+                <div>
+                  <h2
+                    className="
+                      text-[12px]
+                      font-extrabold
+                      text-[#17221D]
+                    "
+                  >
+                    View Expense Data
+                  </h2>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-[8px]
+                      text-slate-400
+                    "
+                  >
+                    Historical expense data
+                    across the selected date range.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-2
+                "
+              >
+                {[
+                  "This Month",
+                  "Last Month",
+                  "Last 30 Days",
+                  "All Time",
+                  "Custom",
+                ].map(
+                  (
+                    option
+                  ) => (
+                    <button
+                      key={
+                        option
+                      }
+                      type="button"
+                      onClick={() =>
+                        setHistoryPeriod(
+                          option
+                        )
+                      }
+                      className={`
+                        inline-flex
+                        h-8
+                        items-center
+                        rounded-lg
+                        px-2.5
+                        text-[8px]
+                        font-bold
+                        transition
+
+                        ${
+                          historyPeriod ===
+                          option
+                            ? "bg-[#0B5D3B] text-white"
+                            : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                        }
+                      `}
+                    >
+                      {
+                        option
+                      }
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* FILTERS */}
+
+            <div
+              className="
+                mt-3
+                grid
+                grid-cols-1
+                gap-2
+                md:grid-cols-3
+              "
+            >
+              <div
+                className="
+                  relative
+                "
+              >
+                <Search
+                  size={12}
+                  className="
+                    pointer-events-none
+                    absolute
+                    left-3
+                    top-1/2
+                    -translate-y-1/2
+                    text-slate-400
+                  "
+                />
+
+                <input
+                  value={
+                    historySearch
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setHistorySearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="
+                    Search expense / vendor /
+                    category / employee
+                  "
+                  className="
+                    h-9
+                    w-full
+                    rounded-lg
+                    border
+                    border-slate-200
+                    bg-white
+                    pl-8
+                    pr-3
+                    text-[9px]
+                    font-semibold
+                    text-[#17221D]
+                    outline-none
+                    focus:border-[#9CCEB1]
+                    focus:ring-1
+                    focus:ring-[#DCEFE4]
+                  "
+                />
+              </div>
+
+              <select
+                value={
+                  categoryFilter ===
+                  "All Categories"
+                    ? "All Categories"
+                    : categoryFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setCategoryFilter(
+                    event.target.value
+                  )
+                }
+                className="
+                  h-9
+                  rounded-lg
+                  border
+                  border-slate-200
+                  bg-white
+                  px-3
+                  text-[9px]
+                  font-semibold
+                  text-slate-600
+                  outline-none
+                "
+              >
+                <option>
+                  All Categories
+                </option>
+
+                <option>
+                  Fuel
+                </option>
+
+                <option>
+                  Vehicle Maintenance
+                </option>
+
+                <option>
+                  Insurance
+                </option>
+
+                <option>
+                  Registration / RC
+                </option>
+
+                <option>
+                  Collection Expense
+                </option>
+
+                <option>
+                  Office Expense
+                </option>
+
+                <option>
+                  Legal Expense
+                </option>
+
+                <option>
+                  Miscellaneous
+                </option>
+              </select>
+
+              {historyPeriod ===
+                "Custom" && (
+                <>
+                  <div
+                    className="
+                      grid
+                      grid-cols-2
+                      gap-2
+                    "
+                  >
+                    <label>
+                      <span
+                        className="
+                          mb-1
+                          block
+                          text-[7px]
+                          font-bold
+                          uppercase
+                          tracking-wide
+                          text-slate-400
+                        "
+                      >
+                        From
+                      </span>
+
+                      <div
+                        className="
+                          relative
+                        "
+                      >
+                        <CalendarDays
+                          size={11}
+                          className="
+                            pointer-events-none
+                            absolute
+                            left-3
+                            top-1/2
+                            -translate-y-1/2
+                            text-slate-400
+                          "
+                        />
+
+                        <input
+                          type="date"
+                          value={
+                            historyStartDate
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setHistoryStartDate(
+                              event.target.value
+                            )
+                          }
+                          className="
+                            h-9
+                            w-full
+                            rounded-lg
+                            border
+                            border-slate-200
+                            bg-white
+                            pl-8
+                            pr-2
+                            text-[8px]
+                            font-semibold
+                            text-slate-600
+                            outline-none
+                          "
+                        />
+                      </div>
+                    </label>
+
+                    <label>
+                      <span
+                        className="
+                          mb-1
+                          block
+                          text-[7px]
+                          font-bold
+                          uppercase
+                          tracking-wide
+                          text-slate-400
+                        "
+                      >
+                        To
+                      </span>
+
+                      <div
+                        className="
+                          relative
+                        "
+                      >
+                        <CalendarDays
+                          size={11}
+                          className="
+                            pointer-events-none
+                            absolute
+                            left-3
+                            top-1/2
+                            -translate-y-1/2
+                            text-slate-400
+                          "
+                        />
+
+                        <input
+                          type="date"
+                          value={
+                            historyEndDate
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setHistoryEndDate(
+                              event.target.value
+                            )
+                          }
+                          className="
+                            h-9
+                            w-full
+                            rounded-lg
+                            border
+                            border-slate-200
+                            bg-white
+                            pl-8
+                            pr-2
+                            text-[8px]
+                            font-semibold
+                            text-slate-600
+                            outline-none
+                          "
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* SUMMARY CARDS */}
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-2
+              p-3
+              sm:grid-cols-2
+              lg:grid-cols-4
+            "
+          >
+            <ExpenseHistoryMetric
+              label="Total Expense"
+              value={formatMoney(
+                historySummary.totalAmount
+              )}
+              note={`${historySummary.totalRecords} records`}
+              tone="green"
+            />
+
+            <ExpenseHistoryMetric
+              label="Paid Expense"
+              value={formatMoney(
+                historySummary.paidAmount
+              )}
+              note={`${historySummary.paidCount} paid records`}
+              tone="blue"
+            />
+
+            <ExpenseHistoryMetric
+              label="Pending Expense"
+              value={formatMoney(
+                historySummary.pendingAmount
+              )}
+              note={`${historySummary.pendingCount} pending records`}
+              tone="amber"
+            />
+
+            <ExpenseHistoryMetric
+              label="Average Expense"
+              value={formatMoney(
+                historySummary.averageExpense
+              )}
+              note="Per recorded expense"
+              tone="purple"
+            />
+          </div>
+
+          {/* CATEGORY + MONTHLY */}
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-3
+              px-3
+              pb-3
+              lg:grid-cols-2
+            "
+          >
+            {/* CATEGORY */}
+
+            <div
+              className="
+                overflow-hidden
+                rounded-xl
+                border
+                border-slate-200
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  border-b
+                  border-slate-100
+                  bg-slate-50
+                  px-3
+                  py-2.5
+                "
+              >
+                <div>
+                  <p
+                    className="
+                      text-[9px]
+                      font-extrabold
+                      text-[#17221D]
+                    "
+                  >
+                    Category-wise Expense
+                  </p>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-[7px]
+                      text-slate-400
+                    "
+                  >
+                    Total expense by category.
+                  </p>
+                </div>
+
+                <Filter
+                  size={12}
+                  className="text-slate-400"
+                />
+              </div>
+
+              {historySummary
+                .byCategory
+                .length ===
+              0 ? (
+                <EmptyHistory />
+              ) : (
+                <div
+                  className="
+                    max-h-[280px]
+                    overflow-y-auto
+                  "
+                >
+                  {historySummary.byCategory.map(
+                    (
+                      category
+                    ) => (
+                      <div
+                        key={
+                          category.category
+                        }
+                        className="
+                          flex
+                          items-center
+                          justify-between
+                          gap-3
+                          border-b
+                          border-slate-100
+                          px-3
+                          py-2.5
+                          last:border-b-0
+                        "
+                      >
+                        <div
+                          className="
+                            flex
+                            min-w-0
+                            items-center
+                            gap-2
+                          "
+                        >
+                          <div
+                            className="
+                              flex
+                              h-7
+                              w-7
+                              shrink-0
+                              items-center
+                              justify-center
+                              rounded-lg
+                              bg-[#EAF5EF]
+                              text-[#0B6B43]
+                            "
+                          >
+                            <Receipt
+                              size={12}
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p
+                              className="
+                                truncate
+                                text-[9px]
+                                font-bold
+                                text-[#253252]
+                              "
+                            >
+                              {
+                                category.category
+                              }
+                            </p>
+
+                            <p
+                              className="
+                                mt-0.5
+                                text-[7px]
+                                text-slate-400
+                              "
+                            >
+                              {
+                                category.count
+                              }{" "}
+                              record
+                              {category.count ===
+                              1
+                                ? ""
+                                : "s"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p
+                          className="
+                            shrink-0
+                            text-[10px]
+                            font-extrabold
+                            text-[#0B5D3B]
+                          "
+                        >
+                          {formatMoney(
+                            category.amount
+                          )}
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* MONTH */}
+
+            <div
+              className="
+                overflow-hidden
+                rounded-xl
+                border
+                border-slate-200
+              "
+            >
+              <div
+                className="
+                  border-b
+                  border-slate-100
+                  bg-slate-50
+                  px-3
+                  py-2.5
+                "
+              >
+                <p
+                  className="
+                    text-[9px]
+                    font-extrabold
+                    text-[#17221D]
+                  "
+                >
+                  Monthly Expense
+                </p>
+
+                <p
+                  className="
+                    mt-0.5
+                    text-[7px]
+                    text-slate-400
+                  "
+                >
+                  Month-wise historical totals.
+                </p>
+              </div>
+
+              <MonthlyExpenseList
+                data={
+                  historySummary.byMonth
+                }
+              />
+            </div>
+          </div>
+
+          {/* HISTORY RECORDS */}
+
+          <div
+            className="
+              mx-3
+              mb-3
+              overflow-hidden
+              rounded-xl
+              border
+              border-slate-200
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                border-b
+                border-slate-100
+                bg-slate-50
+                px-3
+                py-2.5
+              "
+            >
+              <div>
+                <p
+                  className="
+                    text-[9px]
+                    font-extrabold
+                    text-[#17221D]
+                  "
+                >
+                  Expense History
+                </p>
+
+                <p
+                  className="
+                    mt-0.5
+                    text-[7px]
+                    text-slate-400
+                  "
+                >
+                  Historical expense records
+                  from the selected range.
+                </p>
+              </div>
+
+              <span
+                className="
+                  rounded-full
+                  bg-[#EAF5EF]
+                  px-2
+                  py-1
+                  text-[7px]
+                  font-bold
+                  text-[#0B5D3B]
+                "
+              >
+                {
+                  historyRecords.length
+                } records
+              </span>
+            </div>
+
+            {historyRecords.length ===
+            0 ? (
+              <EmptyHistory />
+            ) : (
+              <div
+                className="
+                  max-h-[330px]
+                  overflow-y-auto
+                "
+              >
+                {historyRecords
+                  .slice(
+                    0,
+                    100
+                  )
+                  .map(
+                    (
+                      expense
+                    ) => (
+                      <div
+                        key={
+                          expense.id
+                        }
+                        className="
+                          border-b
+                          border-slate-100
+                          px-3
+                          py-2.5
+                          last:border-b-0
+                        "
+                      >
+                        <div
+                          className="
+                            flex
+                            items-start
+                            justify-between
+                            gap-3
+                          "
+                        >
+                          <div className="min-w-0">
+                            <div
+                              className="
+                                flex
+                                flex-wrap
+                                items-center
+                                gap-2
+                              "
+                            >
+                              <p
+                                className="
+                                  truncate
+                                  text-[9px]
+                                  font-bold
+                                  text-[#253252]
+                                "
+                              >
+                                {
+                                  expense.description ||
+                                  expense.category ||
+                                  "Expense"
+                                }
+                              </p>
+
+                              <span
+                                className="
+                                  rounded-full
+                                  bg-[#EAF5EF]
+                                  px-2
+                                  py-0.5
+                                  text-[6px]
+                                  font-bold
+                                  text-[#0B5D3B]
+                                "
+                              >
+                                {
+                                  expense.category
+                                }
+                              </span>
+                            </div>
+
+                            <p
+                              className="
+                                mt-1
+                                text-[7px]
+                                text-slate-400
+                              "
+                            >
+                              {
+                                expense.id
+                              }{" "}
+                              •{" "}
+                              {
+                                expense.vendor ||
+                                "No vendor"
+                              }{" "}
+                              •{" "}
+                              {
+                                formatDisplayDate(
+                                  expense.date
+                                )
+                              }
+                            </p>
+                          </div>
+
+                          <div
+                            className="
+                              shrink-0
+                              text-right
+                            "
+                          >
+                            <p
+                              className="
+                                text-[10px]
+                                font-extrabold
+                                text-[#0B5D3B]
+                              "
+                            >
+                              {formatMoney(
+                                expense.amount
+                              )}
+                            </p>
+
+                            <p
+                              className="
+                                mt-0.5
+                                text-[7px]
+                                text-slate-400
+                              "
+                            >
+                              {
+                                expense.status
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* =================================================
           KPI CARDS
@@ -443,38 +1733,48 @@ const ExpenseControl = () => {
         "
       >
         <ExpenseMetric
-          icon={Receipt}
+          icon={
+            Receipt
+          }
           label="Total Expenses"
           value={formatMoney(
             totalExpenses
           )}
-          note="Paid expenses only"
+          note="All paid expenses"
           tone="green"
         />
 
         <ExpenseMetric
-          icon={IndianRupee}
+          icon={
+            IndianRupee
+          }
           label="This Month"
           value={formatMoney(
             monthExpenses
           )}
-          note="Paid expenses only"
+          note="Paid expenses"
           tone="blue"
         />
 
         <ExpenseMetric
-          icon={Clock3}
+          icon={
+            Clock3
+          }
           label="Today's Expenses"
           value={formatMoney(
             todayExpenses
           )}
-          note="Paid expenses only"
+          note="Paid expenses"
           tone="amber"
         />
 
         <PendingExpenseMetric
-          count={pendingExpenses}
-          amount={pendingExpenseAmount}
+          count={
+            pendingExpenses
+          }
+          amount={
+            pendingExpenseAmount
+          }
         />
       </div>
 
@@ -524,8 +1824,12 @@ const ExpenseControl = () => {
             />
 
             <input
-              value={search}
-              onChange={(event) =>
+              value={
+                search
+              }
+              onChange={(
+                event
+              ) =>
                 setSearch(
                   event.target.value
                 )
@@ -555,8 +1859,12 @@ const ExpenseControl = () => {
           {/* CATEGORY */}
 
           <select
-            value={categoryFilter}
-            onChange={(event) =>
+            value={
+              categoryFilter
+            }
+            onChange={(
+              event
+            ) =>
               setCategoryFilter(
                 event.target.value
               )
@@ -572,31 +1880,40 @@ const ExpenseControl = () => {
               font-semibold
               text-slate-600
               outline-none
-              focus:border-[#9CCEB1]
             "
           >
             <option>
               All Categories
             </option>
-            <option>Fuel</option>
+
+            <option>
+              Fuel
+            </option>
+
             <option>
               Vehicle Maintenance
             </option>
+
             <option>
               Insurance
             </option>
+
             <option>
               Registration / RC
             </option>
+
             <option>
               Collection Expense
             </option>
+
             <option>
               Office Expense
             </option>
+
             <option>
               Legal Expense
             </option>
+
             <option>
               Miscellaneous
             </option>
@@ -605,8 +1922,12 @@ const ExpenseControl = () => {
           {/* STATUS */}
 
           <select
-            value={statusFilter}
-            onChange={(event) =>
+            value={
+              statusFilter
+            }
+            onChange={(
+              event
+            ) =>
               setStatusFilter(
                 event.target.value
               )
@@ -622,22 +1943,31 @@ const ExpenseControl = () => {
               font-semibold
               text-slate-600
               outline-none
-              focus:border-[#9CCEB1]
             "
           >
             <option>
               All Status
             </option>
-            <option>Paid</option>
-            <option>Pending</option>
+
+            <option>
+              Paid
+            </option>
+
+            <option>
+              Pending
+            </option>
           </select>
 
           {/* DATE */}
 
           <input
             type="date"
-            value={dateFilter}
-            onChange={(event) =>
+            value={
+              dateFilter
+            }
+            onChange={(
+              event
+            ) =>
               setDateFilter(
                 event.target.value
               )
@@ -653,7 +1983,6 @@ const ExpenseControl = () => {
               font-semibold
               text-slate-600
               outline-none
-              focus:border-[#9CCEB1]
             "
           />
 
@@ -661,7 +1990,9 @@ const ExpenseControl = () => {
 
           <button
             type="button"
-            onClick={resetFilters}
+            onClick={
+              resetFilters
+            }
             className="
               inline-flex
               h-9
@@ -683,7 +2014,10 @@ const ExpenseControl = () => {
               hover:text-[#0B6B43]
             "
           >
-            <RotateCcw size={11} />
+            <RotateCcw
+              size={11}
+            />
+
             Reset
           </button>
         </div>
@@ -734,11 +2068,13 @@ const ExpenseControl = () => {
                 text-slate-400
               "
             >
-              {filteredExpenses.length} records
+              {
+                filteredExpenses.length
+              }{" "}
+              records
             </p>
           </div>
 
-          {/* FILTERED RECORD TOTAL */}
           <span
             className="
               rounded-full
@@ -753,21 +2089,22 @@ const ExpenseControl = () => {
             {formatMoney(
               filteredExpenses
                 .filter(
-                  (expense) =>
-                    String(
-                      expense?.status ||
-                        ""
-                    )
-                      .trim()
-                      .toLowerCase() ===
+                  (
+                    expense
+                  ) =>
+                    normalize(
+                      expense?.status
+                    ) ===
                     "paid"
                 )
                 .reduce(
-                  (sum, expense) =>
+                  (
+                    sum,
+                    expense
+                  ) =>
                     sum +
-                    Number(
-                      expense?.amount ||
-                        0
+                    toNumber(
+                      expense?.amount
                     ),
                   0
                 )
@@ -825,10 +2162,16 @@ const ExpenseControl = () => {
 
               <tbody>
                 {filteredExpenses.map(
-                  (expense) => (
+                  (
+                    expense
+                  ) => (
                     <ExpenseRow
-                      key={expense.id}
-                      expense={expense}
+                      key={
+                        expense.id
+                      }
+                      expense={
+                        expense
+                      }
                       onView={() =>
                         setSelectedExpense(
                           expense
@@ -846,8 +2189,6 @@ const ExpenseControl = () => {
             </table>
           </div>
         )}
-
-        {/* FOOTER */}
 
         <div
           className="
@@ -869,11 +2210,15 @@ const ExpenseControl = () => {
           >
             Showing{" "}
             <span className="font-bold text-slate-600">
-              {filteredExpenses.length}
+              {
+                filteredExpenses.length
+              }
             </span>{" "}
             of{" "}
             <span className="font-bold text-slate-600">
-              {expenses.length}
+              {
+                expenses.length
+              }
             </span>{" "}
             expenses
           </p>
@@ -881,15 +2226,22 @@ const ExpenseControl = () => {
       </div>
 
       {/* =================================================
-          ADD / EDIT MODAL
+          ADD / EDIT
       ================================================== */}
 
       {showAddModal && (
         <ExpenseModal
-          expense={editingExpense}
+          expense={
+            editingExpense
+          }
           onClose={() => {
-            setShowAddModal(false);
-            setEditingExpense(null);
+            setShowAddModal(
+              false
+            );
+
+            setEditingExpense(
+              null
+            );
           }}
           onSave={
             handleSaveExpense
@@ -898,7 +2250,7 @@ const ExpenseControl = () => {
       )}
 
       {/* =================================================
-          VIEW MODAL
+          VIEW
       ================================================== */}
 
       {selectedExpense && (
@@ -922,6 +2274,179 @@ const ExpenseControl = () => {
             )
           }
         />
+      )}
+    </div>
+  );
+};
+
+/* =========================================================
+   HISTORY METRIC
+========================================================= */
+
+const ExpenseHistoryMetric = ({
+  label,
+  value,
+  note,
+  tone = "green",
+}) => {
+  const styles = {
+    green:
+      "bg-[#F1FAF4] text-[#0B6B43]",
+
+    blue:
+      "bg-[#F1F6FE] text-blue-600",
+
+    amber:
+      "bg-[#FFF8E8] text-amber-700",
+
+    purple:
+      "bg-purple-50 text-purple-700",
+  };
+
+  return (
+    <div
+      className="
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        px-3
+        py-3
+      "
+    >
+      <p
+        className="
+          text-[7px]
+          font-bold
+          uppercase
+          tracking-wide
+          text-slate-400
+        "
+      >
+        {label}
+      </p>
+
+      <p
+        className={`
+          mt-1
+          inline-block
+          rounded-md
+          px-2
+          py-1
+          text-[14px]
+          font-extrabold
+          ${
+            styles[tone] ||
+            styles.green
+          }
+        `}
+      >
+        {value}
+      </p>
+
+      <p
+        className="
+          mt-1
+          text-[7px]
+          font-medium
+          text-slate-400
+        "
+      >
+        {note}
+      </p>
+    </div>
+  );
+};
+
+/* =========================================================
+   MONTHLY LIST
+========================================================= */
+
+const MonthlyExpenseList = ({
+  data,
+}) => {
+  if (
+    !Array.isArray(
+      data
+    ) ||
+    data.length === 0
+  ) {
+    return (
+      <EmptyHistory />
+    );
+  }
+
+  return (
+    <div
+      className="
+        max-h-[280px]
+        overflow-y-auto
+      "
+    >
+      {data.map(
+        (item) => (
+          <div
+            key={
+              item.month
+            }
+            className="
+              flex
+              items-center
+              justify-between
+              gap-3
+              border-b
+              border-slate-100
+              px-3
+              py-2.5
+              last:border-b-0
+            "
+          >
+            <div>
+              <p
+                className="
+                  text-[9px]
+                  font-bold
+                  text-[#253252]
+                "
+              >
+                {formatMonthLabel(
+                  item.month
+                )}
+              </p>
+
+              <p
+                className="
+                  mt-0.5
+                  text-[7px]
+                  text-slate-400
+                "
+              >
+                {
+                  item.count
+                }{" "}
+                expense
+                {
+                  item.count ===
+                  1
+                    ? ""
+                    : "s"
+                }
+              </p>
+            </div>
+
+            <p
+              className="
+                text-[10px]
+                font-extrabold
+                text-[#0B5D3B]
+              "
+            >
+              {formatMoney(
+                item.total
+              )}
+            </p>
+          </div>
+        )
       )}
     </div>
   );
@@ -1049,7 +2574,9 @@ const ExpenseMetric = ({
         >
           <Icon
             size={15}
-            strokeWidth={2.2}
+            strokeWidth={
+              2.2
+            }
           />
         </div>
       </div>
@@ -1058,7 +2585,7 @@ const ExpenseMetric = ({
 };
 
 /* =========================================================
-   PENDING KPI
+   PENDING
 ========================================================= */
 
 const PendingExpenseMetric = ({
@@ -1099,7 +2626,14 @@ const PendingExpenseMetric = ({
             Pending Expenses
           </p>
 
-          <div className="mt-1 flex items-baseline gap-2">
+          <div
+            className="
+              mt-1
+              flex
+              items-baseline
+              gap-2
+            "
+          >
             <p
               className="
                 text-[20px]
@@ -1119,7 +2653,9 @@ const PendingExpenseMetric = ({
                 text-[#C27808]
               "
             >
-              {formatMoney(amount)}
+              {formatMoney(
+                amount
+              )}
             </p>
           </div>
 
@@ -1131,7 +2667,7 @@ const PendingExpenseMetric = ({
               text-[#B98A4A]
             "
           >
-            Not included in expense total
+            Not included in paid total
           </p>
         </div>
 
@@ -1150,7 +2686,6 @@ const PendingExpenseMetric = ({
         >
           <Clock3
             size={15}
-            strokeWidth={2.2}
           />
         </div>
       </div>
@@ -1182,13 +2717,25 @@ const ExpenseRow = ({
       "
     >
       <td className="px-4 py-3">
-        <p className="text-[10px] font-bold text-[#0B6B43]">
+        <p
+          className="
+            text-[10px]
+            font-bold
+            text-[#0B6B43]
+          "
+        >
           {expense?.id}
         </p>
       </td>
 
       <td className="px-4 py-3">
-        <p className="text-[10px] font-semibold text-[#253252]">
+        <p
+          className="
+            text-[10px]
+            font-semibold
+            text-[#253252]
+          "
+        >
           {formatDisplayDate(
             expense?.date
           )}
@@ -1196,7 +2743,13 @@ const ExpenseRow = ({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div
+          className="
+            flex
+            items-center
+            gap-2
+          "
+        >
           <span
             className="
               flex
@@ -1213,13 +2766,29 @@ const ExpenseRow = ({
           </span>
 
           <div>
-            <p className="text-[9px] font-bold text-[#253252]">
-              {expense?.category}
+            <p
+              className="
+                text-[9px]
+                font-bold
+                text-[#253252]
+              "
+            >
+              {
+                expense?.category
+              }
             </p>
 
-            <p className="mt-0.5 text-[8px] text-slate-400">
-              {expense?.subCategory ||
-                "—"}
+            <p
+              className="
+                mt-0.5
+                text-[8px]
+                text-slate-400
+              "
+            >
+              {
+                expense?.subCategory ||
+                "—"
+              }
             </p>
           </div>
         </div>
@@ -1233,23 +2802,36 @@ const ExpenseRow = ({
             font-semibold
             text-[#253252]
           "
-          title={
-            expense?.description ||
-            ""
-          }
         >
-          {expense?.description ||
-            "—"}
+          {
+            expense?.description ||
+            "—"
+          }
         </p>
 
-        <p className="mt-0.5 truncate text-[8px] text-slate-400">
-          {expense?.vendor ||
-            "No vendor"}
+        <p
+          className="
+            mt-0.5
+            truncate
+            text-[8px]
+            text-slate-400
+          "
+        >
+          {
+            expense?.vendor ||
+            "No vendor"
+          }
         </p>
       </td>
 
       <td className="px-4 py-3">
-        <p className="text-[11px] font-extrabold text-[#17221D]">
+        <p
+          className="
+            text-[11px]
+            font-extrabold
+            text-[#17221D]
+          "
+        >
           ₹
           {formatAmount(
             expense?.amount
@@ -1258,14 +2840,30 @@ const ExpenseRow = ({
       </td>
 
       <td className="px-4 py-3">
-        <p className="text-[9px] font-semibold text-[#253252]">
-          {expense?.paidBy ||
-            "—"}
+        <p
+          className="
+            text-[9px]
+            font-semibold
+            text-[#253252]
+          "
+        >
+          {
+            expense?.paidBy ||
+            "—"
+          }
         </p>
 
-        <p className="mt-0.5 text-[8px] text-slate-400">
-          {expense?.paymentMode ||
-            "—"}
+        <p
+          className="
+            mt-0.5
+            text-[8px]
+            text-slate-400
+          "
+        >
+          {
+            expense?.paymentMode ||
+            "—"
+          }
         </p>
       </td>
 
@@ -1278,17 +2876,30 @@ const ExpenseRow = ({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-1.5">
+        <div
+          className="
+            flex
+            items-center
+            justify-center
+            gap-1.5
+          "
+        >
           <IconButton
             icon={Eye}
             title="View"
-            onClick={onView}
+            onClick={
+              onView
+            }
           />
 
           <IconButton
-            icon={Pencil}
+            icon={
+              Pencil
+            }
             title="Edit"
-            onClick={onEdit}
+            onClick={
+              onEdit
+            }
           />
         </div>
       </td>
@@ -1305,13 +2916,14 @@ const ExpenseModal = ({
   onClose,
   onSave,
 }) => {
-  const [form, setForm] =
-    useState(() => ({
+  const [
+    form,
+    setForm,
+  ] = useState(
+    () => ({
       date:
         expense?.date ||
-        new Date()
-          .toISOString()
-          .slice(0, 10),
+        getTodayDateKey(),
 
       category:
         expense?.category ||
@@ -1348,32 +2960,39 @@ const ExpenseModal = ({
       status:
         expense?.status ||
         "Paid",
-    }));
+    })
+  );
 
-  const update = (
-    key,
-    value
-  ) => {
-    setForm(
-      (current) => ({
-        ...current,
-        [key]: value,
-      })
-    );
-  };
+  const update =
+    (
+      key,
+      value
+    ) => {
+      setForm(
+        (current) => ({
+          ...current,
+          [key]:
+            value,
+        })
+      );
+    };
 
-  const submit = (
-    event
-  ) => {
-    event.preventDefault();
+  const submit =
+    (
+      event
+    ) => {
+      event.preventDefault();
 
-    onSave({
-      ...form,
-      amount: Number(
-        form.amount || 0
-      ),
-    });
-  };
+      onSave({
+        ...form,
+
+        amount:
+          Number(
+            form.amount ||
+              0
+          ),
+      });
+    };
 
   return (
     <div
@@ -1388,7 +3007,9 @@ const ExpenseModal = ({
         p-4
         backdrop-blur-[3px]
       "
-      onClick={onClose}
+      onClick={
+        onClose
+      }
     >
       <div
         className="
@@ -1405,8 +3026,6 @@ const ExpenseModal = ({
           event.stopPropagation()
         }
       >
-        {/* HEADER */}
-
         <div
           className="
             flex
@@ -1418,7 +3037,13 @@ const ExpenseModal = ({
             py-3.5
           "
         >
-          <div className="flex items-center gap-2.5">
+          <div
+            className="
+              flex
+              items-center
+              gap-2.5
+            "
+          >
             <div
               className="
                 flex
@@ -1431,17 +3056,31 @@ const ExpenseModal = ({
                 text-[#0B6B43]
               "
             >
-              <Receipt size={15} />
+              <Receipt
+                size={15}
+              />
             </div>
 
             <div>
-              <h2 className="text-[13px] font-extrabold text-[#17221D]">
+              <h2
+                className="
+                  text-[13px]
+                  font-extrabold
+                  text-[#17221D]
+                "
+              >
                 {expense
                   ? "Edit Expense"
                   : "Add Expense"}
               </h2>
 
-              <p className="mt-0.5 text-[8px] text-slate-400">
+              <p
+                className="
+                  mt-0.5
+                  text-[8px]
+                  text-slate-400
+                "
+              >
                 {expense
                   ? `${expense.id} details`
                   : "Create a new expense record"}
@@ -1451,7 +3090,9 @@ const ExpenseModal = ({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={
+              onClose
+            }
             className="
               flex
               h-8
@@ -1461,89 +3102,129 @@ const ExpenseModal = ({
               rounded-lg
               text-slate-400
               hover:bg-slate-50
-              hover:text-slate-700
             "
           >
-            <X size={16} />
+            <X
+              size={16}
+            />
           </button>
         </div>
 
-        {/* FORM */}
-
         <form
-          onSubmit={submit}
+          onSubmit={
+            submit
+          }
           className="p-5"
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-            <FormField label="Expense Date">
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-3
+              sm:grid-cols-2
+            "
+          >
+            <FormField
+              label="Expense Date"
+            >
               <input
                 type="date"
-                value={form.date}
-                onChange={(event) =>
+                value={
+                  form.date
+                }
+                onChange={(
+                  event
+                ) =>
                   update(
                     "date",
                     event.target.value
                   )
                 }
                 required
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
-            <FormField label="Category">
+            <FormField
+              label="Category"
+            >
               <select
-                value={form.category}
-                onChange={(event) =>
+                value={
+                  form.category
+                }
+                onChange={(
+                  event
+                ) =>
                   update(
                     "category",
                     event.target.value
                   )
                 }
-                className={inputClass}
+                className={
+                  inputClass
+                }
               >
-                <option>Fuel</option>
+                <option>
+                  Fuel
+                </option>
+
                 <option>
                   Vehicle Maintenance
                 </option>
+
                 <option>
                   Insurance
                 </option>
+
                 <option>
                   Registration / RC
                 </option>
+
                 <option>
                   Collection Expense
                 </option>
+
                 <option>
                   Office Expense
                 </option>
+
                 <option>
                   Legal Expense
                 </option>
+
                 <option>
                   Miscellaneous
                 </option>
               </select>
             </FormField>
 
-            <FormField label="Sub Category">
+            <FormField
+              label="Sub Category"
+            >
               <input
                 value={
                   form.subCategory
                 }
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   update(
                     "subCategory",
                     event.target.value
                   )
                 }
                 placeholder="Enter sub category"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
-            <FormField label="Amount">
+            <FormField
+              label="Amount"
+            >
               <div className="relative">
                 <span
                   className="
@@ -1563,8 +3244,12 @@ const ExpenseModal = ({
                   type="number"
                   min="0"
                   step="0.01"
-                  value={form.amount}
-                  onChange={(event) =>
+                  value={
+                    form.amount
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     update(
                       "amount",
                       event.target.value
@@ -1577,83 +3262,128 @@ const ExpenseModal = ({
               </div>
             </FormField>
 
-            <FormField label="Payment Mode">
+            <FormField
+              label="Payment Mode"
+            >
               <select
                 value={
                   form.paymentMode
                 }
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   update(
                     "paymentMode",
                     event.target.value
                   )
                 }
-                className={inputClass}
+                className={
+                  inputClass
+                }
               >
-                <option>Cash</option>
-                <option>Bank</option>
-                <option>UPI</option>
-                <option>Card</option>
+                <option>
+                  Cash
+                </option>
+
+                <option>
+                  Bank
+                </option>
+
+                <option>
+                  UPI
+                </option>
+
+                <option>
+                  Card
+                </option>
               </select>
             </FormField>
 
-            <FormField label="Paid By">
+            <FormField
+              label="Paid By"
+            >
               <input
-                value={form.paidBy}
-                onChange={(event) =>
+                value={
+                  form.paidBy
+                }
+                onChange={(
+                  event
+                ) =>
                   update(
                     "paidBy",
                     event.target.value
                   )
                 }
                 placeholder="Employee / branch"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
-            <FormField label="Vendor">
+            <FormField
+              label="Vendor"
+            >
               <input
-                value={form.vendor}
-                onChange={(event) =>
+                value={
+                  form.vendor
+                }
+                onChange={(
+                  event
+                ) =>
                   update(
                     "vendor",
                     event.target.value
                   )
                 }
                 placeholder="Vendor name"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
-            <FormField label="Reference / Invoice No.">
+            <FormField
+              label="Reference / Invoice No."
+            >
               <input
                 value={
                   form.reference
                 }
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   update(
                     "reference",
                     event.target.value
                   )
                 }
                 placeholder="Reference number"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
             <div className="sm:col-span-2">
-              <FormField label="Description">
+              <FormField
+                label="Description"
+              >
                 <textarea
                   value={
                     form.description
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     update(
                       "description",
                       event.target.value
                     )
                   }
-                  rows={3}
+                  rows={
+                    3
+                  }
                   placeholder="Enter expense description"
                   className={`
                     ${inputClass}
@@ -1666,25 +3396,35 @@ const ExpenseModal = ({
               </FormField>
             </div>
 
-            <FormField label="Status">
+            <FormField
+              label="Status"
+            >
               <select
-                value={form.status}
-                onChange={(event) =>
+                value={
+                  form.status
+                }
+                onChange={(
+                  event
+                ) =>
                   update(
                     "status",
                     event.target.value
                   )
                 }
-                className={inputClass}
+                className={
+                  inputClass
+                }
               >
-                <option>Paid</option>
-                <option>Pending</option>
+                <option>
+                  Paid
+                </option>
+
+                <option>
+                  Pending
+                </option>
               </select>
             </FormField>
-
           </div>
-
-          {/* FOOTER */}
 
           <div
             className="
@@ -1700,7 +3440,9 @@ const ExpenseModal = ({
           >
             <button
               type="button"
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               className="
                 h-9
                 rounded-lg
@@ -1765,7 +3507,9 @@ const ExpenseViewModal = ({
         p-4
         backdrop-blur-[3px]
       "
-      onClick={onClose}
+      onClick={
+        onClose
+      }
     >
       <div
         className="
@@ -1820,7 +3564,9 @@ const ExpenseViewModal = ({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={
+              onClose
+            }
             className="
               flex
               h-8
@@ -1832,7 +3578,9 @@ const ExpenseViewModal = ({
               hover:bg-slate-50
             "
           >
-            <X size={16} />
+            <X
+              size={16}
+            />
           </button>
         </div>
 
@@ -1872,7 +3620,14 @@ const ExpenseViewModal = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <div
+            className="
+              grid
+              grid-cols-2
+              gap-x-6
+              gap-y-4
+            "
+          >
             <InfoItem
               label="Date"
               value={formatDisplayDate(
@@ -1953,7 +3708,9 @@ const ExpenseViewModal = ({
         >
           <button
             type="button"
-            onClick={onDelete}
+            onClick={
+              onDelete
+            }
             className="
               text-[9px]
               font-bold
@@ -1964,10 +3721,18 @@ const ExpenseViewModal = ({
             Delete Expense
           </button>
 
-          <div className="flex items-center gap-2">
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+            "
+          >
             <button
               type="button"
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               className="
                 h-8
                 rounded-lg
@@ -1984,7 +3749,9 @@ const ExpenseViewModal = ({
 
             <button
               type="button"
-              onClick={onEdit}
+              onClick={
+                onEdit
+              }
               className="
                 inline-flex
                 h-8
@@ -1999,7 +3766,10 @@ const ExpenseViewModal = ({
                 hover:bg-[#095B3B]
               "
             >
-              <Pencil size={11} />
+              <Pencil
+                size={11}
+              />
+
               Edit
             </button>
           </div>
@@ -2040,7 +3810,8 @@ const InfoItem = ({
           text-[#253252]
         "
       >
-        {value || "—"}
+        {value ||
+          "—"}
       </p>
     </div>
   );
@@ -2101,12 +3872,13 @@ const ExpenseStatus = ({
   status,
 }) => {
   const normalized =
-    String(status || "")
-      .trim()
-      .toLowerCase();
+    normalize(
+      status
+    );
 
   const isPaid =
-    normalized === "paid";
+    normalized ===
+    "paid";
 
   return (
     <span
@@ -2117,6 +3889,7 @@ const ExpenseStatus = ({
         py-1
         text-[7px]
         font-extrabold
+
         ${
           isPaid
             ? "bg-[#EAF5EF] text-[#0B6B43]"
@@ -2144,7 +3917,9 @@ const IconButton = ({
     <button
       type="button"
       title={title}
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className="
         flex
         h-7
@@ -2162,7 +3937,9 @@ const IconButton = ({
         hover:text-[#0B6B43]
       "
     >
-      <Icon size={12} />
+      <Icon
+        size={12}
+      />
     </button>
   );
 };
@@ -2187,7 +3964,9 @@ const EmptyExpenses = () => {
           text-slate-400
         "
       >
-        <Receipt size={17} />
+        <Receipt
+          size={17}
+        />
       </div>
 
       <p
@@ -2215,6 +3994,40 @@ const EmptyExpenses = () => {
 };
 
 /* =========================================================
+   EMPTY HISTORY
+========================================================= */
+
+const EmptyHistory = () => {
+  return (
+    <div
+      className="
+        px-3
+        py-8
+        text-center
+      "
+    >
+      <TrendingUp
+        size={16}
+        className="
+          mx-auto
+          text-slate-300
+        "
+      />
+
+      <p
+        className="
+          mt-2
+          text-[8px]
+          text-slate-400
+        "
+      >
+        No expense data for this range.
+      </p>
+    </div>
+  );
+};
+
+/* =========================================================
    TABLE HEADER
 ========================================================= */
 
@@ -2235,8 +4048,10 @@ const TableHeader = ({
         uppercase
         tracking-[0.05em]
         text-slate-400
+
         ${
-          align === "center"
+          align ===
+          "center"
             ? "text-center"
             : "text-left"
         }
@@ -2254,35 +4069,49 @@ const TableHeader = ({
 const getExpenseIcon = (
   category
 ) => {
-  switch (category) {
+  switch (
+    category
+  ) {
     case "Fuel":
       return (
-        <Fuel size={13} />
+        <Fuel
+          size={13}
+        />
       );
 
     case "Vehicle Maintenance":
       return (
-        <Car size={13} />
+        <Car
+          size={13}
+        />
       );
 
     case "Office Expense":
       return (
-        <Building2 size={13} />
+        <Building2
+          size={13}
+        />
       );
 
     case "Collection Expense":
       return (
-        <UserRound size={13} />
+        <UserRound
+          size={13}
+        />
       );
 
     case "Insurance":
       return (
-        <FileText size={13} />
+        <FileText
+          size={13}
+        />
       );
 
     default:
       return (
-        <Receipt size={13} />
+        <Receipt
+          size={13}
+        />
       );
   }
 };
@@ -2290,6 +4119,86 @@ const getExpenseIcon = (
 /* =========================================================
    HELPERS
 ========================================================= */
+
+const normalize = (
+  value
+) => {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+};
+
+const toNumber = (
+  value
+) => {
+  const number =
+    Number(value);
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
+};
+
+const getDateKey = (
+  value
+) => {
+  if (!value) {
+    return "";
+  }
+
+  const raw =
+    String(value);
+
+  const match =
+    raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return [
+    date.getFullYear(),
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    ),
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    ),
+  ].join("-");
+};
+
+const getTodayDateKey =
+  () => {
+    const date =
+      new Date();
+
+    return getDateKey(
+      date
+    );
+  };
 
 const formatMoney = (
   value
@@ -2325,8 +4234,30 @@ const formatDisplayDate = (
     return "—";
   }
 
+  const raw =
+    String(value);
+
+  const match =
+    raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
   const date =
-    new Date(value);
+    match
+      ? new Date(
+          Number(
+            match[1]
+          ),
+          Number(
+            match[2]
+          ) - 1,
+          Number(
+            match[3]
+          )
+        )
+      : new Date(
+          value
+        );
 
   if (
     Number.isNaN(
@@ -2345,5 +4276,75 @@ const formatDisplayDate = (
     }
   );
 };
+
+const formatDateInput = (
+  value
+) => {
+  if (
+    !value ||
+    Number.isNaN(
+      value.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return [
+    value.getFullYear(),
+    String(
+      value.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    ),
+    String(
+      value.getDate()
+    ).padStart(
+      2,
+      "0"
+    ),
+  ].join("-");
+};
+
+const formatMonthLabel =
+  (
+    value
+  ) => {
+    if (!value) {
+      return "—";
+    }
+
+    const match =
+      String(
+        value
+      ).match(
+        /^(\d{4})-(\d{2})$/
+      );
+
+    if (!match) {
+      return value;
+    }
+
+    const date =
+      new Date(
+        Number(
+          match[1]
+        ),
+        Number(
+          match[2]
+        ) - 1,
+        1
+      );
+
+    return date.toLocaleDateString(
+      "en-IN",
+      {
+        month:
+          "long",
+        year:
+          "numeric",
+      }
+    );
+  };
 
 export default ExpenseControl;

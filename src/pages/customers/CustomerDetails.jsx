@@ -36,6 +36,9 @@ import {
 import {
   getCustomerById,
 } from "../../services/customerStorage";
+import {
+  getCustomerLoans,
+} from "../../services/reloanStorage";
 
 import {
   getEmi,
@@ -85,6 +88,11 @@ const CustomerDetails = () => {
     );
 
     window.addEventListener(
+      "auto-finance:data-updated",
+      handleUpdate
+    );
+
+    window.addEventListener(
       "storage",
       handleUpdate
     );
@@ -92,6 +100,11 @@ const CustomerDetails = () => {
     return () => {
       window.removeEventListener(
         "fleetopz:data-updated",
+        handleUpdate
+      );
+
+      window.removeEventListener(
+        "auto-finance:data-updated",
         handleUpdate
       );
 
@@ -178,6 +191,11 @@ const CustomerDetails = () => {
     customer?.loan ||
     {};
 
+  const customerLoans =
+    getCustomerLoans(
+      customer
+    );
+
   const calculation =
     loan?.calculation ||
     {};
@@ -237,6 +255,29 @@ const CustomerDetails = () => {
     "Vehicle not assigned";
 
   /* =====================================================
+     LOAN STATUS
+  ====================================================== */
+
+  const loanStatus =
+    getLoanStatus(
+      loan
+    );
+
+  const isForeclosed =
+    isForeclosedLoan(
+      loan
+    );
+
+  const isClosed =
+    isClosedLoan(
+      loan
+    );
+
+  const isTerminalLoan =
+    isForeclosed ||
+    isClosed;
+
+  /* =====================================================
      LOAN VALUES
   ====================================================== */
 
@@ -250,12 +291,25 @@ const CustomerDetails = () => {
       getEmi(loan) || 0
     );
 
-  const outstandingAmount =
+  /*
+   * For closed / foreclosed loans,
+   * collection workflow must no longer
+   * present an active outstanding balance.
+   *
+   * We do not mutate storage here.
+   * This is only display logic.
+   */
+  const rawOutstandingAmount =
     Number(
       getLoanOutstanding(
         loan
       ) || 0
     );
+
+  const outstandingAmount =
+    isTerminalLoan
+      ? 0
+      : rawOutstandingAmount;
 
   const totalPayable =
     Number(
@@ -263,11 +317,13 @@ const CustomerDetails = () => {
     );
 
   const collectedAmount =
-    Math.max(
-      totalPayable -
-        outstandingAmount,
-      0
-    );
+    isTerminalLoan
+      ? totalPayable
+      : Math.max(
+          totalPayable -
+            outstandingAmount,
+          0
+        );
 
   /* =====================================================
      INSTALLMENT COUNTS
@@ -283,56 +339,69 @@ const CustomerDetails = () => {
 
         return (
           status === "paid" ||
-          status === "completed"
+          status === "completed" ||
+          status === "closed" ||
+          status === "settled"
         );
       }
     ).length;
 
   const pendingInstallments =
-    repaymentSchedule.filter(
-      (row) => {
-        const status =
-          normalizeStatus(
-            row?.status
-          );
+    isTerminalLoan
+      ? 0
+      : repaymentSchedule.filter(
+          (row) => {
+            const status =
+              normalizeStatus(
+                row?.status
+              );
 
-        if (
-          status !== "pending" &&
-          status !==
-            "partially paid" &&
-          status !==
-            "partially-paid"
-        ) {
-          return false;
-        }
+            if (
+              status !== "pending" &&
+              status !==
+                "partially paid" &&
+              status !==
+                "partially-paid" &&
+              status !== "partial"
+            ) {
+              return false;
+            }
 
-        return !isOverdueRow(
-          row
-        );
-      }
-    ).length;
+            return !isOverdueRow(
+              row
+            );
+          }
+        ).length;
 
   const overdueRows =
-    repaymentSchedule.filter(
-      (row) =>
-        isOverdueRow(row)
-    );
+    isTerminalLoan
+      ? []
+      : repaymentSchedule.filter(
+          (row) =>
+            isOverdueRow(
+              row
+            )
+        );
 
   const overdueInstallments =
     overdueRows.length;
 
   const totalOverdueAmount =
-    overdueRows.reduce(
-      (sum, row) =>
-        sum +
-        Number(
-          row?.paymentAmount ??
-            row?.emiAmount ??
-            row?.amount ??
-            0
-        ),
-      0
-    );
+    isTerminalLoan
+      ? 0
+      : overdueRows.reduce(
+          (sum, row) =>
+            sum +
+            Number(
+              row?.remainingAmount ??
+                row?.balance ??
+                row?.paymentAmount ??
+                row?.emiAmount ??
+                row?.amount ??
+                0
+            ),
+          0
+        );
 
   const totalInstallments =
     repaymentSchedule.length;
@@ -342,9 +411,11 @@ const CustomerDetails = () => {
   ====================================================== */
 
   const nextDue =
-    getNextPayment(
-      repaymentSchedule
-    );
+    isTerminalLoan
+      ? null
+      : getNextPayment(
+          loan
+        );
 
   const nextDueDate =
     nextDue?.dueDate
@@ -355,7 +426,9 @@ const CustomerDetails = () => {
 
   const nextDueAmount =
     Number(
-      nextDue?.paymentAmount ??
+      nextDue?.remainingAmount ??
+        nextDue?.balance ??
+        nextDue?.paymentAmount ??
         nextDue?.emiAmount ??
         nextDue?.amount ??
         emiAmount ??
@@ -363,14 +436,11 @@ const CustomerDetails = () => {
     );
 
   const nextDueDays =
-    getDaysFromToday(
-      nextDue?.dueDate
-    );
-
-  const loanStatus =
-    getLoanStatus(
-      loan
-    );
+    nextDue?.dueDate
+      ? getDaysFromToday(
+          nextDue.dueDate
+        )
+      : 0;
 
   /* =====================================================
      TABS
@@ -442,8 +512,6 @@ const CustomerDetails = () => {
             lg:justify-between
           "
         >
-          {/* LEFT */}
-
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -471,9 +539,7 @@ const CustomerDetails = () => {
                 hover:text-[#0B5D3B]
               "
             >
-              <ArrowLeft
-                size={15}
-              />
+              <ArrowLeft size={15} />
             </button>
 
             <div className="min-w-0">
@@ -490,11 +556,27 @@ const CustomerDetails = () => {
                   {customerName}
                 </h1>
 
+                {/* Customer status stays independent from loan status */}
                 <StatusBadge
                   label={
                     customerStatus
                   }
                 />
+
+                {/* Loan status is shown separately */}
+                {isForeclosed && (
+                  <LoanTerminalBadge
+                    label="Foreclosed"
+                    tone="foreclosed"
+                  />
+                )}
+
+                {isClosed && !isForeclosed && (
+                  <LoanTerminalBadge
+                    label="Closed"
+                    tone="closed"
+                  />
+                )}
               </div>
 
               <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -512,8 +594,6 @@ const CustomerDetails = () => {
               </div>
             </div>
           </div>
-
-          {/* ACTIONS */}
 
           <div className="flex flex-wrap items-center gap-1.5">
             <HeaderButton
@@ -562,7 +642,6 @@ const CustomerDetails = () => {
                 transition-all
                 hover:-translate-y-[1px]
                 hover:bg-[#095B3B]
-                hover:shadow-[0_7px_18px_rgba(11,107,67,0.25)]
               "
             >
               <ActivityIcon
@@ -644,19 +723,14 @@ const CustomerDetails = () => {
 
       {activeTab ===
         "Overview" && (
-     <div
-  className="
-    grid
-    gap-3
-    xl:grid-cols-[minmax(0,3fr)_320px]
-    2xl:grid-cols-[minmax(0,3.2fr)_335px]
-  "
->
-
-          {/* =================================================
-              LEFT SIDE
-          ================================================== */}
-
+        <div
+          className="
+            grid
+            gap-3
+            xl:grid-cols-[minmax(0,3fr)_320px]
+            2xl:grid-cols-[minmax(0,3.2fr)_335px]
+          "
+        >
           <div className="min-w-0 space-y-3">
 
             {/* CUSTOMER INFORMATION */}
@@ -670,15 +744,15 @@ const CustomerDetails = () => {
                 </CardLink>
               }
             >
-             <div
-  className="
-    grid
-    grid-cols-2
-    gap-x-6
-    gap-y-4
-    lg:grid-cols-3
-  "
->
+              <div
+                className="
+                  grid
+                  grid-cols-2
+                  gap-x-6
+                  gap-y-4
+                  lg:grid-cols-3
+                "
+              >
                 <DetailItem
                   icon={User}
                   label="Name"
@@ -817,7 +891,7 @@ const CustomerDetails = () => {
               </div>
             </DetailCard>
 
-            {/* PORTFOLIO SNAPSHOT */}
+            {/* FINANCIAL SNAPSHOT */}
 
             <DetailCard
               icon={WalletCards}
@@ -836,7 +910,11 @@ const CustomerDetails = () => {
                   value={`₹${money(
                     loanAmount
                   )}`}
-                  note="Original finance"
+                  note={
+                    isForeclosed
+                      ? "Foreclosed account"
+                      : "Original finance"
+                  }
                   tone="green"
                   icon={IndianRupee}
                 />
@@ -846,9 +924,19 @@ const CustomerDetails = () => {
                   value={`₹${money(
                     outstandingAmount
                   )}`}
-                  note="Remaining payable"
-                  tone="green"
-                  icon={WalletCards}
+                  note={
+                    isTerminalLoan
+                      ? "No active balance"
+                      : "Remaining payable"
+                  }
+                  tone={
+                    isTerminalLoan
+                      ? "neutral"
+                      : "green"
+                  }
+                  icon={
+                    WalletCards
+                  }
                 />
 
                 <SnapshotCard
@@ -856,7 +944,11 @@ const CustomerDetails = () => {
                   value={`₹${money(
                     collectedAmount
                   )}`}
-                  note="Paid so far"
+                  note={
+                    isTerminalLoan
+                      ? "Account resolved"
+                      : "Paid so far"
+                  }
                   tone="blue"
                   icon={
                     CheckCircle2
@@ -869,8 +961,10 @@ const CustomerDetails = () => {
                     totalOverdueAmount
                   )}`}
                   note={
-                    overdueInstallments >
-                    0
+                    isTerminalLoan
+                      ? "No active overdue"
+                      : overdueInstallments >
+                        0
                       ? `${overdueInstallments} installment${
                           overdueInstallments ===
                           1
@@ -879,18 +973,22 @@ const CustomerDetails = () => {
                         }`
                       : "No overdue"
                   }
-                  tone="red"
+                  tone={
+                    isTerminalLoan
+                      ? "neutral"
+                      : "red"
+                  }
                   icon={
-                    AlertTriangle
+                    isTerminalLoan
+                      ? CheckCircle2
+                      : AlertTriangle
                   }
                 />
               </div>
             </DetailCard>
           </div>
 
-          {/* =================================================
-              RIGHT SIDEBAR
-          ================================================== */}
+          {/* RIGHT SIDEBAR */}
 
           <aside className="space-y-3">
 
@@ -912,11 +1010,23 @@ const CustomerDetails = () => {
               />
 
               <SideValue
-                label="Status"
+                label="Customer Status"
                 value={
                   customerStatus
                 }
                 valueClass="text-[#0B6B43]"
+              />
+
+              <SideValue
+                label="Loan Status"
+                value={
+                  loanStatus
+                }
+                valueClass={
+                  getLoanStatusClass(
+                    loanStatus
+                  )
+                }
               />
 
               <SideValue
@@ -964,130 +1074,119 @@ const CustomerDetails = () => {
                 }
               />
 
-              <QuickAction
-                icon={IndianRupee}
-                label="Receive Payment"
-              />
+              {!isTerminalLoan && (
+                <>
+                  <QuickAction
+                    icon={IndianRupee}
+                    label="Receive Payment"
+                  />
 
-              <QuickAction
-                icon={Bell}
-                label="Send Reminder"
-              />
+                  <QuickAction
+                    icon={Bell}
+                    label="Send Reminder"
+                  />
+                </>
+              )}
             </SidebarCard>
 
             {/* UPCOMING DUE */}
 
-            <SidebarCard title="Upcoming Dues">
-              {!nextDue ? (
-                <div
-                  className="
-                    rounded-lg
-                    bg-slate-50
-                    px-3
-                    py-3
-                    text-center
-                  "
-                >
-                  <p className="text-[9px] font-semibold text-slate-500">
-                    No upcoming payment
-                  </p>
-                </div>
-              ) : (
-                <div
-                  className={`
-                    rounded-lg
-                    border
-                    px-3
-                    py-3
-                    ${
-                      nextDueDays <
-                      0
-                        ? "border-red-100 bg-red-50"
-                        : "border-[#D8EEDF] bg-[#F5FBF7]"
-                    }
-                  `}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-400">
-                      Next EMI
-                    </span>
-
-                    <Clock3
-                      size={12}
-                      className={
-                        nextDueDays <
-                        0
-                          ? "text-red-500"
-                          : "text-[#0B6B43]"
-                      }
-                    />
+            {!isTerminalLoan ? (
+              <SidebarCard title="Upcoming Dues">
+                {!nextDue ? (
+                  <div
+                    className="
+                      rounded-lg
+                      bg-slate-50
+                      px-3
+                      py-3
+                      text-center
+                    "
+                  >
+                    <p className="text-[9px] font-semibold text-slate-500">
+                      No upcoming payment
+                    </p>
                   </div>
-
-                 <span
-  className={`
-    mt-2
-    inline-flex
-    rounded-md
-    px-2.5
-    py-1
-    text-[8px]
-    font-extrabold
-    ${
-      nextDueDays < 0
-        ? "bg-red-100 text-red-600"
-        : nextDueDays === 0
-        ? "bg-amber-100 text-amber-700"
-        : "bg-[#E4F3EA] text-[#0B6B43]"
-    }
-  `}
->
-  {nextDueDays < 0
-    ? `${Math.abs(nextDueDays)} Days Overdue`
-    : nextDueDays === 0
-    ? "Due Today"
-    : `${nextDueDays} Days Left`}
-</span>
-
-                 <p className="mt-1.5 text-[18px] font-extrabold tracking-tight text-[#17221D]">
-                    ₹
-                    {money(
-                      nextDueAmount
-                    )}
-                  </p>
-
-                  <span
+                ) : (
+                  <div
                     className={`
-                      mt-2
-                      inline-flex
-                      rounded-md
-                      px-2
-                      py-1
-                      text-[7px]
-                      font-bold
+                      rounded-lg
+                      border
+                      px-3
+                      py-3
                       ${
                         nextDueDays <
                         0
-                          ? "bg-red-100 text-red-600"
-                          : nextDueDays ===
-                            0
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-[#E4F3EA] text-[#0B6B43]"
+                          ? "border-red-100 bg-red-50"
+                          : "border-[#D8EEDF] bg-[#F5FBF7]"
                       }
                     `}
                   >
-                    {nextDueDays <
-                    0
-                      ? `${Math.abs(
-                          nextDueDays
-                        )} Days Overdue`
-                      : nextDueDays ===
-                        0
-                      ? "Due Today"
-                      : `${nextDueDays} Days Left`}
-                  </span>
-                </div>
-              )}
-            </SidebarCard>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-400">
+                        Next EMI
+                      </span>
+
+                      <Clock3
+                        size={12}
+                        className={
+                          nextDueDays <
+                          0
+                            ? "text-red-500"
+                            : "text-[#0B6B43]"
+                        }
+                      />
+                    </div>
+
+                    <span
+                      className={`
+                        mt-2
+                        inline-flex
+                        rounded-md
+                        px-2.5
+                        py-1
+                        text-[8px]
+                        font-extrabold
+                        ${
+                          nextDueDays < 0
+                            ? "bg-red-100 text-red-600"
+                            : nextDueDays === 0
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-[#E4F3EA] text-[#0B6B43]"
+                        }
+                      `}
+                    >
+                      {nextDueDays < 0
+                        ? `${Math.abs(nextDueDays)} Days Overdue`
+                        : nextDueDays ===
+                          0
+                        ? "Due Today"
+                        : `${nextDueDays} Days Left`}
+                    </span>
+
+                    <p className="mt-1.5 text-[18px] font-extrabold tracking-tight text-[#17221D]">
+                      ₹
+                      {money(
+                        nextDueAmount
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-[8px] font-semibold text-slate-400">
+                      {nextDueDate}
+                    </p>
+                  </div>
+                )}
+              </SidebarCard>
+            ) : (
+              <TerminalLoanCard
+                loanStatus={
+                  loanStatus
+                }
+                isForeclosed={
+                  isForeclosed
+                }
+              />
+            )}
 
             {/* LOAN SUMMARY */}
 
@@ -1106,36 +1205,53 @@ const CustomerDetails = () => {
                   loanStatus
                 }
                 valueClass={
-                  loanStatus ===
-                  "Overdue"
-                    ? "text-red-600"
-                    : "text-[#0B5D3B]"
+                  getLoanStatusClass(
+                    loanStatus
+                  )
                 }
               />
 
               <SideValue
                 label="EMI"
-                value={`₹${money(
-                  emiAmount
-                )}`}
+                value={
+                  isTerminalLoan
+                    ? "—"
+                    : `₹${money(
+                        emiAmount
+                      )}`
+                }
               />
 
               <SideValue
                 label="Outstanding"
-                value={`₹${money(
-                  outstandingAmount
-                )}`}
-                valueClass="text-[#0B6B43]"
+                value={
+                  isTerminalLoan
+                    ? "₹0"
+                    : `₹${money(
+                        outstandingAmount
+                      )}`
+                }
+                valueClass={
+                  isTerminalLoan
+                    ? "text-slate-500"
+                    : "text-[#0B6B43]"
+                }
               />
 
               <SideValue
                 label="Overdue"
-                value={`₹${money(
-                  totalOverdueAmount
-                )}`}
+                value={
+                  isTerminalLoan
+                    ? "₹0"
+                    : `₹${money(
+                        totalOverdueAmount
+                      )}`
+                }
                 valueClass={
-                  totalOverdueAmount >
-                  0
+                  isTerminalLoan
+                    ? "text-slate-500"
+                    : totalOverdueAmount >
+                      0
                     ? "text-red-600"
                     : "text-slate-500"
                 }
@@ -1143,7 +1259,11 @@ const CustomerDetails = () => {
 
               <SideValue
                 label="Installments"
-                value={`${paidInstallments}/${totalInstallments}`}
+                value={
+                  isTerminalLoan
+                    ? "Account closed"
+                    : `${paidInstallments}/${totalInstallments}`
+                }
               />
             </SidebarCard>
           </aside>
@@ -1170,6 +1290,7 @@ const CustomerDetails = () => {
         "Loan Details" && (
         <LoanTab
           loan={loan}
+          customerLoans={customerLoans}
           calculation={
             calculation
           }
@@ -1195,6 +1316,15 @@ const CustomerDetails = () => {
           paymentHistory={
             paymentHistory
           }
+          isForeclosed={
+            isForeclosed
+          }
+          isClosed={
+            isClosed
+          }
+          loanStatus={
+            loanStatus
+          }
         />
       )}
 
@@ -1212,12 +1342,11 @@ const CustomerDetails = () => {
           repaymentSchedule={
             repaymentSchedule
           }
+          isTerminalLoan={
+            isTerminalLoan
+          }
         />
       )}
-
-      {/* =================================================
-          PAGE CSS
-      ================================================== */}
 
       <style>{`
         .vehicle-image-placeholder {
@@ -1234,6 +1363,112 @@ const CustomerDetails = () => {
 };
 
 /* =========================================================
+   TERMINAL LOAN CARD
+========================================================= */
+
+const TerminalLoanCard = ({
+  loanStatus,
+  isForeclosed,
+}) => {
+  return (
+    <section
+      className="
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        p-3.5
+        shadow-sm
+      "
+    >
+      <div
+        className={`
+          rounded-lg
+          border
+          px-3
+          py-3
+          ${
+            isForeclosed
+              ? "border-violet-200 bg-violet-50"
+              : "border-emerald-200 bg-emerald-50"
+          }
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle2
+            size={16}
+            className={
+              isForeclosed
+                ? "text-violet-600"
+                : "text-emerald-600"
+            }
+          />
+
+          <div>
+            <p
+              className={`
+                text-[8px]
+                font-bold
+                uppercase
+                tracking-wide
+                ${
+                  isForeclosed
+                    ? "text-violet-600"
+                    : "text-emerald-600"
+                }
+              `}
+            >
+              Loan Status
+            </p>
+
+            <p className="mt-0.5 text-[13px] font-extrabold text-[#17221D]">
+              {loanStatus}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-2 text-[8px] font-medium leading-4 text-slate-500">
+          {isForeclosed
+            ? "This loan has been foreclosed. No active EMI, due or collection action is required."
+            : "This loan account is closed. No active EMI, due or collection action is required."}
+        </p>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   LOAN TERMINAL BADGE
+========================================================= */
+
+const LoanTerminalBadge = ({
+  label,
+  tone = "closed",
+}) => {
+  const className =
+    tone === "foreclosed"
+      ? "bg-violet-50 text-violet-700"
+      : "bg-emerald-50 text-emerald-700";
+
+  return (
+    <span
+      className={`
+        inline-flex
+        items-center
+        rounded-full
+        px-2.5
+        py-1
+        text-[7px]
+        font-extrabold
+        ${className}
+      `}
+    >
+      {label}
+    </span>
+  );
+};
+
+/* =========================================================
    VEHICLE TAB
 ========================================================= */
 
@@ -1243,9 +1478,6 @@ const VehicleTab = ({
 }) => {
   return (
     <div className="space-y-3">
-
-      {/* VEHICLE INFORMATION */}
-
       <DetailCard
         icon={Car}
         title="Vehicle Information"
@@ -1262,8 +1494,6 @@ const VehicleTab = ({
             lg:grid-cols-[160px_minmax(0,1fr)]
           "
         >
-          {/* VEHICLE IMAGE */}
-
           <div
             className="
               overflow-hidden
@@ -1283,9 +1513,7 @@ const VehicleTab = ({
                 w-full
                 object-cover
               "
-              onError={(
-                event
-              ) => {
+              onError={(event) => {
                 event.currentTarget.src =
                   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect width='400' height='260' fill='%23eef6f1'/%3E%3Ctext x='200' y='135' text-anchor='middle' font-family='Arial' font-size='22' fill='%23718278'%3EVehicle%3C/text%3E%3C/svg%3E";
               }}
@@ -1308,8 +1536,6 @@ const VehicleTab = ({
               </p>
             </div>
           </div>
-
-          {/* VEHICLE DETAILS */}
 
           <div
             className="
@@ -1380,8 +1606,6 @@ const VehicleTab = ({
           </div>
         </div>
       </DetailCard>
-
-      {/* REGISTRATION / RC */}
 
       <DetailCard
         icon={FileText}
@@ -1498,8 +1722,6 @@ const VehicleTab = ({
         </div>
       </DetailCard>
 
-      {/* INSURANCE */}
-
       <DetailCard
         icon={ShieldCheck}
         title="Insurance Information"
@@ -1582,6 +1804,7 @@ const VehicleTab = ({
 
 const LoanTab = ({
   loan,
+  customerLoans,
   calculation,
   charges,
   collection,
@@ -1591,9 +1814,88 @@ const LoanTab = ({
   paidInstallments,
   pendingInstallments,
   paymentHistory,
+  isForeclosed,
+  isClosed,
+  loanStatus,
 }) => {
+  const isTerminalLoan =
+    isForeclosed ||
+    isClosed;
+
   return (
     <div className="space-y-3">
+
+      {/* TERMINAL STATUS */}
+
+      {isTerminalLoan && (
+        <DetailCard
+          icon={CheckCircle2}
+          title="Loan Status"
+        >
+          <div
+            className={`
+              rounded-xl
+              border
+              p-4
+              ${
+                isForeclosed
+                  ? "border-violet-200 bg-violet-50"
+                  : "border-emerald-200 bg-emerald-50"
+              }
+            `}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  ${
+                    isForeclosed
+                      ? "bg-violet-100 text-violet-600"
+                      : "bg-emerald-100 text-emerald-600"
+                  }
+                `}
+              >
+                <CheckCircle2
+                  size={19}
+                />
+              </div>
+
+              <div>
+                <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400">
+                  Current Loan Status
+                </p>
+
+                <p
+                  className={`
+                    mt-1
+                    text-[18px]
+                    font-extrabold
+                    ${
+                      isForeclosed
+                        ? "text-violet-700"
+                        : "text-emerald-700"
+                    }
+                  `}
+                >
+                  {loanStatus}
+                </p>
+
+                <p className="mt-1 text-[9px] font-medium text-slate-500">
+                  {isForeclosed
+                    ? "Loan has been foreclosed. Active EMI collection and overdue monitoring are disabled."
+                    : "Loan account is closed. Active EMI collection and overdue monitoring are disabled."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </DetailCard>
+      )}
 
       {/* LOAN INFORMATION */}
 
@@ -1621,11 +1923,9 @@ const LoanTab = ({
           <MetricField
             label="Loan Status"
             value={
-              getLoanStatus(
-                loan
-              )
+              loanStatus
             }
-            accent
+            accent={!isForeclosed}
           />
 
           <MetricField
@@ -1681,13 +1981,17 @@ const LoanTab = ({
                 ? "First Payment"
                 : "EMI"
             }
-            value={`₹${money(
-              loan?.repayment
-                ?.method ===
-                "Principal"
-                ? calculation?.firstPayment
-                : calculation?.emiAmount
-            )}`}
+            value={
+              isTerminalLoan
+                ? "—"
+                : `₹${money(
+                    loan?.repayment
+                      ?.method ===
+                      "Principal"
+                      ? calculation?.firstPayment
+                      : calculation?.emiAmount
+                  )}`
+            }
             accent
           />
 
@@ -1741,7 +2045,9 @@ const LoanTab = ({
           <MetricField
             label="First Due Date"
             value={
-              loan?.firstDueDate
+              isTerminalLoan
+                ? "—"
+                : loan?.firstDueDate
                 ? formatDate(
                     loan.firstDueDate
                   )
@@ -1749,6 +2055,36 @@ const LoanTab = ({
             }
           />
         </div>
+
+        {customerLoans.length > 1 && (
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
+              Loan History
+            </p>
+            <div className="space-y-2">
+              {customerLoans.map((historyLoan) => (
+                <div key={historyLoan.id || historyLoan.loanNumber} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div>
+                    <p className="text-[11px] font-bold text-[#17221D]">
+                      {historyLoan.loanNumber || "—"}
+                    </p>
+                    <p className="text-[9px] text-slate-500">
+                      {historyLoan.previousLoanId || historyLoan.previousLoanNumber ? "NEW LOAN · FROM RE-LOAN WORKFLOW" : "NORMAL"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold text-[#17221D]">
+                      {historyLoan.status || "—"}
+                    </p>
+                    <p className="text-[9px] text-slate-500">
+                      ₹{money(getLoanOutstanding(historyLoan))} outstanding
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </DetailCard>
 
       {/* REPAYMENT SUMMARY */}
@@ -1757,62 +2093,123 @@ const LoanTab = ({
         icon={CalendarDays}
         title="Repayment Summary"
       >
-        <div
-          className="
-            grid
-            grid-cols-2
-            gap-2
-            sm:grid-cols-4
-          "
-        >
-          <SnapshotCard
-            label="Total Installments"
-            value={
-              repaymentSchedule.length
-            }
-            note="Scheduled"
-            tone="blue"
-            icon={
-              CalendarDays
-            }
-          />
+        {isTerminalLoan ? (
+          <div
+            className="
+              rounded-xl
+              border
+              border-slate-200
+              bg-slate-50
+              px-4
+              py-4
+            "
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SnapshotCard
+                label="Status"
+                value={
+                  loanStatus
+                }
+                note="Account resolution"
+                tone={
+                  isForeclosed
+                    ? "neutral"
+                    : "green"
+                }
+                icon={
+                  CheckCircle2
+                }
+              />
 
-          <SnapshotCard
-            label="Paid"
-            value={
-              paidInstallments
-            }
-            note="Completed"
-            tone="green"
-            icon={
-              CheckCircle2
-            }
-          />
+              <SnapshotCard
+                label="Paid"
+                value={
+                  paidInstallments
+                }
+                note="Recorded installments"
+                tone="green"
+                icon={
+                  CheckCircle2
+                }
+              />
 
-          <SnapshotCard
-            label="Pending"
-            value={
-              pendingInstallments
-            }
-            note="Still due"
-            tone="blue"
-            icon={Clock3}
-          />
+              <SnapshotCard
+                label="Pending"
+                value="0"
+                note="No active EMI"
+                tone="neutral"
+                icon={Clock3}
+              />
 
-          <SnapshotCard
-            label="Overdue"
-            value={
-              overdueInstallments
-            }
-            note={`₹${money(
-              totalOverdueAmount
-            )}`}
-            tone="red"
-            icon={
-              AlertTriangle
-            }
-          />
-        </div>
+              <SnapshotCard
+                label="Overdue"
+                value="0"
+                note="No active overdue"
+                tone="neutral"
+                icon={
+                  CheckCircle2
+                }
+              />
+            </div>
+          </div>
+        ) : (
+          <div
+            className="
+              grid
+              grid-cols-2
+              gap-2
+              sm:grid-cols-4
+            "
+          >
+            <SnapshotCard
+              label="Total Installments"
+              value={
+                repaymentSchedule.length
+              }
+              note="Scheduled"
+              tone="blue"
+              icon={
+                CalendarDays
+              }
+            />
+
+            <SnapshotCard
+              label="Paid"
+              value={
+                paidInstallments
+              }
+              note="Completed"
+              tone="green"
+              icon={
+                CheckCircle2
+              }
+            />
+
+            <SnapshotCard
+              label="Pending"
+              value={
+                pendingInstallments
+              }
+              note="Still due"
+              tone="blue"
+              icon={Clock3}
+            />
+
+            <SnapshotCard
+              label="Overdue"
+              value={
+                overdueInstallments
+              }
+              note={`₹${money(
+                totalOverdueAmount
+              )}`}
+              tone="red"
+              icon={
+                AlertTriangle
+              }
+            />
+          </div>
+        )}
       </DetailCard>
 
       {/* CHARGES */}
@@ -1911,144 +2308,176 @@ const LoanTab = ({
           </span>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] border-collapse">
-            <thead className="bg-[#F7FAF8]">
-              <tr>
-                <TableHeader>
-                  #
-                </TableHeader>
+        {isTerminalLoan ? (
+          <div
+            className="
+              rounded-xl
+              border
+              border-slate-200
+              bg-slate-50
+              px-4
+              py-6
+              text-center
+            "
+          >
+            <CheckCircle2
+              size={20}
+              className="
+                mx-auto
+                text-emerald-600
+              "
+            />
 
-                <TableHeader>
-                  Due Date
-                </TableHeader>
+            <p className="mt-2 text-[11px] font-bold text-[#17221D]">
+              No Active Repayment Schedule
+            </p>
 
-                <TableHeader>
-                  Principal
-                </TableHeader>
+            <p className="mt-1 text-[8px] text-slate-400">
+              {isForeclosed
+                ? "This loan has been foreclosed and is no longer part of the active EMI collection workflow."
+                : "This loan is closed and is no longer part of the active EMI collection workflow."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] border-collapse">
+              <thead className="bg-[#F7FAF8]">
+                <tr>
+                  <TableHeader>
+                    #
+                  </TableHeader>
 
-                <TableHeader>
-                  Interest
-                </TableHeader>
+                  <TableHeader>
+                    Due Date
+                  </TableHeader>
 
-                <TableHeader>
-                  EMI
-                </TableHeader>
+                  <TableHeader>
+                    Principal
+                  </TableHeader>
 
-                <TableHeader>
-                  Status
-                </TableHeader>
-              </tr>
-            </thead>
+                  <TableHeader>
+                    Interest
+                  </TableHeader>
 
-            <tbody>
-              {repaymentSchedule.map(
-                (
-                  row,
-                  index
-                ) => {
-                  const overdue =
-                    isOverdueRow(
-                      row
-                    );
+                  <TableHeader>
+                    EMI
+                  </TableHeader>
 
-                  const rawStatus =
-                    normalizeStatus(
-                      row?.status
-                    );
+                  <TableHeader>
+                    Status
+                  </TableHeader>
+                </tr>
+              </thead>
 
-                  const displayStatus =
-                    overdue
-                      ? "Overdue"
-                      : normalizePaymentLabel(
-                          rawStatus
-                        );
+              <tbody>
+                {repaymentSchedule.map(
+                  (
+                    row,
+                    index
+                  ) => {
+                    const overdue =
+                      isOverdueRow(
+                        row
+                      );
 
-                  return (
-                    <tr
-                      key={
-                        row?.id ||
-                        `${row?.dueDate}-${index}`
-                      }
-                      className={`
-                        border-b
-                        border-slate-100
-                        ${
-                          overdue
-                            ? "bg-red-50/30"
-                            : ""
+                    const rawStatus =
+                      normalizeStatus(
+                        row?.status
+                      );
+
+                    const displayStatus =
+                      overdue
+                        ? "Overdue"
+                        : normalizePaymentLabel(
+                            rawStatus
+                          );
+
+                    return (
+                      <tr
+                        key={
+                          row?.id ||
+                          `${row?.dueDate}-${index}`
                         }
-                      `}
-                    >
-                      <td className="px-4 py-2.5 text-[10px] font-bold text-[#253252]">
-                        {row?.installmentNumber ??
-                          row?.installmentNo ??
-                          index +
-                            1}
-                      </td>
-
-                      <td
                         className={`
-                          px-4
-                          py-2.5
-                          text-[10px]
-                          font-semibold
+                          border-b
+                          border-slate-100
                           ${
                             overdue
-                              ? "text-red-600"
-                              : "text-slate-600"
+                              ? "bg-red-50/30"
+                              : ""
                           }
                         `}
                       >
-                        {formatDate(
-                          row?.dueDate
-                        )}
-                      </td>
+                        <td className="px-4 py-2.5 text-[10px] font-bold text-[#253252]">
+                          {row?.installmentNumber ??
+                            row?.installmentNo ??
+                            index +
+                              1}
+                        </td>
 
-                      <td className="px-4 py-2.5 text-[10px] text-slate-600">
-                        ₹
-                        {money(
-                          row?.principal ??
-                            row?.principalAmount ??
-                            row?.principalComponent ??
-                            0
-                        )}
-                      </td>
+                        <td
+                          className={`
+                            px-4
+                            py-2.5
+                            text-[10px]
+                            font-semibold
+                            ${
+                              overdue
+                                ? "text-red-600"
+                                : "text-slate-600"
+                            }
+                          `}
+                        >
+                          {formatDate(
+                            row?.dueDate
+                          )}
+                        </td>
 
-                      <td className="px-4 py-2.5 text-[10px] text-slate-600">
-                        ₹
-                        {money(
-                          row?.interest ??
-                            row?.interestAmount ??
-                            row?.interestComponent ??
-                            0
-                        )}
-                      </td>
+                        <td className="px-4 py-2.5 text-[10px] text-slate-600">
+                          ₹
+                          {money(
+                            row?.principal ??
+                              row?.principalAmount ??
+                              row?.principalComponent ??
+                              0
+                          )}
+                        </td>
 
-                      <td className="px-4 py-2.5 text-[10px] font-bold text-[#17221D]">
-                        ₹
-                        {money(
-                          row?.paymentAmount ??
-                            row?.emiAmount ??
-                            row?.amount ??
-                            0
-                        )}
-                      </td>
+                        <td className="px-4 py-2.5 text-[10px] text-slate-600">
+                          ₹
+                          {money(
+                            row?.interest ??
+                              row?.interestAmount ??
+                              row?.interestComponent ??
+                              0
+                          )}
+                        </td>
 
-                      <td className="px-4 py-2.5">
-                        <StatusBadge
-                          label={
-                            displayStatus
-                          }
-                        />
-                      </td>
-                    </tr>
-                  );
-                }
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <td className="px-4 py-2.5 text-[10px] font-bold text-[#17221D]">
+                          ₹
+                          {money(
+                            row?.paymentAmount ??
+                              row?.emiAmount ??
+                              row?.amount ??
+                              0
+                          )}
+                        </td>
+
+                        <td className="px-4 py-2.5">
+                          <StatusBadge
+                            label={
+                              displayStatus
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </DetailCard>
 
       {/* PAYMENT HISTORY */}
@@ -2136,6 +2565,7 @@ const ActivityTab = ({
   customer,
   paymentHistory,
   repaymentSchedule,
+  isTerminalLoan,
 }) => {
   const events = useMemo(() => {
     const rows = [];
@@ -2202,36 +2632,44 @@ const ActivityTab = ({
       }
     );
 
-    repaymentSchedule
-      .filter(
-        (row) =>
-          isOverdueRow(
-            row
-          )
-      )
-      .forEach(
-        (
-          row,
-          index
-        ) => {
-          rows.push({
-            id:
-              `overdue-${index}-${row?.dueDate}`,
-            title:
-              "EMI overdue",
-            description:
-              `₹${money(
-                row?.paymentAmount ??
-                  row?.emiAmount ??
-                  row?.amount ??
-                  0
-              )} is overdue.`,
-            date:
-              row?.dueDate,
-            tone: "red",
-          });
-        }
-      );
+    /*
+     * Do not create fake overdue events
+     * for terminal loans.
+     */
+    if (!isTerminalLoan) {
+      repaymentSchedule
+        .filter(
+          (row) =>
+            isOverdueRow(
+              row
+            )
+        )
+        .forEach(
+          (
+            row,
+            index
+          ) => {
+            rows.push({
+              id:
+                `overdue-${index}-${row?.dueDate}`,
+              title:
+                "EMI overdue",
+              description:
+                `₹${money(
+                  row?.remainingAmount ??
+                    row?.balance ??
+                    row?.paymentAmount ??
+                    row?.emiAmount ??
+                    row?.amount ??
+                    0
+                )} is overdue.`,
+              date:
+                row?.dueDate,
+              tone: "red",
+            });
+          }
+        );
+    }
 
     return rows.sort(
       (a, b) =>
@@ -2246,6 +2684,7 @@ const ActivityTab = ({
     customer,
     paymentHistory,
     repaymentSchedule,
+    isTerminalLoan,
   ]);
 
   return (
@@ -2579,6 +3018,7 @@ const SnapshotCard = ({
 /* =========================================================
    SIDEBAR CARD
 ========================================================= */
+
 const SidebarCard = ({
   title,
   children,
@@ -2700,8 +3140,6 @@ const QuickAction = ({
           rounded-md
           bg-[#EAF5EF]
           text-[#0B6B43]
-          transition
-          group-hover:bg-[#D8F0E1]
         "
       >
         <Icon
@@ -2757,13 +3195,16 @@ const HeaderButton = ({
         hover:border-[#A9D4BB]
         hover:bg-[#F2FAF5]
         hover:text-[#0B6B43]
-        hover:shadow-md
       "
     >
       <Icon
         size={12}
         strokeWidth={2.2}
-        className="text-slate-400 transition group-hover:text-[#0B6B43]"
+        className="
+          text-slate-400
+          transition
+          group-hover:text-[#0B6B43]
+        "
       />
 
       {label}
@@ -2846,10 +3287,22 @@ const StatusBadge = ({
 
   if (
     normalized ===
-    "partially paid"
+      "partially paid" ||
+    normalized ===
+      "partially-paid"
   ) {
     classes =
       "bg-orange-50 text-orange-600";
+  }
+
+  if (
+    normalized ===
+      "foreclosed" ||
+    normalized ===
+      "foreclosure"
+  ) {
+    classes =
+      "bg-violet-50 text-violet-700";
   }
 
   return (
@@ -2993,7 +3446,89 @@ const normalizeStatus = (
     value || ""
   )
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[-_]+/g, " ");
+};
+
+const isForeclosedLoan = (
+  loan
+) => {
+  const status =
+    normalizeStatus(
+      loan?.status
+    );
+
+  return (
+    status ===
+      "foreclosed" ||
+    status ===
+      "foreclosure"
+  );
+};
+
+const isClosedLoan = (
+  loan
+) => {
+  const status =
+    normalizeStatus(
+      loan?.status
+    );
+
+  return (
+    status ===
+      "closed" ||
+    status ===
+      "paid off" ||
+    status ===
+      "paid"
+  );
+};
+
+const getLoanStatusClass = (
+  status
+) => {
+  const normalized =
+    normalizeStatus(
+      status
+    );
+
+  if (
+    normalized ===
+      "foreclosed" ||
+    normalized ===
+      "foreclosure"
+  ) {
+    return "text-violet-700";
+  }
+
+  if (
+    normalized ===
+      "closed" ||
+    normalized ===
+      "paid" ||
+    normalized ===
+      "paid off"
+  ) {
+    return "text-emerald-700";
+  }
+
+  if (
+    normalized ===
+    "overdue"
+  ) {
+    return "text-red-600";
+  }
+
+  if (
+    normalized ===
+      "pending" ||
+    normalized ===
+      "draft"
+  ) {
+    return "text-amber-700";
+  }
+
+  return "text-[#0B6B43]";
 };
 
 const normalizePaymentLabel =
@@ -3005,6 +3540,8 @@ const normalizePaymentLabel =
     ) {
       case "paid":
       case "completed":
+      case "closed":
+      case "settled":
         return "Paid";
 
       case "pending":
@@ -3014,9 +3551,11 @@ const normalizePaymentLabel =
         return "Overdue";
 
       case "partially paid":
-      case "partially-paid":
       case "partial":
         return "Partially Paid";
+
+      case "foreclosed":
+        return "Foreclosed";
 
       default:
         return "Upcoming";
@@ -3044,6 +3583,10 @@ const getCustomerStatus =
     return String(status);
   };
 
+/* =========================================================
+   LOAN STATUS
+========================================================= */
+
 const getLoanStatus = (
   loan
 ) => {
@@ -3053,31 +3596,53 @@ const getLoanStatus = (
     );
 
   if (
+    raw === "foreclosed" ||
+    raw === "foreclosure"
+  ) {
+    return "Foreclosed";
+  }
+
+  if (
     raw === "closed" ||
+    raw === "paid off" ||
     raw === "paid"
   ) {
     return "Paid";
   }
 
   if (
-    Array.isArray(
-      loan?.repaymentSchedule
-    )
-  ) {
-    if (
-      loan.repaymentSchedule.some(
-        (row) =>
-          isOverdueRow(row)
-      )
-    ) {
-      return "Overdue";
-    }
-  }
-
-  if (
     raw === "draft"
   ) {
     return "Pending";
+  }
+
+  /*
+   * Only calculate Overdue for loans
+   * which are still active/open.
+   */
+  if (
+    raw !== "closed" &&
+    raw !== "foreclosed" &&
+    raw !== "foreclosure" &&
+    raw !== "paid off" &&
+    raw !== "paid"
+  ) {
+    if (
+      Array.isArray(
+        loan?.repaymentSchedule
+      )
+    ) {
+      if (
+        loan.repaymentSchedule.some(
+          (row) =>
+            isOverdueRow(
+              row
+            )
+        )
+      ) {
+        return "Overdue";
+      }
+    }
   }
 
   return (
@@ -3102,7 +3667,9 @@ const isOverdueRow = (
     status === "paid" ||
     status === "completed" ||
     status === "closed" ||
-    status === "settled"
+    status === "settled" ||
+    status === "foreclosed" ||
+    status === "foreclosure"
   ) {
     return false;
   }
@@ -3111,7 +3678,6 @@ const isOverdueRow = (
     status !== "pending" &&
     status !== "overdue" &&
     status !== "partially paid" &&
-    status !== "partially-paid" &&
     status !== "partial"
   ) {
     return false;
@@ -3151,8 +3717,26 @@ const isOverdueRow = (
 ========================================================= */
 
 const getNextPayment = (
-  schedule = []
+  loan
 ) => {
+  if (
+    isForeclosedLoan(
+      loan
+    ) ||
+    isClosedLoan(
+      loan
+    )
+  ) {
+    return null;
+  }
+
+  const schedule =
+    Array.isArray(
+      loan?.repaymentSchedule
+    )
+      ? loan.repaymentSchedule
+      : [];
+
   const openRows =
     schedule.filter(
       (row) => {
@@ -3165,7 +3749,6 @@ const getNextPayment = (
           "pending",
           "overdue",
           "partially paid",
-          "partially-paid",
           "partial",
         ].includes(
           status
@@ -3339,5 +3922,9 @@ const maskAadhaar = (
     -4
   )}`;
 };
+
+/* =========================================================
+   EXPORT
+========================================================= */
 
 export default CustomerDetails;

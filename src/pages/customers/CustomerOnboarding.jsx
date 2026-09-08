@@ -1,7 +1,10 @@
 // src/pages/customers/CustomerOnboarding.jsx
 
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   X,
@@ -24,7 +27,19 @@ import LoanDetailsStep from "../../components/customers/onboarding/LoanDetailsSt
 import ReviewStep from "../../components/customers/onboarding/ReviewStep";
 import RepaymentScheduleModal from "../../components/loans/RepaymentScheduleModal";
 import { generateRepaymentSchedule } from "../../services/repaymentSchedule";
-import { saveCustomer } from "../../services/customerStorage";
+import {
+  saveCustomer,
+  appendLoanToCustomer,
+  generateVehicleId,
+  getCustomerById,
+  getVehicles,
+} from "../../services/customerStorage";
+import {
+  checkReLoanEligibility,
+  createReLoanContext,
+  findCustomerAndLoan,
+  getReLoanRules,
+} from "../../services/reloanStorage";
 
 import {
   createEmptyCustomer,
@@ -80,6 +95,22 @@ const STEP_DESCRIPTIONS = {
 
 const CustomerOnboarding = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const reLoanParams = useMemo(() => {
+    const params = new URLSearchParams(
+      location.search
+    );
+    return {
+      isReLoan:
+        params.get("source") === "reloan" ||
+        params.get("type") === "reloan",
+      customerId:
+        params.get("customerId") || "",
+      previousLoanId:
+        params.get("previousLoanId") || "",
+    };
+  }, [location.search]);
 
   const [currentStep, setCurrentStep] = useState(1);
 const [showRepaymentSchedule, setShowRepaymentSchedule] =
@@ -90,6 +121,35 @@ const [createdLoan, setCreatedLoan] =
 
   const [formData, setFormData] = useState(() => {
     const customer = createEmptyCustomer();
+
+    if (reLoanParams.isReLoan) {
+      const existing = getCustomerById(
+        reLoanParams.customerId
+      );
+      const previous = findCustomerAndLoan(
+        reLoanParams.previousLoanId
+      );
+
+      if (existing && previous) {
+        const next = {
+          ...customer,
+          ...existing,
+          loan: {
+            ...customer.loan,
+            ...createReLoanContext({
+              customer: existing,
+              loan: previous.loan,
+            }),
+          },
+          reLoanContext: createReLoanContext({
+            customer: existing,
+            loan: previous.loan,
+          }),
+        };
+
+        return next;
+      }
+    }
 
     const today = new Date()
       .toISOString()
@@ -343,25 +403,43 @@ const handleNext = useCallback(() => {
    * --------------------------------------------------------
    */
 
-  const updateVehicleData = useCallback(
-    (data) => {
-      setFormData((previous) => ({
+const updateVehicleData = useCallback(
+  (data) => {
+    setFormData((previous) => {
+      const previousVehicle =
+        previous.vehicle || {};
+
+      const incomingVehicle =
+        data.vehicle || {};
+
+      const vehicleId =
+        previousVehicle.vehicleId ||
+        previousVehicle.id ||
+        generateVehicleId();
+
+      return {
         ...previous,
 
         vehicle: {
-          ...previous.vehicle,
-          ...(data.vehicle || {}),
+          ...previousVehicle,
+          ...incomingVehicle,
+
+          id:
+            previousVehicle.id ||
+            vehicleId,
+
+          vehicleId,
         },
 
         rc: {
           ...previous.rc,
           ...(data.rc || {}),
         },
-      }));
-    },
-    []
-  );
-
+      };
+    });
+  },
+  []
+);
   /*
    * --------------------------------------------------------
    * GUARANTOR
@@ -423,7 +501,9 @@ const handleNext = useCallback(() => {
         Date.now();
 
       const customerId =
-        `CUS-${timestamp}`;
+        reLoanParams.isReLoan
+          ? reLoanParams.customerId
+          : `CUS-${timestamp}`;
 
       const loanId =
         `LOAN-${timestamp}`;
@@ -436,6 +516,10 @@ const handleNext = useCallback(() => {
 
       const loan =
         formData.loan || {};
+           const vehicleId =
+  formData.vehicle?.vehicleId ||
+  formData.vehicle?.id ||
+  generateVehicleId();
 
       const repaymentSchedule =
         generateRepaymentSchedule({
@@ -471,43 +555,128 @@ const handleNext = useCallback(() => {
             loan.firstDueDate || "",
         });
 
-      const finalCustomer = {
-        ...formData,
+    const finalCustomer = {
+  ...formData,
 
-        customer: {
-          ...formData.customer,
+  customer: {
+    ...formData.customer,
 
-          id: customerId,
+    id: customerId,
 
-          customerNumber,
+    customerNumber,
 
-          createdAt:
-            formData.customer?.createdAt ||
-            now,
+    createdAt:
+      formData.customer?.createdAt ||
+      now,
 
-          updatedAt: now,
+    updatedAt: now,
 
-          status: "Active",
-        },
+    status: "Active",
+  },
 
-        loan: {
-          ...loan,
+  vehicle: {
+    ...formData.vehicle,
 
-          id: loanId,
+    id:
+      formData.vehicle?.id ||
+      formData.vehicle?.vehicleId ||
+      vehicleId,
 
-          loanNumber,
+    vehicleId:
+      formData.vehicle?.vehicleId ||
+      formData.vehicle?.id ||
+      vehicleId,
+  },
 
-          repaymentSchedule,
+  loan: {
+    ...loan,
 
-          status: "Active",
+    id: loanId,
 
-          createdAt: now,
-        },
-      };
+    ...(reLoanParams.isReLoan
+      ? {
+          previousLoanId:
+            loan?.previousLoanId ||
+            reLoanParams.previousLoanId,
+          previousLoanNumber:
+            loan?.previousLoanNumber ||
+            findCustomerAndLoan(
+              reLoanParams.previousLoanId
+            )?.loan?.loanNumber ||
+            "",
+          previousLoanReference:
+            loan?.previousLoanReference ||
+            reLoanParams.previousLoanId,
+          previousVehicleId:
+            loan?.previousVehicleId ||
+            findCustomerAndLoan(
+              reLoanParams.previousLoanId
+            )?.loan?.vehicleId ||
+            "",
+          collateralVehicleMode:
+            loan?.collateralVehicleMode ||
+            "same",
+        }
+      : {}),
 
-      saveCustomer(
-        finalCustomer
-      );
+    loanNumber,
+
+    vehicleId:
+      formData.vehicle?.id ||
+      formData.vehicle?.vehicleId ||
+      vehicleId,
+
+    vehicle: {
+      ...loan?.vehicle,
+
+      id:
+        formData.vehicle?.id ||
+        formData.vehicle?.vehicleId ||
+        vehicleId,
+
+      vehicleId:
+        formData.vehicle?.vehicleId ||
+        formData.vehicle?.id ||
+        vehicleId,
+    },
+
+    repaymentSchedule,
+
+    status: "Active",
+
+      createdAt: now,
+      updatedAt: now,
+  },
+};
+
+      if (reLoanParams.isReLoan) {
+        const eligibility = checkReLoanEligibility({
+          customer: getCustomerById(
+            customerId
+          ),
+          loan: findCustomerAndLoan(
+            reLoanParams.previousLoanId
+          )?.loan,
+          vehicle:
+            formData.vehicle,
+          rules: getReLoanRules(),
+        });
+
+        if (!eligibility.eligible) {
+          throw new Error(
+            "Re-loan eligibility has changed. Please review the updated result."
+          );
+        }
+
+        appendLoanToCustomer(
+          customerId,
+          finalCustomer.loan
+        );
+      } else {
+        saveCustomer(
+          finalCustomer
+        );
+      }
 
       console.log(
         "Customer created successfully:",
@@ -531,6 +700,9 @@ const handleNext = useCallback(() => {
   }, [
     formData,
     navigate,
+    reLoanParams.customerId,
+    reLoanParams.isReLoan,
+    reLoanParams.previousLoanId,
   ]);
 
   /*
@@ -650,6 +822,11 @@ case 6:
   const canContinue =
     stepValidity[currentStep] === true;
 
+  const collateralVehicles = useMemo(
+    () => getVehicles(),
+    []
+  );
+
   return (
     <div
       className="
@@ -757,6 +934,69 @@ case 6:
             </div>
           </div>
         </header>
+
+        {reLoanParams.isReLoan && (
+          <section className="shrink-0 border-b border-[#D8E9DF] bg-[#F6FBF8] px-4 py-3 sm:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-extrabold uppercase tracking-wide text-[#0B6B43]">Existing Customer · RE-LOAN</p>
+                <p className="mt-1 text-xs font-bold text-[#17221D]">
+                  Previous Loan: {formData.loan?.previousLoanNumber || reLoanParams.previousLoanId}
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-[10px] font-semibold text-slate-600">
+                Collateral Vehicle
+                <select
+                  value={formData.loan?.collateralVehicleMode || "same"}
+                  onChange={(event) => {
+                    const mode = event.target.value;
+                    const previous = findCustomerAndLoan(reLoanParams.previousLoanId);
+                    const selected = mode === "same"
+                      ? previous?.vehicle || formData.vehicle
+                      : formData.vehicle;
+                    setFormData((current) => ({
+                      ...current,
+                      vehicle: selected || current.vehicle,
+                      loan: {
+                        ...current.loan,
+                        collateralVehicleMode: mode,
+                        vehicleId: selected?.vehicleId || selected?.id || current.loan?.vehicleId || "",
+                      },
+                    }));
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700"
+                >
+                  <option value="same">Same Vehicle</option>
+                  <option value="different">Different Vehicle</option>
+                </select>
+              </label>
+            </div>
+            {formData.loan?.collateralVehicleMode === "different" && (
+              <select
+                value={formData.loan?.vehicleId || ""}
+                onChange={(event) => {
+                  const selected = collateralVehicles.find(
+                    (vehicle) => String(vehicle?.vehicleId || vehicle?.id) === String(event.target.value)
+                  );
+                  if (!selected) return;
+                  setFormData((current) => ({
+                    ...current,
+                    vehicle: selected,
+                    loan: { ...current.loan, vehicleId: selected.vehicleId || selected.id },
+                  }));
+                }}
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-700 sm:max-w-sm"
+              >
+                <option value="">Select Vehicle</option>
+                {collateralVehicles.map((vehicle) => (
+                  <option key={vehicle.vehicleId || vehicle.id} value={vehicle.vehicleId || vehicle.id}>
+                    {vehicle.registrationNumber || vehicle.vehicleId || vehicle.id}
+                  </option>
+                ))}
+              </select>
+            )}
+          </section>
+        )}
 
         {/* STEPPER */}
         <div

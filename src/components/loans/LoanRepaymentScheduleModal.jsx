@@ -5,6 +5,11 @@ import {
   Clock3,
   AlertTriangle,
 } from "lucide-react";
+import {
+  getScheduleAmount,
+  getScheduleRemainingAmount,
+  getScheduleDisplayStatus,
+} from "../../services/repaymentStorage";
 
 const LoanRepaymentScheduleModal = ({
   loan,
@@ -330,12 +335,10 @@ const RepaymentRow = ({
   row,
   index,
 }) => {
-  const status =
-    String(
-      row?.status || "Pending"
-    )
-      .trim()
-      .toLowerCase();
+  const displayStatus =
+    getScheduleDisplayStatus(
+      row
+    );
 
   const principal =
     Number(
@@ -354,25 +357,24 @@ const RepaymentRow = ({
     );
 
   const emi =
-    Number(
-      row?.paymentAmount ||
-        row?.emiAmount ||
-        row?.amount ||
-        principal + interest ||
-        0
+    getScheduleAmount(
+      row
     );
 
   const balance =
-    Number(
-      row?.remainingBalance ||
-        row?.balance ||
-        row?.closingBalance ||
-        0
+    getScheduleRemainingAmount(
+      row
     );
+
+  const status =
+    displayStatus.toLowerCase();
 
   const isPaid =
     status === "paid" ||
     status === "completed";
+
+  const isPartiallyPaid =
+    status === "partially paid";
 
   const isOverdue =
     status === "overdue";
@@ -391,6 +393,13 @@ const RepaymentRow = ({
           classes:
             "bg-red-50 text-red-700",
           icon: AlertTriangle,
+        }
+      : isPartiallyPaid
+      ? {
+          label: "Partially Paid",
+          classes:
+            "bg-amber-50 text-amber-700",
+          icon: Clock3,
         }
       : {
           label: "Pending",
@@ -493,11 +502,9 @@ const RepaymentRow = ({
 
       <td className="px-3.5 py-2.5">
         <span className="text-[10px] text-slate-600">
-          {balance > 0
-            ? `₹${formatMoney(
-                balance
-              )}`
-            : "—"}
+          ₹{formatMoney(
+            balance
+          )}
         </span>
       </td>
 
