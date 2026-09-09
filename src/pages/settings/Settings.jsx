@@ -32,8 +32,8 @@ import {
 
 const DEFAULT_SETTINGS = {
   general: {
-    companyName: "Yazh Vahana Finance",
-    businessType: "Vehicle Finance",
+    companyName: "MotoLend",
+    businessType: "Auto Finance",
     phone: "+91 98765 43210",
     email: "admin@example.com",
     address: "Dindigul, Tamil Nadu",
