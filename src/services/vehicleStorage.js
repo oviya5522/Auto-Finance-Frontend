@@ -767,14 +767,17 @@ export const updateVehicle = (
    SYNC STATUS TO CUSTOMER STORAGE
 ========================================================= */
 
+/* =========================================================
+   SYNC STATUS TO CUSTOMER STORAGE
+========================================================= */
+
 const syncStatusToCustomer = (
   vehicle,
   status,
   lifecycleData = {}
 ) => {
   try {
-    const customers =
-      getCustomers();
+    const customers = getCustomers();
 
     const vehicleId =
       vehicle?.vehicleId ||
@@ -782,99 +785,321 @@ const syncStatusToCustomer = (
       "";
 
     const loanId =
-      vehicle?.loanId || "";
+      vehicle?.loanId ||
+      "";
 
     const loanNumber =
       vehicle?.loanNumber ||
       "";
 
+    const normalizedStatus =
+      normalize(status);
+
+    const currentTime =
+      lifecycleData?.updatedAt ||
+      nowIso();
+
     let changed = false;
 
-   const updatedCustomers =
-  customers.map((record) => {
-    const loan = record?.loan || {};
+    const updatedCustomers =
+      customers.map((record) => {
+        const loan =
+          record?.loan || {};
 
-    const storedVehicle =
-      record?.vehicle ||
-      loan?.vehicle ||
-      {};
+        const storedVehicle =
+          record?.vehicle ||
+          loan?.vehicle ||
+          {};
 
-    const storedVehicleId =
-      storedVehicle?.vehicleId ||
-      storedVehicle?.id ||
-      "";
+        const storedVehicleId =
+          storedVehicle?.vehicleId ||
+          storedVehicle?.id ||
+          "";
 
-    const matchesVehicle =
-      String(storedVehicleId) ===
-      String(vehicle?.vehicleId || "");
+        const matchesVehicle =
+          String(storedVehicleId) ===
+          String(vehicleId);
 
-    const matchesLoan =
-      vehicle?.loanId &&
-      String(loan?.id || "") ===
-        String(vehicle.loanId);
+        const matchesLoan =
+          Boolean(loanId) &&
+          String(loan?.id || "") ===
+          String(loanId);
 
-    const matchesLoanNumber =
-      vehicle?.loanNumber &&
-      String(loan?.loanNumber || "") ===
-        String(vehicle.loanNumber);
+        const matchesLoanNumber =
+          Boolean(loanNumber) &&
+          String(
+            loan?.loanNumber || ""
+          ) ===
+          String(loanNumber);
 
-    if (
-      !matchesVehicle &&
-      !matchesLoan &&
-      !matchesLoanNumber
-    ) {
-      return record;
-    }
+        if (
+          !matchesVehicle &&
+          !matchesLoan &&
+          !matchesLoanNumber
+        ) {
+          return record;
+        }
 
-    const nextVehicle = {
-      ...(record?.vehicle || {}),
-      ...(loan?.vehicle || {}),
+        changed = true;
 
-      // IMPORTANT:
-      // Customer page should no longer show this vehicle Active.
-      status: "SOLD",
+        /* =================================================
+           SEIZED
+        ================================================== */
 
-      soldAt,
-    };
+        if (
+          normalizedStatus ===
+          normalize(
+            VEHICLE_LIFECYCLE_STATUS.SEIZED
+          )
+        ) {
+          const nextVehicle = {
+            ...(record?.vehicle || {}),
+            ...(loan?.vehicle || {}),
 
-    const nextLoan = {
-      ...loan,
+            status:
+              VEHICLE_LIFECYCLE_STATUS.SEIZED,
 
-      // IMPORTANT:
-      // Final loan state after vehicle sale.
-      status: "FORECLOSED",
-      loanStatus: "FORECLOSED",
+            seizedAt:
+              lifecycleData?.seizedAt ||
+              currentTime,
+          };
 
-      foreclosureStatus: "FORECLOSED",
-      foreclosureDate: soldAt,
-      foreclosedAt: soldAt,
+          const nextLoan = {
+            ...loan,
 
-      foreclosureReason:
-        "Vehicle sold/auctioned after default and seizure.",
+            /*
+             * Keep the loan active.
+             * Seizing the vehicle does NOT mean
+             * the loan is foreclosed.
+             */
+            vehicle:
+              nextVehicle,
 
-      // Stop normal repayment workflow from
-      // treating this loan as an active/due loan.
-      nextDueDate: null,
-      nextDueAmount: 0,
+            updatedAt:
+              currentTime,
+          };
 
-      // Keep vehicle synchronized.
-      vehicle: nextVehicle,
+          return {
+            ...record,
 
-      updatedAt: now,
-    };
+            vehicle:
+              nextVehicle,
 
-    return {
-      ...record,
+            loan:
+              nextLoan,
 
-      vehicle: nextVehicle,
+            updatedAt:
+              currentTime,
+          };
+        }
 
-      loan: nextLoan,
+        /* =================================================
+           RELEASED
+        ================================================== */
 
-      updatedAt: now,
-    };
-  });
+        if (
+          normalizedStatus ===
+          normalize(
+            VEHICLE_LIFECYCLE_STATUS.RELEASED
+          )
+        ) {
+          const nextVehicle = {
+            ...(record?.vehicle || {}),
+            ...(loan?.vehicle || {}),
 
-saveCustomers(updatedCustomers);
+            status:
+              VEHICLE_LIFECYCLE_STATUS.RELEASED,
+
+            releasedAt:
+              lifecycleData?.releasedAt ||
+              currentTime,
+
+            releasedBy:
+              lifecycleData?.releasedBy ||
+              "Admin",
+          };
+
+          const nextLoan = {
+            ...loan,
+
+            vehicle:
+              nextVehicle,
+
+            updatedAt:
+              currentTime,
+          };
+
+          return {
+            ...record,
+
+            vehicle:
+              nextVehicle,
+
+            loan:
+              nextLoan,
+
+            updatedAt:
+              currentTime,
+          };
+        }
+
+        /* =================================================
+           PENDING SALE
+        ================================================== */
+
+        if (
+          normalizedStatus ===
+          normalize(
+            VEHICLE_LIFECYCLE_STATUS.PENDING_SALE
+          )
+        ) {
+          const nextVehicle = {
+            ...(record?.vehicle || {}),
+            ...(loan?.vehicle || {}),
+
+            status:
+              VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
+
+            saleStartedAt:
+              lifecycleData?.saleStartedAt ||
+              currentTime,
+          };
+
+          const nextLoan = {
+            ...loan,
+
+            vehicle:
+              nextVehicle,
+
+            updatedAt:
+              currentTime,
+          };
+
+          return {
+            ...record,
+
+            vehicle:
+              nextVehicle,
+
+            loan:
+              nextLoan,
+
+            updatedAt:
+              currentTime,
+          };
+        }
+
+        /* =================================================
+           SOLD
+        ================================================== */
+
+        if (
+          normalizedStatus ===
+          normalize(
+            VEHICLE_LIFECYCLE_STATUS.SOLD
+          )
+        ) {
+          const soldAt =
+            lifecycleData?.soldAt ||
+            currentTime;
+
+          const nextVehicle = {
+            ...(record?.vehicle || {}),
+            ...(loan?.vehicle || {}),
+
+            status:
+              VEHICLE_LIFECYCLE_STATUS.SOLD,
+
+            soldAt,
+          };
+
+          const nextLoan = {
+            ...loan,
+
+            /*
+             * Final loan state after vehicle sale.
+             */
+            status:
+              "Foreclosed",
+
+            loanStatus:
+              "FORECLOSED",
+
+            foreclosureStatus:
+              "FORECLOSED",
+
+            foreclosureDate:
+              soldAt,
+
+            foreclosedAt:
+              soldAt,
+
+            foreclosureReason:
+              "Vehicle sold/auctioned after default and seizure.",
+
+            nextDueDate:
+              null,
+
+            nextDueAmount:
+              0,
+
+            vehicle:
+              nextVehicle,
+
+            updatedAt:
+              currentTime,
+          };
+
+          return {
+            ...record,
+
+            vehicle:
+              nextVehicle,
+
+            loan:
+              nextLoan,
+
+            updatedAt:
+              currentTime,
+          };
+        }
+
+        /* =================================================
+           ACTIVE / FALLBACK
+        ================================================== */
+
+        const nextVehicle = {
+          ...(record?.vehicle || {}),
+          ...(loan?.vehicle || {}),
+
+          status:
+            status ||
+            VEHICLE_LIFECYCLE_STATUS.ACTIVE,
+        };
+
+        const nextLoan = {
+          ...loan,
+
+          vehicle:
+            nextVehicle,
+
+          updatedAt:
+            currentTime,
+        };
+
+        return {
+          ...record,
+
+          vehicle:
+            nextVehicle,
+
+          loan:
+            nextLoan,
+
+          updatedAt:
+            currentTime,
+        };
+      });
 
     if (changed) {
       saveCustomers(
