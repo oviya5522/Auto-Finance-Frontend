@@ -40,13 +40,18 @@ const DashboardHeader = ({
       <div
         className="
           flex
-          min-h-[68px]
+          min-h-[60px]
+          flex-wrap
           items-center
           justify-between
-          gap-4
-          px-4
-          py-2.5
+          gap-x-4
+          gap-y-2
+          px-3
+          py-2
+          sm:min-h-[68px]
+          sm:flex-nowrap
           sm:px-5
+          sm:py-2.5
           lg:px-6
         "
       >
@@ -55,15 +60,16 @@ const DashboardHeader = ({
         ================================================== */}
 
         <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <h1
               className="
                 truncate
-                text-[21px]
+                text-[18px]
                 font-semibold
                 tracking-tight
                 text-[#17221D]
-                sm:text-[23px]
+                sm:text-[21px]
+                lg:text-[23px]
               "
             >
               Dashboard
@@ -76,9 +82,10 @@ const DashboardHeader = ({
                 bg-[#EAF5EF]
                 px-2
                 py-0.5
-                text-[9px]
+                text-[8.5px]
                 font-semibold
                 text-[#0B5D3B]
+                sm:text-[9px]
               "
             >
               Live
@@ -94,8 +101,9 @@ const DashboardHeader = ({
               items-center
               gap-x-3
               gap-y-1
-              text-[10px]
+              text-[9px]
               text-slate-400
+              sm:text-[10px]
             "
           >
             <span className="inline-flex items-center gap-1.5">
@@ -136,26 +144,38 @@ const DashboardHeader = ({
             flex
             shrink-0
             items-center
-            gap-2
+            gap-1.5
+            sm:gap-2
           "
         >
-          <HeaderSelect
-            label="Period"
-            value="Today"
-          />
+          {/* PERIOD / MONTH — hidden on phones to keep the header on one line, shown from tablet up */}
 
-          <HeaderSelect
-            label="Month"
-            value={formattedMonth}
-          />
+          <div
+            className="
+              hidden
+              items-center
+              gap-2
+              md:flex
+            "
+          >
+            <HeaderSelect
+              label="Period"
+              value="Today"
+            />
+
+            <HeaderSelect
+              label="Month"
+              value={formattedMonth}
+            />
+          </div>
 
           <button
             type="button"
             className="
               relative
               flex
-              h-9
-              w-9
+              h-8
+              w-8
               shrink-0
               items-center
               justify-center
@@ -168,6 +188,8 @@ const DashboardHeader = ({
               hover:border-slate-300
               hover:bg-slate-50
               hover:text-[#17221D]
+              sm:h-9
+              sm:w-9
             "
             title="Notifications"
             aria-label="Notifications"
@@ -192,16 +214,17 @@ const DashboardHeader = ({
           <button
   type="button"
   onClick={onLogout}
+  aria-label="Logout"
   className="
     inline-flex
-    h-9
+    h-8
     items-center
     gap-1.5
     rounded-lg
     border
     border-slate-200
     bg-white
-    px-3
+    px-2
     text-[10px]
     font-semibold
     text-slate-600
@@ -209,6 +232,8 @@ const DashboardHeader = ({
     hover:border-red-200
     hover:bg-red-50
     hover:text-red-600
+    sm:h-9
+    sm:px-3
   "
 >
   <LogOut
@@ -216,7 +241,9 @@ const DashboardHeader = ({
     strokeWidth={2}
   />
 
-  Logout
+  <span className="hidden sm:inline">
+    Logout
+  </span>
 </button>
         </div>
       </div>
@@ -238,7 +265,7 @@ const HeaderSelect = ({
       className="
         flex
         h-9
-        min-w-[100px]
+        min-w-[90px]
         items-center
         justify-between
         gap-3
@@ -251,6 +278,7 @@ const HeaderSelect = ({
         transition
         hover:border-slate-300
         hover:bg-slate-50
+        lg:min-w-[100px]
       "
     >
       <div className="min-w-0">

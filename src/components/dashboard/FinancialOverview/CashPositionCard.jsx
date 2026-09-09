@@ -19,43 +19,51 @@ const CashPositionCard = ({
         border
         border-slate-200
         bg-white
-        px-3.5
+        px-3
         py-3
         transition
         duration-200
         hover:border-slate-300
+        sm:px-3.5
       "
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 sm:gap-3">
         {/* ICON */}
 
         <div
           className="
             flex
-            h-9
-            w-9
+            h-8
+            w-8
             shrink-0
             items-center
             justify-center
             rounded-lg
             bg-[#EAF5EF]
+            sm:h-9
+            sm:w-9
           "
         >
           <WalletCards
+            size={17}
+            strokeWidth={2}
+            className="text-[#0B5D3B] sm:hidden"
+          />
+          <WalletCards
             size={18}
             strokeWidth={2}
-            className="text-[#0B5D3B]"
+            className="hidden text-[#0B5D3B] sm:block"
           />
         </div>
 
         {/* TITLE */}
 
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-[#17221D]">
+          <p className="truncate text-[10.5px] font-semibold text-[#17221D] sm:text-[11px]">
             Total Cashing
           </p>
 
-          <p className="mt-0.5 text-[9px] text-slate-400">
+          <p className="mt-0.5 text-[8.5px] text-slate-400 sm:text-[9px]">
             Current total
           </p>
         </div>
@@ -63,7 +71,7 @@ const CashPositionCard = ({
 
       {/* VALUE */}
 
-      <p className="mt-3 text-[21px] font-semibold leading-none tracking-tight text-[#0B5D3B]">
+      <p className="mt-2.5 truncate text-[19px] font-semibold leading-none tracking-tight text-[#0B5D3B] sm:mt-3 sm:text-[21px]">
         ₹
         {safeValue.toLocaleString(
           "en-IN",
@@ -73,7 +81,7 @@ const CashPositionCard = ({
         )}
       </p>
 
-      <p className="mt-1.5 text-[9px] text-slate-400">
+      <p className="mt-1.5 text-[8.5px] text-slate-400 sm:text-[9px]">
         {safeValue > 0
           ? "Total cashing recorded"
           : "No cashing data available"}

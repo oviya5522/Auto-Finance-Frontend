@@ -204,6 +204,7 @@ const Dashboard = () => {
           items-center
           justify-center
           bg-[#F7F9F8]
+          px-4
         "
       >
         <div className="text-center">
@@ -256,13 +257,17 @@ const Dashboard = () => {
       className="
         relative
         flex
-        h-screen
-        min-h-0
+        min-h-screen
         w-full
         max-w-full
         flex-col
-        overflow-hidden
+        overflow-x-hidden
         bg-[#F7F9F8]
+        pt-14
+        lg:h-screen
+        lg:min-h-0
+        lg:overflow-hidden
+        lg:pt-0
       "
     >
       {/* =================================================
@@ -292,10 +297,12 @@ const Dashboard = () => {
           w-full
           max-w-full
           flex-1
-          overflow-hidden
+          overflow-y-auto
+          overflow-x-hidden
           px-3
           py-2
           sm:px-4
+          lg:overflow-hidden
           lg:px-5
         "
       >
@@ -309,7 +316,7 @@ const Dashboard = () => {
             max-w-full
             flex-col
             gap-2
-            overflow-hidden
+            lg:overflow-hidden
           "
         >
           {/* =================================================
@@ -438,12 +445,17 @@ const Dashboard = () => {
       <div
         className="
           pointer-events-none
-          absolute
+          fixed
+          bottom-5
           right-4
-          top-1/2
           z-50
-          -translate-y-1/2
           sm:right-5
+
+          lg:absolute
+          lg:bottom-auto
+          lg:right-5
+          lg:top-1/2
+          lg:-translate-y-1/2
         "
       >
         {/* =================================================
@@ -459,7 +471,9 @@ const Dashboard = () => {
               right-0
               w-[330px]
               max-w-[calc(100vw-24px)]
-              overflow-hidden
+              max-h-[calc(100vh-140px)]
+              overflow-y-auto
+              overflow-x-hidden
               rounded-2xl
               border
               border-slate-200
@@ -467,6 +481,7 @@ const Dashboard = () => {
               shadow-2xl
               ring-1
               ring-black/5
+              lg:max-h-[70vh]
             "
           >
             {/* =================================================

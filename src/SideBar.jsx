@@ -17,6 +17,8 @@ import {
   Repeat2,
   Bell,
   BarChart3,
+  Menu,
+  X,
 } from "lucide-react";
 
 /* =========================================================
@@ -130,6 +132,13 @@ const SideBar = ({
     setCollapsed,
   ] = useState(false);
 
+  // NEW: controls the off-canvas drawer on mobile / tablet (< lg).
+  // Desktop `collapsed` behavior above is completely untouched.
+  const [
+    mobileOpen,
+    setMobileOpen,
+  ] = useState(false);
+
   const [
     openMenu,
     setOpenMenu,
@@ -165,6 +174,10 @@ const SideBar = ({
     onNavigate(
       item.id
     );
+
+    // NEW: close the mobile drawer after picking a top-level item.
+    // No-op on desktop since the drawer classes are lg:static there.
+    setMobileOpen(false);
   };
 
   /* =====================================================
@@ -177,6 +190,9 @@ const SideBar = ({
     onNavigate(
       child.id
     );
+
+    // NEW: close the mobile drawer after picking a child item.
+    setMobileOpen(false);
   };
 
   /* =====================================================
@@ -449,64 +465,66 @@ const SideBar = ({
   ====================================================== */
 
   return (
-    <aside
-      className={`
-        flex
-        h-screen
-        shrink-0
-        flex-col
-        overflow-hidden
-        border-r
-        border-[#174D38]
-        bg-[#0D2F24]
-        transition-[width]
-        duration-200
-        ease-out
-
-        ${
-          collapsed
-            ? "w-[68px]"
-            : "w-[220px]"
-        }
-      `}
-    >
+    <>
       {/* =================================================
-          BRAND
+          MOBILE TOP BAR (< lg only)
+          NEW: gives the user a way to open the drawer on
+          phones / tablets since there's no room for a
+          permanently-visible sidebar there.
       ================================================== */}
 
       <div
-        className={`
-          shrink-0
+        className="
+          fixed
+          left-0
+          right-0
+          top-0
+          z-40
+          flex
+          h-14
+          items-center
+          justify-between
           border-b
           border-[#174D38]
-
-          ${
-            collapsed
-              ? "px-2 py-3"
-              : "px-3.5 py-3"
-          }
-        `}
+          bg-[#0D2F24]
+          px-3
+          lg:hidden
+        "
       >
-        <div
-          className={`
+        <button
+          type="button"
+          onClick={() =>
+            setMobileOpen(
+              (previous) =>
+                !previous
+            )
+          }
+          aria-label="Open menu"
+          className="
             flex
-            min-w-0
+            h-9
+            w-9
             items-center
-
-            ${
-              collapsed
-                ? "justify-center"
-                : "justify-start"
-            }
-          `}
+            justify-center
+            rounded-lg
+            text-[#A8C2B3]
+            transition-colors
+            hover:bg-[#174D38]
+            hover:text-white
+          "
         >
-          {/* LOGO */}
+          <Menu
+            size={20}
+            strokeWidth={2}
+          />
+        </button>
 
+        <div className="flex items-center">
           <div
             className="
               flex
-              h-9
-              w-9
+              h-8
+              w-8
               shrink-0
               items-center
               justify-center
@@ -516,156 +534,373 @@ const SideBar = ({
               ring-1
               ring-[#2B7655]
             "
-            title="MotoLend logo"
           >
             <img
               src="/Auto-Finance-Logo.png"
               alt="MotoLend"
-              className="
-                h-full
-                w-full
-                object-contain
-              "
+              className="h-full w-full object-contain"
             />
           </div>
 
-          {/* PRODUCT NAME */}
-
-          {!collapsed && (
-            <div
-              className="
-                ml-2.5
-                min-w-0
-                leading-tight
-              "
-            >
-              <p
-                className="
-                  truncate
-                  text-[15px]
-                  font-bold
-                  tracking-[-0.02em]
-                  text-white
-                "
-              >
-                Moto
-                <span className="text-[#78D6A4]">
-                  Lend
-                </span>
-              </p>
-
-              <p
-                className="
-                  text-[9px]
-                  font-semibold
-                  uppercase
-                  tracking-[0.06em]
-                  text-white
-                "
-              >
-                POWERING{" "}
-                <span className="text-[#78D6A4]">
-                  SMARTER
-                </span>{" "}
-                FINANCE
-              </p>
-            </div>
-          )}
+          <p
+            className="
+              ml-2
+              text-[14px]
+              font-bold
+              tracking-[-0.02em]
+              text-white
+            "
+          >
+            Moto
+            <span className="text-[#78D6A4]">
+              Lend
+            </span>
+          </p>
         </div>
+
+        {/* spacer to balance the hamburger button so the logo stays centered-ish */}
+        <div className="h-9 w-9" />
       </div>
 
       {/* =================================================
-          MAIN NAVIGATION
+          OVERLAY (< lg only, shown while drawer is open)
       ================================================== */}
 
-      <nav
-        className="
-          min-h-0
-          flex-1
-          overflow-y-auto
-          overflow-x-hidden
-          px-2
-          py-3
-        "
-      >
-        <div className="space-y-1">
-          {NAV_ITEMS.map(
-            renderNavButton
-          )}
-        </div>
-      </nav>
-
-      {/* =================================================
-          BOTTOM AREA
-      ================================================== */}
-
-      <div
-        className="
-          shrink-0
-          border-t
-          border-[#174D38]
-          px-2
-          py-2.5
-        "
-      >
-        {/* SETTINGS */}
-
-        {renderNavButton(
-          SETTINGS_ITEM
-        )}
-
-        {/* COLLAPSE */}
-
-        <button
-          type="button"
+      {mobileOpen && (
+        <div
           onClick={() =>
-            setCollapsed(
-              (previous) =>
-                !previous
-            )
-          }
-          title={
-            collapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
+            setMobileOpen(false)
           }
           className="
-            mt-1
+            fixed
+            inset-0
+            z-40
+            bg-black/50
+            lg:hidden
+          "
+        />
+      )}
+
+      <aside
+        className={`
+          fixed
+          inset-y-0
+          left-0
+          z-50
+          flex
+          h-screen
+          w-[240px]
+          shrink-0
+          flex-col
+          overflow-hidden
+          border-r
+          border-[#174D38]
+          bg-[#0D2F24]
+          transition-transform
+          duration-300
+          ease-out
+
+          ${
+            mobileOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+          }
+
+          lg:static
+          lg:translate-x-0
+          lg:transition-[width]
+          lg:duration-200
+
+          ${
+            collapsed
+              ? "lg:w-[68px]"
+              : "lg:w-[220px]"
+          }
+        `}
+      >
+        {/* =================================================
+            BRAND (hidden on mobile, mobile top bar covers it)
+        ================================================== */}
+
+        <div
+          className={`
+            hidden
+            shrink-0
+            border-b
+            border-[#174D38]
+            lg:block
+
+            ${
+              collapsed
+                ? "px-2 py-3"
+                : "px-3.5 py-3"
+            }
+          `}
+        >
+          <div
+            className={`
+              flex
+              min-w-0
+              items-center
+
+              ${
+                collapsed
+                  ? "justify-center"
+                  : "justify-start"
+              }
+            `}
+          >
+            {/* LOGO */}
+
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                overflow-hidden
+                rounded-lg
+                bg-[#174D38]
+                ring-1
+                ring-[#2B7655]
+              "
+              title="MotoLend logo"
+            >
+              <img
+                src="/Auto-Finance-Logo.png"
+                alt="MotoLend"
+                className="
+                  h-full
+                  w-full
+                  object-contain
+                "
+              />
+            </div>
+
+            {/* PRODUCT NAME */}
+
+            {!collapsed && (
+              <div
+                className="
+                  ml-2.5
+                  min-w-0
+                  leading-tight
+                "
+              >
+                <p
+                  className="
+                    truncate
+                    text-[15px]
+                    font-bold
+                    tracking-[-0.02em]
+                    text-white
+                  "
+                >
+                  Moto
+                  <span className="text-[#78D6A4]">
+                    Lend
+                  </span>
+                </p>
+
+                <p
+                  className="
+                    text-[9px]
+                    font-semibold
+                    uppercase
+                    tracking-[0.06em]
+                    text-white
+                  "
+                >
+                  POWERING{" "}
+                  <span className="text-[#78D6A4]">
+                    SMARTER
+                  </span>{" "}
+                  FINANCE
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* =================================================
+            MOBILE DRAWER HEADER (close button, < lg only)
+        ================================================== */}
+
+        <div
+          className="
             flex
-            w-full
+            shrink-0
             items-center
-            justify-center
-            gap-2
-            rounded-lg
-            px-2
-            py-2
-            text-[#8EAF9E]
-            transition-all
-            duration-200
-            hover:bg-[#174D38]
-            hover:text-white
+            justify-between
+            border-b
+            border-[#174D38]
+            px-3.5
+            py-3
+            lg:hidden
           "
         >
-          {collapsed ? (
-            <ChevronRight
+          <div className="flex min-w-0 items-center">
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                overflow-hidden
+                rounded-lg
+                bg-[#174D38]
+                ring-1
+                ring-[#2B7655]
+              "
+            >
+              <img
+                src="/Auto-Finance-Logo.png"
+                alt="MotoLend"
+                className="h-full w-full object-contain"
+              />
+            </div>
+
+            <p
+              className="
+                ml-2.5
+                text-[15px]
+                font-bold
+                tracking-[-0.02em]
+                text-white
+              "
+            >
+              Moto
+              <span className="text-[#78D6A4]">
+                Lend
+              </span>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            aria-label="Close menu"
+            className="
+              flex
+              h-8
+              w-8
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              text-[#A8C2B3]
+              transition-colors
+              hover:bg-[#174D38]
+              hover:text-white
+            "
+          >
+            <X
               size={18}
               strokeWidth={2}
             />
-          ) : (
-            <>
-              <ChevronLeft
+          </button>
+        </div>
+
+        {/* =================================================
+            MAIN NAVIGATION
+        ================================================== */}
+
+        <nav
+          className="
+            min-h-0
+            flex-1
+            overflow-y-auto
+            overflow-x-hidden
+            px-2
+            py-3
+          "
+        >
+          <div className="space-y-1">
+            {NAV_ITEMS.map(
+              renderNavButton
+            )}
+          </div>
+        </nav>
+
+        {/* =================================================
+            BOTTOM AREA
+        ================================================== */}
+
+        <div
+          className="
+            shrink-0
+            border-t
+            border-[#174D38]
+            px-2
+            py-2.5
+          "
+        >
+          {/* SETTINGS */}
+
+          {renderNavButton(
+            SETTINGS_ITEM
+          )}
+
+          {/* COLLAPSE (desktop only — the mobile drawer uses the X button instead) */}
+
+          <button
+            type="button"
+            onClick={() =>
+              setCollapsed(
+                (previous) =>
+                  !previous
+              )
+            }
+            title={
+              collapsed
+                ? "Expand sidebar"
+                : "Collapse sidebar"
+            }
+            className="
+              mt-1
+              hidden
+              w-full
+              items-center
+              justify-center
+              gap-2
+              rounded-lg
+              px-2
+              py-2
+              text-[#8EAF9E]
+              transition-all
+              duration-200
+              hover:bg-[#174D38]
+              hover:text-white
+              lg:flex
+            "
+          >
+            {collapsed ? (
+              <ChevronRight
                 size={18}
                 strokeWidth={2}
               />
+            ) : (
+              <>
+                <ChevronLeft
+                  size={18}
+                  strokeWidth={2}
+                />
 
-              <span className="text-[12px] font-medium">
-                Collapse
-              </span>
-            </>
-          )}
-        </button>
-      </div>
-    </aside>
+                <span className="text-[12px] font-medium">
+                  Collapse
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

@@ -52,8 +52,11 @@ const FinancialOverview = ({
           gap-2
           border-b
           border-slate-100
-          px-4
-          py-2.5
+          px-3
+          py-2
+          sm:px-4
+          sm:py-2.5
+          lg:px-5
         "
       >
         <span
@@ -69,9 +72,11 @@ const FinancialOverview = ({
         <div className="min-w-0">
           <h2
             className="
-              text-[13px]
+              text-[12px]
               font-semibold
               text-[#17221D]
+              sm:text-[13px]
+              lg:text-sm
             "
           >
             Financial Overview
@@ -80,8 +85,10 @@ const FinancialOverview = ({
           <p
             className="
               mt-0.5
-              text-[9px]
+              truncate
+              text-[8.5px]
               text-slate-400
+              sm:text-[9px]
             "
           >
             Approved collection and finance position
@@ -99,9 +106,14 @@ const FinancialOverview = ({
           min-w-0
           grid-cols-1
           gap-2
-          p-2.5
+          p-2
           sm:grid-cols-2
+          sm:gap-2.5
+          sm:p-3
+          lg:grid-cols-2
           xl:grid-cols-4
+          xl:gap-3
+          xl:p-3.5
           xl:items-stretch
         "
       >
@@ -112,9 +124,11 @@ const FinancialOverview = ({
             flex
             min-w-0
             h-full
-            min-h-[190px]
+            min-h-[170px]
             [&>*]:h-full
             [&>*]:w-full
+            sm:min-h-[180px]
+            xl:min-h-[190px]
           "
         >
           <CollectionVsDueCard
@@ -131,9 +145,11 @@ const FinancialOverview = ({
             flex
             min-w-0
             h-full
-            min-h-[190px]
+            min-h-[170px]
             [&>*]:h-full
             [&>*]:w-full
+            sm:min-h-[180px]
+            xl:min-h-[190px]
           "
         >
           <CashBankUpiCard
@@ -156,9 +172,11 @@ const FinancialOverview = ({
             flex
             min-w-0
             h-full
-            min-h-[190px]
+            min-h-[170px]
             [&>*]:h-full
             [&>*]:w-full
+            sm:min-h-[180px]
+            xl:min-h-[190px]
           "
         >
           <CashPositionCard
@@ -175,9 +193,11 @@ const FinancialOverview = ({
             flex
             min-w-0
             h-full
-            min-h-[190px]
+            min-h-[170px]
             [&>*]:h-full
             [&>*]:w-full
+            sm:min-h-[180px]
+            xl:min-h-[190px]
           "
         >
           <PendingActionsCard

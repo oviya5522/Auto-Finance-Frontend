@@ -1056,7 +1056,6 @@ const CustomerPage = () => {
               transition
               hover:border-slate-300
               sm:w-auto
-              sm:justify-start
             "
           >
             <Download
@@ -1113,7 +1112,7 @@ const CustomerPage = () => {
           SUMMARY CARDS
       ================================================== */}
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
           icon={Users}
           label="Total Customers"
@@ -1295,7 +1294,7 @@ const CustomerPage = () => {
 
         {showFilters && (
           <div className="mt-2.5 border-t border-slate-100 pt-2.5">
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
               <FilterSelect
                 label="Customer Status"
                 value={
@@ -1401,7 +1400,7 @@ const CustomerPage = () => {
               />
             </div>
 
-            <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
               <FilterSelect
                 label="Vehicle Type"
                 value={
@@ -1566,7 +1565,7 @@ const CustomerPage = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 pb-2">
+        <div className="flex items-center justify-end gap-2 pb-2">
           <button
             type="button"
             onClick={() => {
@@ -1917,15 +1916,15 @@ const CustomerTable = ({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px]">
+      <div className="[-webkit-overflow-scrolling:touch] overflow-x-auto">
+        <table className="w-full min-w-[600px] sm:min-w-[720px] md:min-w-[860px] lg:min-w-[1000px]">
           <thead className="bg-[#F8FAF9]">
             <tr className="border-b border-slate-200">
               <TableHeader>
                 Customer
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="hidden sm:table-cell">
                 Contact
               </TableHeader>
 
@@ -1933,7 +1932,7 @@ const CustomerTable = ({
                 Vehicle
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="hidden md:table-cell">
                 Loan Details
               </TableHeader>
 
@@ -1941,7 +1940,7 @@ const CustomerTable = ({
                 Outstanding
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader className="hidden lg:table-cell">
                 Next Due
               </TableHeader>
 
@@ -2055,7 +2054,7 @@ const CustomerTable = ({
 
                     {/* CONTACT */}
 
-                    <td className="px-3.5 py-2.5">
+                    <td className="hidden px-3.5 py-2.5 sm:table-cell">
                       <p className="text-[11px] text-slate-600">
                         {personal?.mobileNumber ||
                           "—"}
@@ -2092,7 +2091,7 @@ const CustomerTable = ({
 
                     {/* LOAN */}
 
-                    <td className="px-3.5 py-2.5">
+                    <td className="hidden px-3.5 py-2.5 md:table-cell">
                       <p className="text-[11px] font-semibold text-[#17221D]">
                         ₹
                         {money(
@@ -2143,7 +2142,7 @@ const CustomerTable = ({
 
                     {/* NEXT DUE */}
 
-                    <td className="px-3.5 py-2.5">
+                    <td className="hidden px-3.5 py-2.5 lg:table-cell">
                       <div className="flex items-center gap-1.5">
                         <CalendarDays
                           size={12}
@@ -2214,7 +2213,7 @@ const CustomerTable = ({
                             event.stopPropagation()
                           }
                           className="
-                            flex
+                            hidden
                             h-7
                             w-7
                             items-center
@@ -2226,6 +2225,7 @@ const CustomerTable = ({
                             transition
                             hover:border-slate-300
                             hover:text-slate-700
+                            sm:flex
                           "
                           title="Activity History"
                         >
@@ -2245,7 +2245,7 @@ const CustomerTable = ({
                             );
                           }}
                           className="
-                            flex
+                            hidden
                             h-7
                             w-7
                             items-center
@@ -2257,6 +2257,7 @@ const CustomerTable = ({
                             transition
                             hover:border-slate-300
                             hover:text-slate-700
+                            sm:flex
                           "
                           title="Edit Customer"
                         >
@@ -2604,7 +2605,7 @@ const CustomerGridCard = ({
         />
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           onClick={
@@ -2614,6 +2615,7 @@ const CustomerGridCard = ({
             flex
             h-8
             flex-1
+            min-w-[72px]
             items-center
             justify-center
             gap-1.5
@@ -2726,8 +2728,8 @@ const CustomerGridCard = ({
               bottom-12
               right-3
               z-50
-              w-[235px]
-              max-w-[calc(100%-24px)]
+              w-[calc(100%-24px)]
+              max-w-[235px]
               overflow-hidden
               rounded-lg
               border
@@ -3220,6 +3222,7 @@ const EmptyContent = ({
 const TableHeader = ({
   children,
   align = "left",
+  className = "",
 }) => {
   return (
     <th
@@ -3241,6 +3244,7 @@ const TableHeader = ({
             ? "text-center"
             : "text-left"
         }
+        ${className}
       `}
     >
       {children}
@@ -3420,7 +3424,7 @@ const Pagination = ({
         sm:justify-between
       "
     >
-      <p className="text-[9px] text-slate-400">
+      <p className="text-center text-[9px] text-slate-400 sm:text-left">
         Showing{" "}
         <span className="font-semibold text-slate-600">
           {startIndex + 1}
@@ -3435,7 +3439,7 @@ const Pagination = ({
         </span>
       </p>
 
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
         <button
           type="button"
           onClick={
@@ -3448,6 +3452,7 @@ const Pagination = ({
             flex
             h-7
             w-7
+            shrink-0
             items-center
             justify-center
             rounded-md
@@ -3482,6 +3487,7 @@ const Pagination = ({
                 flex
                 h-7
                 min-w-7
+                shrink-0
                 items-center
                 justify-center
                 rounded-md
@@ -3515,6 +3521,7 @@ const Pagination = ({
             flex
             h-7
             w-7
+            shrink-0
             items-center
             justify-center
             rounded-md

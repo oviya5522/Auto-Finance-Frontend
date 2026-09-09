@@ -64,7 +64,9 @@ const CollectionVsDueCard = ({
         border
         border-slate-200
         bg-white
-        p-3
+        p-2.5
+        sm:p-3
+        lg:p-3.5
       "
     >
       {/* =================================================
@@ -74,23 +76,30 @@ const CollectionVsDueCard = ({
       <div className="flex items-start justify-between gap-2">
         {/* LEFT */}
 
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <div
             className="
               flex
-              h-9
-              w-9
+              h-8
+              w-8
               shrink-0
               items-center
               justify-center
               rounded-lg
               bg-[#EAF5EF]
+              sm:h-9
+              sm:w-9
             "
           >
             <TrendingUp
+              size={16}
+              strokeWidth={2}
+              className="text-[#0B5D3B] sm:hidden"
+            />
+            <TrendingUp
               size={17}
               strokeWidth={2}
-              className="text-[#0B5D3B]"
+              className="hidden text-[#0B5D3B] sm:block"
             />
           </div>
 
@@ -98,9 +107,10 @@ const CollectionVsDueCard = ({
             <p
               className="
                 truncate
-                text-[11px]
+                text-[10.5px]
                 font-semibold
                 text-[#17221D]
+                sm:text-[11px]
               "
             >
               Collection vs Due
@@ -137,11 +147,13 @@ const CollectionVsDueCard = ({
             gap-1
             rounded-full
             border
-            px-2
+            px-1.5
             py-1
-            text-[8px]
+            text-[7.5px]
             font-bold
             transition
+            sm:px-2
+            sm:text-[8px]
             ${
               showOverdue
                 ? "border-red-200 bg-red-50 text-red-700"
@@ -169,14 +181,17 @@ const CollectionVsDueCard = ({
           AMOUNT
       ================================================== */}
 
-      <div className="mt-4">
-        <div className="flex items-end gap-2">
+      <div className="mt-3 sm:mt-4">
+        <div className="flex flex-wrap items-end gap-1.5 sm:gap-2">
           <span
             className={`
-              text-[24px]
+              text-[20px]
               font-extrabold
               leading-none
               tracking-tight
+              sm:text-[24px]
+              lg:text-[22px]
+              xl:text-[24px]
               ${
                 showOverdue
                   ? "text-red-600"
@@ -190,9 +205,10 @@ const CollectionVsDueCard = ({
           <span
             className="
               pb-0.5
-              text-[13px]
+              text-[12px]
               font-semibold
               text-slate-300
+              sm:text-[13px]
             "
           >
             /
@@ -201,9 +217,10 @@ const CollectionVsDueCard = ({
           <span
             className="
               pb-0.5
-              text-[13px]
+              text-[12px]
               font-semibold
               text-slate-400
+              sm:text-[13px]
             "
           >
             ₹{formatMoney(due)}
@@ -213,9 +230,10 @@ const CollectionVsDueCard = ({
         <p
           className="
             mt-1
-            text-[8px]
+            text-[7.5px]
             font-medium
             text-slate-400
+            sm:text-[8px]
           "
         >
           {showOverdue
@@ -228,13 +246,14 @@ const CollectionVsDueCard = ({
           ACCURACY
       ================================================== */}
 
-      <div className="mt-3">
+      <div className="mt-2.5 sm:mt-3">
         <div className="mb-1 flex items-center justify-between">
           <span
             className="
-              text-[8px]
+              text-[7.5px]
               font-medium
               text-slate-400
+              sm:text-[8px]
             "
           >
             Collection accuracy
@@ -242,8 +261,9 @@ const CollectionVsDueCard = ({
 
           <span
             className={`
-              text-[9px]
+              text-[8.5px]
               font-extrabold
+              sm:text-[9px]
               ${
                 showOverdue
                   ? "text-red-600"
@@ -257,11 +277,12 @@ const CollectionVsDueCard = ({
 
         <div
           className="
-            h-2
+            h-1.5
             w-full
             overflow-hidden
             rounded-full
             bg-slate-100
+            sm:h-2
           "
         >
           <div
