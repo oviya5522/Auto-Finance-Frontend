@@ -18,7 +18,6 @@ import {
   MoreVertical,
   SlidersHorizontal,
   Download,
-  History,
   RotateCcw,
   ShieldCheck,
   Grid2X2,
@@ -36,7 +35,8 @@ import {
   getCustomers,
   getOutstandingAmount,
 } from "../../services/customerStorage";
-
+import LoanDetailsDrawer from "../../components/loans/LoanDetailsDrawer";
+import CustomerActivityHistoryModal from "../../components/customers/CustomerActivityHistoryModal";
 /* =========================================================
    BASE HELPERS
 ========================================================= */
@@ -206,6 +206,14 @@ const CustomerPage = () => {
 
   const [loading, setLoading] =
     useState(true);
+    const [selectedCustomer, setSelectedCustomer] =
+  useState(null);
+
+const [showLoanDrawer, setShowLoanDrawer] =
+  useState(false);
+
+const [showActivityHistory, setShowActivityHistory] =
+  useState(false);
 
   /* =====================================================
      SEARCH / FILTER STATE
@@ -743,6 +751,7 @@ const CustomerPage = () => {
       filters,
       activeTab,
     ]);
+    
 
   /* =====================================================
      PAGINATION
@@ -933,22 +942,70 @@ const CustomerPage = () => {
       );
     };
 
-  const handleView = (
-    customer
-  ) => {
-    const id =
-      customer
-        ?.customer?.id;
+const handleView = (customer) => {
+  const id =
+    customer?.customer?.id;
 
-    if (!id) {
-      return;
-    }
+  if (!id) {
+    return;
+  }
 
-    navigate(
-      `/customers/${id}`
-    );
-  };
+  navigate(`/customers/${id}`);
+};
 
+const handleViewLoan = (customer) => {
+  if (!customer?.loan) {
+    return;
+  }
+
+  setSelectedCustomer(customer);
+  setShowLoanDrawer(true);
+};
+
+const handleViewActivity = (customer) => {
+  setSelectedCustomer(customer);
+  setShowActivityHistory(true);
+};
+
+const closeLoanDrawer = () => {
+  setShowLoanDrawer(false);
+  setSelectedCustomer(null);
+};
+
+const closeActivityHistory = () => {
+  setShowActivityHistory(false);
+  setSelectedCustomer(null);
+};
+  
+const selectedLoan =
+  selectedCustomer?.loan || null;
+
+const selectedPaymentHistory =
+  Array.isArray(
+    selectedLoan?.paymentHistory
+  )
+    ? selectedLoan.paymentHistory
+    : [];
+
+const selectedRepaymentSchedule =
+  Array.isArray(
+    selectedLoan?.repaymentSchedule
+  )
+    ? selectedLoan.repaymentSchedule
+    : [];
+
+const selectedLoanStatus =
+  String(
+    selectedLoan?.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+const selectedIsTerminalLoan =
+  selectedLoanStatus === "closed" ||
+  selectedLoanStatus === "paid" ||
+  selectedLoanStatus === "paid off" ||
+  selectedLoanStatus === "foreclosed";
   /* =====================================================
      LOADING
   ====================================================== */
@@ -1000,40 +1057,6 @@ const CustomerPage = () => {
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button
             type="button"
-            className="
-              col-span-1
-              inline-flex
-              h-9
-              w-full
-              items-center
-              justify-center
-              gap-1.5
-              rounded-lg
-              border
-              border-slate-200
-              bg-white
-              px-3
-              text-[11px]
-              font-medium
-              text-slate-600
-              transition
-              hover:border-slate-300
-              sm:w-auto
-              sm:justify-start
-            "
-          >
-            <History
-              size={14}
-              className="shrink-0"
-            />
-
-            <span className="truncate">
-              Activity History
-            </span>
-          </button>
-
-          <button
-            type="button"
             onClick={
               handleExport
             }
@@ -1071,40 +1094,6 @@ const CustomerPage = () => {
             />
           </button>
 
-          <button
-            type="button"
-            onClick={
-              handleAddCustomer
-            }
-            className="
-              col-span-2
-              inline-flex
-              h-9
-              w-full
-              items-center
-              justify-center
-              gap-1.5
-              rounded-lg
-              bg-[#0B5D3B]
-              px-3.5
-              text-[11px]
-              font-semibold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-[#084A30]
-              sm:w-auto
-            "
-          >
-            <Plus
-              size={15}
-              className="shrink-0"
-            />
-
-            <span className="truncate">
-              Add New Customer
-            </span>
-          </button>
         </div>
       </div>
 
@@ -1667,21 +1656,15 @@ const CustomerPage = () => {
 
       {viewMode ===
       "list" ? (
-        <CustomerTable
-          customers={
-            paginatedCustomers
-          }
-          onView={
-            handleView
-          }
-          openMenuId={
-            openMenuId
-          }
-          setOpenMenuId={
-            setOpenMenuId
-          }
-          money={money}
-        />
+     <CustomerTable
+  customers={paginatedCustomers}
+  onView={handleView}
+  onViewLoan={handleViewLoan}
+  onViewActivity={handleViewActivity}
+  openMenuId={openMenuId}
+  setOpenMenuId={setOpenMenuId}
+  money={money}
+/>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {paginatedCustomers.length ===
@@ -1699,27 +1682,17 @@ const CustomerPage = () => {
                 customer
               ) => (
                 <CustomerGridCard
-                  key={
-                    customer
-                      ?.customer
-                      ?.id
-                  }
-                  customer={
-                    customer
-                  }
-                  money={money}
-                  onView={() =>
-                    handleView(
-                      customer
-                    )
-                  }
-                  openMenuId={
-                    openMenuId
-                  }
-                  setOpenMenuId={
-                    setOpenMenuId
-                  }
-                />
+  key={customer?.customer?.id}
+  customer={customer}
+  money={money}
+  onView={() => handleView(customer)}
+  onViewLoan={() => handleViewLoan(customer)}
+  onViewActivity={() =>
+    handleViewActivity(customer)
+  }
+  openMenuId={openMenuId}
+  setOpenMenuId={setOpenMenuId}
+/>
               )
             )
           )}
@@ -1771,6 +1744,22 @@ const CustomerPage = () => {
           }
         />
       )}
+      {showLoanDrawer && selectedLoan && (
+  <LoanDetailsDrawer
+    loan={selectedLoan}
+    onClose={closeLoanDrawer}
+  />
+)}
+
+{showActivityHistory && selectedCustomer && (
+  <CustomerActivityHistoryModal
+    customer={selectedCustomer}
+    paymentHistory={selectedPaymentHistory}
+    repaymentSchedule={selectedRepaymentSchedule}
+    isTerminalLoan={selectedIsTerminalLoan}
+    onClose={closeActivityHistory}
+  />
+)}
     </div>
   );
 };
@@ -1887,6 +1876,8 @@ const SummaryCard = ({
 const CustomerTable = ({
   customers,
   onView,
+  onViewLoan,
+  onViewActivity,
   openMenuId,
   setOpenMenuId,
   money,
@@ -2206,34 +2197,31 @@ const CustomerTable = ({
                         </button>
 
                         <button
-                          type="button"
-                          onClick={(
-                            event
-                          ) =>
-                            event.stopPropagation()
-                          }
-                          className="
-                            hidden
-                            h-7
-                            w-7
-                            items-center
-                            justify-center
-                            rounded-md
-                            border
-                            border-slate-200
-                            text-slate-500
-                            transition
-                            hover:border-slate-300
-                            hover:text-slate-700
-                            sm:flex
-                          "
-                          title="Activity History"
-                        >
-                          <Clock3
-                            size={13}
-                          />
-                        </button>
-
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation();
+    handleViewActivity(customer);
+  }}
+  className="
+    hidden
+    h-7
+    w-7
+    items-center
+    justify-center
+    rounded-md
+    border
+    border-slate-200
+    text-slate-500
+    transition
+    hover:border-[#0B5D3B]
+    hover:bg-[#F6FBF8]
+    hover:text-[#0B5D3B]
+    sm:flex
+  "
+  title="Activity History"
+>
+  <Clock3 size={13} />
+</button>
                         <button
                           type="button"
                           onClick={(
@@ -2382,20 +2370,14 @@ const CustomerTable = ({
                               ring-black/5
                             "
                           >
-                            <MenuItem
-                              label="View Loan Details"
-                              icon={
-                                Eye
-                              }
-                              onClick={() => {
-                                setOpenMenuId(
-                                  null
-                                );
-                                onView(
-                                  customer
-                                );
-                              }}
-                            />
+                          <MenuItem
+  label="View Loan Details"
+  icon={Eye}
+  onClick={() => {
+    setOpenMenuId(null);
+    handleViewLoan(customer);
+  }}
+/>
 
                             <MenuItem
                               label="Add Payment"
@@ -2509,6 +2491,8 @@ const CustomerGridCard = ({
   customer,
   money,
   onView,
+  onViewLoan,
+  onViewActivity,
   openMenuId,
   setOpenMenuId,
 }) => {
@@ -2638,29 +2622,28 @@ const CustomerGridCard = ({
         </button>
 
         <button
-          type="button"
-          className="
-            flex
-            h-8
-            w-8
-            shrink-0
-            items-center
-            justify-center
-            rounded-lg
-            border
-            border-slate-200
-            text-slate-500
-            transition
-            hover:border-slate-300
-            hover:text-slate-700
-          "
-          title="Activity History"
-        >
-          <Clock3
-            size={13}
-          />
-        </button>
-
+  type="button"
+  onClick={onViewActivity}
+  className="
+    flex
+    h-8
+    w-8
+    shrink-0
+    items-center
+    justify-center
+    rounded-lg
+    border
+    border-slate-200
+    text-slate-500
+    transition
+    hover:border-[#0B5D3B]
+    hover:bg-[#F6FBF8]
+    hover:text-[#0B5D3B]
+  "
+  title="Activity History"
+>
+  <Clock3 size={13} />
+</button>
         <button
           type="button"
           onClick={
@@ -2738,20 +2721,14 @@ const CustomerGridCard = ({
               shadow-xl
             "
           >
-            <MenuItem
-              label="View Loan Details"
-              icon={Eye}
-              onClick={() => {
-                setOpenMenuId(
-                  null
-                );
-
-                onView(
-                  customer
-                );
-              }}
-            />
-
+          <MenuItem
+  label="View Loan Details"
+  icon={Eye}
+  onClick={() => {
+    setOpenMenuId(null);
+    onViewLoan();
+  }}
+/>
             <MenuItem
               label="Add Payment"
               icon={

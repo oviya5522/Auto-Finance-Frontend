@@ -11,7 +11,6 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  Bell,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -154,16 +153,6 @@ const LoanPage = () => {
     );
 
   /* =====================================================
-     OPEN REMINDER MODULE
-  ====================================================== */
-
-  const openReminderModule = () => {
-    navigate(
-      "/reminders"
-    );
-  };
-
-  /* =====================================================
      LOADING
   ====================================================== */
 
@@ -290,40 +279,6 @@ const LoanPage = () => {
               gap-2
             "
           >
-            {/* REMINDERS */}
-
-            <button
-              type="button"
-              onClick={
-                openReminderModule
-              }
-              className="
-                inline-flex
-                h-9
-                items-center
-                gap-1.5
-                rounded-lg
-                border
-                border-[#D8E9DF]
-                bg-[#F6FBF8]
-                px-3
-                text-[10px]
-                font-semibold
-                text-[#0B5D3B]
-                transition
-                duration-200
-                hover:border-[#A8D0BD]
-                hover:bg-[#EAF5EF]
-              "
-            >
-              <Bell
-                size={14}
-                strokeWidth={2}
-              />
-
-              Reminders
-            </button>
-
             {/* EXPORT */}
 
             <button

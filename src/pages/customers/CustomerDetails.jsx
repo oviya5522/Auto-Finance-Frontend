@@ -31,7 +31,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock3,
+  X,
+  Maximize2,
 } from "lucide-react";
+
+import LoanRepaymentSchedule from "../../components/loans/LoanRepaymentSchedule";
+import CustomerPaymentHistoryModal from "../../components/customers/CustomerPaymentHistoryModal";
+import CustomerActivityHistoryModal from "../../components/customers/CustomerActivityHistoryModal";
+
 
 import {
   getCustomerById,
@@ -62,6 +69,10 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] =
     useState("Overview");
 
+  const [showPaymentHistory, setShowPaymentHistory] =
+    useState(false);
+const [showActivityHistory, setShowActivityHistory] =
+  useState(false);
   /* =====================================================
      LOAD CUSTOMER
   ====================================================== */
@@ -470,14 +481,11 @@ const CustomerDetails = () => {
   };
 
   const handlePaymentHistory = () => {
-    navigate(
-      `/customers/${customerId}/payments`
-    );
+    setShowPaymentHistory(true);
   };
-
-  const handleActivity = () => {
-    setActiveTab("Activity");
-  };
+const handleActivity = () => {
+  setShowActivityHistory(true);
+};
 
   /* =====================================================
      RENDER
@@ -1313,9 +1321,6 @@ const CustomerDetails = () => {
           pendingInstallments={
             pendingInstallments
           }
-          paymentHistory={
-            paymentHistory
-          }
           isForeclosed={
             isForeclosed
           }
@@ -1348,6 +1353,25 @@ const CustomerDetails = () => {
         />
       )}
 
+      {showPaymentHistory && (
+        <CustomerPaymentHistoryModal
+          customer={customer}
+          loan={loan}
+          paymentHistory={paymentHistory}
+          onClose={() => setShowPaymentHistory(false)}
+        />
+      )}
+{showActivityHistory && (
+  <CustomerActivityHistoryModal
+    customer={customer}
+    paymentHistory={paymentHistory}
+    repaymentSchedule={repaymentSchedule}
+    isTerminalLoan={isTerminalLoan}
+    onClose={() =>
+      setShowActivityHistory(false)
+    }
+  />
+)}
       <style>{`
         .vehicle-image-placeholder {
           background:
@@ -1813,7 +1837,6 @@ const LoanTab = ({
   overdueInstallments,
   paidInstallments,
   pendingInstallments,
-  paymentHistory,
   isForeclosed,
   isClosed,
   loanStatus,
@@ -1821,6 +1844,11 @@ const LoanTab = ({
   const isTerminalLoan =
     isForeclosed ||
     isClosed;
+
+  const [
+    scheduleOpen,
+    setScheduleOpen,
+  ] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -2299,260 +2327,383 @@ const LoanTab = ({
 
       {/* REPAYMENT SCHEDULE */}
 
-      <DetailCard
-        icon={CalendarDays}
-        title="Repayment Schedule"
-        action={
-          <span className="text-[8px] font-semibold text-slate-400">
-            {repaymentSchedule.length} entries
-          </span>
+      <section
+        className="
+          overflow-hidden
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          shadow-sm
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            gap-3
+            border-b
+            border-slate-100
+            px-4
+            py-3.5
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                rounded-lg
+                bg-[#EAF5EF]
+                text-[#0B6B43]
+              "
+            >
+              <CalendarDays size={16} />
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="text-[12px] font-extrabold text-[#17221D]">
+                Repayment Schedule
+              </h3>
+
+              <p className="mt-0.5 text-[8px] font-medium text-slate-400">
+                View the complete installment schedule without expanding the page.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className="
+                rounded-full
+                bg-slate-100
+                px-2.5
+                py-1
+                text-[8px]
+                font-extrabold
+                text-slate-500
+              "
+            >
+              {repaymentSchedule.length} entries
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setScheduleOpen(true)}
+              className="
+                inline-flex
+                h-9
+                items-center
+                gap-1.5
+                rounded-lg
+                bg-[#0B6B43]
+                px-3.5
+                text-[9px]
+                font-extrabold
+                text-white
+                shadow-sm
+                transition
+                hover:-translate-y-[1px]
+                hover:bg-[#095B3B]
+                hover:shadow-md
+              "
+            >
+              <Maximize2 size={12} />
+              Open Schedule
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-3">
+          {isTerminalLoan ? (
+            <div
+              className="
+                rounded-lg
+                border
+                border-slate-200
+                bg-slate-50
+                px-4
+                py-4
+                text-center
+              "
+            >
+              <CheckCircle2
+                size={20}
+                className="mx-auto text-emerald-600"
+              />
+
+              <p className="mt-2 text-[10px] font-bold text-[#17221D]">
+                No Active Repayment Schedule
+              </p>
+
+              <p className="mt-1 text-[8px] text-slate-400">
+                {isForeclosed
+                  ? "This loan has been foreclosed and is no longer part of the active EMI collection workflow."
+                  : "This loan is closed and is no longer part of the active EMI collection workflow."}
+              </p>
+            </div>
+          ) : (
+            <div
+              className="
+                flex
+                flex-wrap
+                items-center
+                justify-between
+                gap-3
+                rounded-lg
+                border
+                border-[#D8E9DF]
+                bg-[#F6FBF8]
+                px-3
+                py-3
+              "
+            >
+              <div>
+                <p className="text-[9px] font-extrabold text-[#17221D]">
+                  Complete schedule available
+                </p>
+
+                <p className="mt-0.5 text-[8px] text-slate-500">
+                  Open the schedule popup to review due dates, principal, interest, EMI and status.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setScheduleOpen(true)}
+                className="
+                  inline-flex
+                  h-8
+                  items-center
+                  gap-1.5
+                  rounded-lg
+                  border
+                  border-[#B9DCC6]
+                  bg-white
+                  px-3
+                  text-[8px]
+                  font-extrabold
+                  text-[#0B6B43]
+                  transition
+                  hover:bg-[#EAF5EF]
+                "
+              >
+                <CalendarDays size={11} />
+                View Schedule
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {scheduleOpen && (
+        <RepaymentSchedulePopup
+          loan={loan}
+          onClose={() => setScheduleOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+/* =========================================================
+   REPAYMENT SCHEDULE POPUP
+========================================================= */
+
+const RepaymentSchedulePopup = ({
+  loan,
+  onClose,
+}) => {
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, []);
+
+  const scheduleCount =
+    Array.isArray(
+      loan?.repaymentSchedule
+    )
+      ? loan.repaymentSchedule.length
+      : 0;
+
+  return (
+    <div
+      className="
+        fixed
+        inset-0
+        z-[500]
+        flex
+        items-center
+        justify-center
+        bg-slate-950/50
+        p-3
+        backdrop-blur-[3px]
+        sm:p-5
+      "
+      onClick={onClose}
+    >
+      <div
+        className="
+          flex
+          h-[92vh]
+          w-full
+          max-w-[1180px]
+          flex-col
+          overflow-hidden
+          rounded-2xl
+          border
+          border-slate-200
+          bg-[#F7FAF8]
+          shadow-[0_30px_100px_rgba(15,23,42,0.28)]
+        "
+        onClick={(event) =>
+          event.stopPropagation()
         }
       >
-        {isTerminalLoan ? (
-          <div
-            className="
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-6
-              text-center
-            "
-          >
-            <CheckCircle2
-              size={20}
+        <div
+          className="
+            flex
+            shrink-0
+            items-center
+            justify-between
+            gap-3
+            border-b
+            border-slate-200
+            bg-white
+            px-4
+            py-3.5
+            sm:px-5
+          "
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div
               className="
-                mx-auto
-                text-emerald-600
+                flex
+                h-10
+                w-10
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                bg-[#EAF5EF]
+                text-[#0B6B43]
               "
-            />
+            >
+              <CalendarDays size={18} />
+            </div>
 
-            <p className="mt-2 text-[11px] font-bold text-[#17221D]">
-              No Active Repayment Schedule
-            </p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-[15px] font-extrabold text-[#17221D] sm:text-[17px]">
+                  Repayment Schedule
+                </h2>
 
-            <p className="mt-1 text-[8px] text-slate-400">
-              {isForeclosed
-                ? "This loan has been foreclosed and is no longer part of the active EMI collection workflow."
-                : "This loan is closed and is no longer part of the active EMI collection workflow."}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] border-collapse">
-              <thead className="bg-[#F7FAF8]">
-                <tr>
-                  <TableHeader>
-                    #
-                  </TableHeader>
-
-                  <TableHeader>
-                    Due Date
-                  </TableHeader>
-
-                  <TableHeader>
-                    Principal
-                  </TableHeader>
-
-                  <TableHeader>
-                    Interest
-                  </TableHeader>
-
-                  <TableHeader>
-                    EMI
-                  </TableHeader>
-
-                  <TableHeader>
-                    Status
-                  </TableHeader>
-                </tr>
-              </thead>
-
-              <tbody>
-                {repaymentSchedule.map(
-                  (
-                    row,
-                    index
-                  ) => {
-                    const overdue =
-                      isOverdueRow(
-                        row
-                      );
-
-                    const rawStatus =
-                      normalizeStatus(
-                        row?.status
-                      );
-
-                    const displayStatus =
-                      overdue
-                        ? "Overdue"
-                        : normalizePaymentLabel(
-                            rawStatus
-                          );
-
-                    return (
-                      <tr
-                        key={
-                          row?.id ||
-                          `${row?.dueDate}-${index}`
-                        }
-                        className={`
-                          border-b
-                          border-slate-100
-                          ${
-                            overdue
-                              ? "bg-red-50/30"
-                              : ""
-                          }
-                        `}
-                      >
-                        <td className="px-4 py-2.5 text-[10px] font-bold text-[#253252]">
-                          {row?.installmentNumber ??
-                            row?.installmentNo ??
-                            index +
-                              1}
-                        </td>
-
-                        <td
-                          className={`
-                            px-4
-                            py-2.5
-                            text-[10px]
-                            font-semibold
-                            ${
-                              overdue
-                                ? "text-red-600"
-                                : "text-slate-600"
-                            }
-                          `}
-                        >
-                          {formatDate(
-                            row?.dueDate
-                          )}
-                        </td>
-
-                        <td className="px-4 py-2.5 text-[10px] text-slate-600">
-                          ₹
-                          {money(
-                            row?.principal ??
-                              row?.principalAmount ??
-                              row?.principalComponent ??
-                              0
-                          )}
-                        </td>
-
-                        <td className="px-4 py-2.5 text-[10px] text-slate-600">
-                          ₹
-                          {money(
-                            row?.interest ??
-                              row?.interestAmount ??
-                              row?.interestComponent ??
-                              0
-                          )}
-                        </td>
-
-                        <td className="px-4 py-2.5 text-[10px] font-bold text-[#17221D]">
-                          ₹
-                          {money(
-                            row?.paymentAmount ??
-                              row?.emiAmount ??
-                              row?.amount ??
-                              0
-                          )}
-                        </td>
-
-                        <td className="px-4 py-2.5">
-                          <StatusBadge
-                            label={
-                              displayStatus
-                            }
-                          />
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </DetailCard>
-
-      {/* PAYMENT HISTORY */}
-
-      <DetailCard
-        icon={History}
-        title="Payment History"
-      >
-        {paymentHistory.length ===
-        0 ? (
-          <div
-            className="
-              rounded-lg
-              bg-slate-50
-              px-4
-              py-5
-              text-center
-            "
-          >
-            <p className="text-[9px] font-semibold text-slate-500">
-              No payment history available
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {paymentHistory.map(
-              (
-                payment,
-                index
-              ) => (
-                <div
-                  key={
-                    payment?.id ||
-                    index
-                  }
+                <span
                   className="
-                    flex
-                    items-center
-                    justify-between
-                    rounded-lg
-                    border
-                    border-slate-100
-                    bg-[#FCFDFC]
-                    px-4
-                    py-3
+                    rounded-full
+                    bg-slate-100
+                    px-2
+                    py-1
+                    text-[7px]
+                    font-extrabold
+                    text-slate-500
                   "
                 >
-                  <div>
-                    <p className="text-[10px] font-bold text-[#253252]">
-                      Payment #
-                      {index +
-                        1}
-                    </p>
+                  {scheduleCount} entries
+                </span>
+              </div>
 
-                    <p className="mt-0.5 text-[8px] text-slate-400">
-                      {formatDate(
-                        payment?.date ||
-                          payment?.paidAt ||
-                          payment?.paymentDate
-                      )}
-                    </p>
-                  </div>
-
-                  <p className="text-[11px] font-extrabold text-[#0B6B43]">
-                    ₹
-                    {money(
-                      payment?.amount
-                    )}
-                  </p>
-                </div>
-              )
-            )}
+              <p className="mt-0.5 truncate text-[8px] text-slate-400 sm:text-[9px]">
+                {loan?.loanNumber || "Loan"} ·{" "}
+                {loan?.customerName || "Customer"}
+              </p>
+            </div>
           </div>
-        )}
-      </DetailCard>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              flex
+              h-9
+              w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              border
+              border-slate-200
+              bg-white
+              text-slate-400
+              transition
+              hover:bg-slate-50
+              hover:text-slate-700
+            "
+            aria-label="Close repayment schedule"
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div
+          className="
+            min-h-0
+            flex-1
+            overflow-auto
+            p-3
+            sm:p-4
+            lg:p-5
+          "
+        >
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              shadow-sm
+            "
+          >
+            <LoanRepaymentSchedule
+              loan={loan}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

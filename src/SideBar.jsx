@@ -10,12 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Wallet,
   Receipt,
-  ReceiptText,
   CarFront,
-  Repeat2,
-  Bell,
   BarChart3,
   Menu,
   X,
@@ -33,51 +29,61 @@ const NAV_ITEMS = [
   },
 
   {
+    id: "loans",
+    label: "Loans",
+    icon: HandCoins,
+    children: [
+      {
+        id: "loans-all",
+        label: "All Loans",
+      },
+      {
+        id: "loans-new",
+        label: "New Loan",
+      },
+      {
+        id: "loan-management",
+        label: "Loan Management",
+      },
+      {
+        id: "reloan",
+        label: "Re-loan",
+      },
+    ],
+  },
+
+  {
+    id: "repayments",
+    label: "Repayments",
+    icon: HandCoins,
+    children: [
+      {
+        id: "collections",
+        label: "Collection",
+      },
+      {
+        id: "reminders",
+        label: "Reminder",
+      },
+    ],
+  },
+
+  {
     id: "customers",
     label: "Customers",
     icon: Users,
   },
 
   {
-    id: "loans",
-    label: "Loans",
-    icon: HandCoins,
-  },
-
-  {
-    id: "loan-management",
-    label: "Loan Management",
-    icon: Wallet,
-  },
-
-  {
-    id: "reloan",
-    label: "Re-loan",
-    icon: Repeat2,
-  },
-
-  {
-    id: "collections",
-    label: "Collections",
-    icon: ReceiptText,
-  },
-
-  {
-    id: "reminders",
-    label: "Reminders",
-    icon: Bell,
+    id: "expense-control",
+    label: "Expense Control",
+    icon: Receipt,
   },
 
   {
     id: "control-center",
     label: "Control Center",
     icon: BarChart3,
-  },
-
-  {
-    id: "expense-control",
-    label: "Expense Control",
-    icon: Receipt,
   },
 
   {
@@ -143,9 +149,15 @@ const SideBar = ({
     openMenu,
     setOpenMenu,
   ] = useState(
-    activeItem?.startsWith?.(
-      "vehicles-"
-    )
+    activeItem === "loans-all" ||
+    activeItem === "loans-new" ||
+    activeItem === "loan-management" ||
+    activeItem === "reloan"
+      ? "loans"
+      : activeItem === "collections" ||
+        activeItem === "reminders"
+      ? "repayments"
+      : activeItem?.startsWith?.("vehicles-")
       ? "vehicles"
       : null
   );

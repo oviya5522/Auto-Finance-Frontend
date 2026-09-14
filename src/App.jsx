@@ -159,12 +159,16 @@ const AppLayout = () => {
   const getActiveItem = () => {
     const path = location.pathname;
 
+    if (path === "/customers/onboarding") {
+      return "loans-new";
+    }
+
     if (path.startsWith("/customers")) {
       return "customers";
     }
 
     if (path === "/loan") {
-      return "loans";
+      return "loans-all";
     }
 
     if (path.startsWith("/loan-management")) {
@@ -250,6 +254,14 @@ const AppLayout = () => {
 
       case "loans":
         navigate("/loan");
+        break;
+
+      case "loans-all":
+        navigate("/loan");
+        break;
+
+      case "loans-new":
+        navigate("/customers/onboarding");
         break;
 
       case "loan-management":

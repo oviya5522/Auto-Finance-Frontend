@@ -1,12 +1,9 @@
 import {
   Eye,
   CreditCard,
-  CalendarDays,
   Pencil,
   FileText,
-  Bell,
   CheckCircle2,
-  MoreVertical,
 } from "lucide-react";
 
 const LoanActionMenu = ({
@@ -33,13 +30,6 @@ const LoanActionMenu = ({
         );
         break;
 
-      case "schedule":
-        console.log(
-          "View repayment schedule",
-          loan
-        );
-        break;
-
       case "edit":
         console.log(
           "Edit loan",
@@ -54,23 +44,9 @@ const LoanActionMenu = ({
         );
         break;
 
-      case "reminder":
-        console.log(
-          "Send reminder",
-          loan
-        );
-        break;
-
       case "close":
         console.log(
           "Close loan",
-          loan
-        );
-        break;
-
-      case "more":
-        console.log(
-          "More actions",
           loan
         );
         break;
@@ -122,14 +98,6 @@ const LoanActionMenu = ({
       />
 
       <Action
-        icon={CalendarDays}
-        label="View Repayment Schedule"
-        onClick={() =>
-          action("schedule")
-        }
-      />
-
-      <Action
         icon={Pencil}
         label="Edit Loan"
         onClick={() =>
@@ -146,28 +114,10 @@ const LoanActionMenu = ({
       />
 
       <Action
-        icon={Bell}
-        label="Send Reminder"
-        onClick={() =>
-          action("reminder")
-        }
-      />
-
-      <Action
         icon={CheckCircle2}
         label="Close Loan"
         onClick={() =>
           action("close")
-        }
-      />
-
-      <div className="my-1 border-t border-slate-100" />
-
-      <Action
-        icon={MoreVertical}
-        label="More"
-        onClick={() =>
-          action("more")
         }
       />
 
