@@ -21,6 +21,9 @@ import {
 } from "../../../services/loanCalculator";
 
 import SummaryCard from "./SummaryCard";
+import {
+  getInvestmentPoolSummary,
+} from "../../../services/investorStorage";
 
 /* =========================================================
    TABS
@@ -83,6 +86,9 @@ const LoanDetailsStep = ({
 
   const collection =
     loan?.collection || {};
+
+  const fundingSummary =
+    getInvestmentPoolSummary();
 
   /*
    * New customer-specific overdue rule.
@@ -664,6 +670,54 @@ const LoanDetailsStep = ({
               }
             />
           </FormField>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-[#D8E9DF] bg-[#F6FBF8] p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-[#0B6B43]">
+                Investment Pool
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                New loans use the combined balance from all investor investments.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                Available Balance
+              </p>
+              <p className={`text-sm font-extrabold ${Number(loan.loanAmount || 0) > fundingSummary.availableInvestmentBalance ? "text-red-600" : "text-[#0B6B43]"}`}>
+                ₹{money(fundingSummary.availableInvestmentBalance)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <FormField label="Total Investment">
+              <input readOnly value={`₹${money(fundingSummary.totalInvestment)}`} className={`${inputClass} bg-slate-50 text-slate-500`} />
+            </FormField>
+            <FormField label="Distributed to Loans">
+              <input readOnly value={`₹${money(fundingSummary.distributedToLoans)}`} className={`${inputClass} bg-slate-50 text-slate-500`} />
+            </FormField>
+            <FormField label="Balance After Funding">
+              <input
+                readOnly
+                value={`₹${money(fundingSummary.availableInvestmentBalance - Number(loan.loanAmount || 0))}`}
+                className={`${inputClass} bg-slate-50 text-slate-500`}
+              />
+            </FormField>
+          </div>
+
+          {Number(loan.loanAmount || 0) > fundingSummary.availableInvestmentBalance && (
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[10px] font-bold text-red-700">
+              Insufficient investment balance. Available funding: ₹{money(fundingSummary.availableInvestmentBalance)}.
+            </p>
+          )}
+          {fundingSummary.totalInvestment <= 0 && (
+            <p className="mt-2 text-[10px] font-semibold text-amber-700">
+              Add an investment before creating a loan disbursement.
+            </p>
+          )}
         </div>
       </CompactSection>
     );

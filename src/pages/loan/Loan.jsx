@@ -279,8 +279,6 @@ const LoanPage = () => {
               gap-2
             "
           >
-            {/* EXPORT */}
-
             <button
               type="button"
               onClick={() => {
@@ -311,40 +309,6 @@ const LoanPage = () => {
               />
 
               Export
-            </button>
-
-            {/* NEW LOAN */}
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/customers/onboarding"
-                )
-              }
-              className="
-                inline-flex
-                h-9
-                items-center
-                gap-1.5
-                rounded-lg
-                bg-[#0B5D3B]
-                px-3.5
-                text-[10px]
-                font-semibold
-                text-white
-                shadow-sm
-                transition
-                duration-200
-                hover:bg-[#084A30]
-              "
-            >
-              <Plus
-                size={14}
-                strokeWidth={2.3}
-              />
-
-              New Loan
             </button>
           </div>
         </div>

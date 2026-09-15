@@ -24,6 +24,7 @@ import RecentActivities from "./pages/activities/RecentActivities";
 import Settings from "./pages/settings/Settings";
 import LoanManagement from "./pages/loan/LoanManagement";
 import ExpenseControl from "./pages/expense/ExpenseControl";
+import Investor from "./pages/investor/Investor";
 
 import ReLoanEligibility from "./pages/reloan/ReLoanEligibility";
 import ReLoan from "./pages/reloan/ReLoan";
@@ -183,6 +184,14 @@ const AppLayout = () => {
       return "collections";
     }
 
+    if (path.startsWith("/investor")) {
+      return "investor";
+    }
+
+    if (path.startsWith("/ledger")) {
+      return "ledger";
+    }
+
     /*
      * Repayment route is still supported for backward
      * compatibility, but it is no longer shown in the
@@ -274,6 +283,14 @@ const AppLayout = () => {
 
       case "collections":
         navigate("/collections");
+        break;
+
+      case "investor":
+        navigate("/investor");
+        break;
+
+      case "ledger":
+        navigate("/ledger");
         break;
 
       /*
@@ -563,6 +580,19 @@ const AppLayout = () => {
             element={
               <ProtectedRoute role="admin">
                 <ExpenseControl />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =================================================
+              INVESTOR FUNDING
+          ================================================== */}
+
+          <Route
+            path="/investor"
+            element={
+              <ProtectedRoute role="admin">
+                <Investor />
               </ProtectedRoute>
             }
           />

@@ -411,43 +411,6 @@ const LoanDetailsDrawer = ({
               >
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate(
-                      `/reloan?loanId=${encodeURIComponent(
-                        loan?.id ||
-                          loan?.loanNumber ||
-                          ""
-                      )}`
-                    )
-                  }
-                  className="
-                    inline-flex
-                    h-9
-                    items-center
-                    gap-1.5
-                    rounded-lg
-                    bg-[#0B6B43]
-                    px-3
-                    text-[9px]
-                    font-extrabold
-                    text-white
-                    shadow-sm
-                    transition
-                    hover:bg-[#095B3B]
-                    sm:px-3.5
-                  "
-                >
-                  <RefreshCw
-                    size={13}
-                  />
-
-                  <span className="hidden sm:inline">
-                    Re-loan
-                  </span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={onClose}
                   className="
                     flex

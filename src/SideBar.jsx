@@ -13,6 +13,7 @@ import {
   Receipt,
   CarFront,
   BarChart3,
+  WalletCards,
   Menu,
   X,
 } from "lucide-react";
@@ -49,21 +50,9 @@ const NAV_ITEMS = [
         id: "reloan",
         label: "Re-loan",
       },
-    ],
-  },
-
-  {
-    id: "repayments",
-    label: "Repayments",
-    icon: HandCoins,
-    children: [
       {
         id: "collections",
-        label: "Collection",
-      },
-      {
-        id: "reminders",
-        label: "Reminder",
+        label: "Collections",
       },
     ],
   },
@@ -75,9 +64,29 @@ const NAV_ITEMS = [
   },
 
   {
-    id: "expense-control",
-    label: "Expense Control",
+    id: "reminders",
+    label: "Reminder",
     icon: Receipt,
+  },
+
+  {
+    id: "operations-accounts",
+    label: "Operations & Accounts",
+    icon: WalletCards,
+    children: [
+      {
+        id: "investor",
+        label: "Investor",
+      },
+      {
+        id: "expense-control",
+        label: "Expense",
+      },
+      {
+        id: "ledger",
+        label: "Ledger",
+      },
+    ],
   },
 
   {
@@ -152,11 +161,13 @@ const SideBar = ({
     activeItem === "loans-all" ||
     activeItem === "loans-new" ||
     activeItem === "loan-management" ||
-    activeItem === "reloan"
+    activeItem === "reloan" ||
+    activeItem === "collections"
       ? "loans"
-      : activeItem === "collections" ||
-        activeItem === "reminders"
-      ? "repayments"
+      : activeItem === "investor" ||
+        activeItem === "expense-control" ||
+        activeItem === "ledger"
+      ? "operations-accounts"
       : activeItem?.startsWith?.("vehicles-")
       ? "vehicles"
       : null

@@ -162,6 +162,14 @@ loan: {
   id: "",
   loanNumber: "",
 
+  funding: {
+    investorId: "",
+    investorName: "",
+    fundedAmount: 0,
+    allocationDate: "",
+    fundingTransactionId: "",
+  },
+
   vehicleAmount: 0,
   downPayment: 0,
   loanAmount: 0,

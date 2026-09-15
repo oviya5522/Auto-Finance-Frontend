@@ -29,6 +29,8 @@ import RepaymentScheduleModal from "../../components/loans/RepaymentScheduleModa
 import { generateRepaymentSchedule } from "../../services/repaymentSchedule";
 import {
   saveCustomer,
+  saveCustomers,
+  getCustomers,
   appendLoanToCustomer,
   generateVehicleId,
   getCustomerById,
@@ -40,6 +42,11 @@ import {
   findCustomerAndLoan,
   getReLoanRules,
 } from "../../services/reloanStorage";
+import {
+  allocateInvestmentPoolToLoan,
+  getInvestmentPoolSummary,
+  getNextInvestorTransactionId,
+} from "../../services/investorStorage";
 
 import {
   createEmptyCustomer,
@@ -493,6 +500,9 @@ const updateVehicleData = useCallback(
    */
 
   const handleCreateCustomer = useCallback(() => {
+    let customerPersisted = false;
+    const customerSnapshot = getCustomers();
+
     try {
       const now =
         new Date().toISOString();
@@ -516,6 +526,31 @@ const updateVehicleData = useCallback(
 
       const loan =
         formData.loan || {};
+      const loanAmount = Number(
+        loan.loanAmount || 0
+      );
+      const fundingSummary = getInvestmentPoolSummary();
+
+      if (
+        !Number.isFinite(loanAmount) ||
+        loanAmount <= 0
+      ) {
+        throw new Error(
+          "Loan amount must be greater than zero."
+        );
+      }
+
+      if (
+        loanAmount >
+        fundingSummary.availableInvestmentBalance
+      ) {
+        throw new Error(
+          `Insufficient investment balance. Available funding: ₹${fundingSummary.availableInvestmentBalance.toLocaleString("en-IN")}.`
+        );
+      }
+
+      const fundingTransactionId =
+        getNextInvestorTransactionId();
            const vehicleId =
   formData.vehicle?.vehicleId ||
   formData.vehicle?.id ||
@@ -590,6 +625,13 @@ const updateVehicleData = useCallback(
 
   loan: {
     ...loan,
+
+    funding: {
+      source: "investment-pool",
+      fundedAmount: loanAmount,
+      allocationDate: now,
+      fundingTransactionId,
+    },
 
     id: loanId,
 
@@ -672,11 +714,21 @@ const updateVehicleData = useCallback(
           customerId,
           finalCustomer.loan
         );
+        customerPersisted = true;
       } else {
         saveCustomer(
           finalCustomer
         );
+        customerPersisted = true;
       }
+
+      allocateInvestmentPoolToLoan({
+        amount: loanAmount,
+        loanId: finalCustomer.loan.id,
+        loanNumber: finalCustomer.loan.loanNumber,
+        date: now,
+        transactionId: fundingTransactionId,
+      });
 
       console.log(
         "Customer created successfully:",
@@ -685,6 +737,10 @@ const updateVehicleData = useCallback(
 
       navigate("/customers");
     } catch (error) {
+      if (customerPersisted) {
+        saveCustomers(customerSnapshot);
+      }
+
       console.error(
         "Create Customer failed:",
         error
