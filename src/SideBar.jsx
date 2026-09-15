@@ -16,6 +16,7 @@ import {
   WalletCards,
   Menu,
   X,
+  Bell,
 } from "lucide-react";
 
 /* =========================================================
@@ -23,33 +24,46 @@ import {
 ========================================================= */
 
 const NAV_ITEMS = [
+  /* =======================================================
+     1. DASHBOARD
+  ======================================================= */
+
   {
     id: "dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
   },
 
+  /* =======================================================
+     2. LOANS
+  ======================================================= */
+
   {
     id: "loans",
     label: "Loans",
     icon: HandCoins,
+
     children: [
       {
         id: "loans-all",
         label: "All Loans",
       },
+
       {
         id: "loans-new",
         label: "New Loan",
       },
+
       {
         id: "loan-management",
         label: "Loan Management",
       },
+
       {
         id: "reloan",
         label: "Re-loan",
       },
+
       {
         id: "collections",
         label: "Collections",
@@ -57,31 +71,26 @@ const NAV_ITEMS = [
     ],
   },
 
-  {
-    id: "customers",
-    label: "Customers",
-    icon: Users,
-  },
-
-  {
-    id: "reminders",
-    label: "Reminder",
-    icon: Receipt,
-  },
+  /* =======================================================
+     3. OPERATIONS & ACCOUNTS
+  ======================================================= */
 
   {
     id: "operations-accounts",
     label: "Operations & Accounts",
     icon: WalletCards,
+
     children: [
       {
         id: "investor",
         label: "Investor",
       },
+
       {
         id: "expense-control",
         label: "Expense",
       },
+
       {
         id: "ledger",
         label: "Ledger",
@@ -89,11 +98,19 @@ const NAV_ITEMS = [
     ],
   },
 
+  /* =======================================================
+     4. CUSTOMERS
+  ======================================================= */
+
   {
-    id: "control-center",
-    label: "Control Center",
-    icon: BarChart3,
+    id: "customers",
+    label: "Customers",
+    icon: Users,
   },
+
+  /* =======================================================
+     5. VEHICLES
+  ======================================================= */
 
   {
     id: "vehicles",
@@ -122,6 +139,36 @@ const NAV_ITEMS = [
       },
     ],
   },
+
+  /* =======================================================
+     6. ALERTS
+  ======================================================= */
+
+  {
+    id: "alerts",
+    label: "Alerts",
+    icon: Bell,
+  },
+
+  /* =======================================================
+     7. REMINDERS
+  ======================================================= */
+
+  {
+    id: "reminders",
+    label: "Reminders",
+    icon: Receipt,
+  },
+
+  /* =======================================================
+     8. CONTROL CENTER
+  ======================================================= */
+
+  {
+    id: "control-center",
+    label: "Control Center",
+    icon: BarChart3,
+  },
 ];
 
 /* =========================================================
@@ -147,8 +194,6 @@ const SideBar = ({
     setCollapsed,
   ] = useState(false);
 
-  // NEW: controls the off-canvas drawer on mobile / tablet (< lg).
-  // Desktop `collapsed` behavior above is completely untouched.
   const [
     mobileOpen,
     setMobileOpen,
@@ -168,7 +213,9 @@ const SideBar = ({
         activeItem === "expense-control" ||
         activeItem === "ledger"
       ? "operations-accounts"
-      : activeItem?.startsWith?.("vehicles-")
+      : activeItem?.startsWith?.(
+          "vehicles-"
+        )
       ? "vehicles"
       : null
   );
@@ -185,8 +232,7 @@ const SideBar = ({
     ) {
       setOpenMenu(
         (previous) =>
-          previous ===
-          item.id
+          previous === item.id
             ? null
             : item.id
       );
@@ -198,8 +244,6 @@ const SideBar = ({
       item.id
     );
 
-    // NEW: close the mobile drawer after picking a top-level item.
-    // No-op on desktop since the drawer classes are lg:static there.
     setMobileOpen(false);
   };
 
@@ -214,7 +258,6 @@ const SideBar = ({
       child.id
     );
 
-    // NEW: close the mobile drawer after picking a child item.
     setMobileOpen(false);
   };
 
@@ -490,10 +533,7 @@ const SideBar = ({
   return (
     <>
       {/* =================================================
-          MOBILE TOP BAR (< lg only)
-          NEW: gives the user a way to open the drawer on
-          phones / tablets since there's no room for a
-          permanently-visible sidebar there.
+          MOBILE TOP BAR
       ================================================== */}
 
       <div
@@ -581,12 +621,11 @@ const SideBar = ({
           </p>
         </div>
 
-        {/* spacer to balance the hamburger button so the logo stays centered-ish */}
         <div className="h-9 w-9" />
       </div>
 
       {/* =================================================
-          OVERLAY (< lg only, shown while drawer is open)
+          OVERLAY
       ================================================== */}
 
       {mobileOpen && (
@@ -603,6 +642,10 @@ const SideBar = ({
           "
         />
       )}
+
+      {/* =================================================
+          SIDEBAR
+      ================================================== */}
 
       <aside
         className={`
@@ -642,7 +685,7 @@ const SideBar = ({
         `}
       >
         {/* =================================================
-            BRAND (hidden on mobile, mobile top bar covers it)
+            BRAND
         ================================================== */}
 
         <div
@@ -673,8 +716,6 @@ const SideBar = ({
               }
             `}
           >
-            {/* LOGO */}
-
             <div
               className="
                 flex
@@ -701,8 +742,6 @@ const SideBar = ({
                 "
               />
             </div>
-
-            {/* PRODUCT NAME */}
 
             {!collapsed && (
               <div
@@ -748,7 +787,7 @@ const SideBar = ({
         </div>
 
         {/* =================================================
-            MOBILE DRAWER HEADER (close button, < lg only)
+            MOBILE DRAWER HEADER
         ================================================== */}
 
         <div
@@ -870,7 +909,7 @@ const SideBar = ({
             SETTINGS_ITEM
           )}
 
-          {/* COLLAPSE (desktop only — the mobile drawer uses the X button instead) */}
+          {/* COLLAPSE */}
 
           <button
             type="button"

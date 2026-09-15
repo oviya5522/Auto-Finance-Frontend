@@ -1,5 +1,3 @@
-// src/pages/vehicle/Vehicle.jsx
-
 import {
   useEffect,
   useMemo,
@@ -33,8 +31,7 @@ import {
 
 import {
   addVehicleSeizure,
-  getVehicleSeizureByVehicleId,
-  markVehicleForSale,
+  getVehicleById,
 } from "../../services/vehicleStorage";
 
 /* =========================================================
@@ -68,8 +65,6 @@ const Vehicle = () => {
     useState(null);
 
   const [seizeVehicle, setSeizeVehicle] = useState(null);
-
-  const [sellVehicle, setSellVehicle] = useState(null);
 
   const rowsPerPage = 7;
 
@@ -185,34 +180,22 @@ const Vehicle = () => {
         customer?.customerName ||
         "";
 
-      const loanAmount =
-        Number(
-          loan?.loanAmount ||
+      const loanAmount = Number(
+        loan?.loanAmount ||
           loan?.vehicleAmount ||
           loan?.calculation?.loanAmount ||
           0
-        );
+      );
 
-      const outstanding =
-        Number(
-          getOutstandingAmount(
-            loan
-          ) || 0
-        );
+      const outstanding = Number(
+        getOutstandingAmount(loan) || 0
+      );
 
       const lifecycle =
         getLifecycleFromStorage({
           vehicleId,
-          loanId:
-            loan?.id ||
-            "",
-          loanNumber:
-            loan?.loanNumber ||
-            "",
           vehicleStatus:
-            vehicle?.status ||
-            "",
-          customerId,
+            vehicle?.status || "",
         });
 
       const vehicleRecord = {
@@ -295,9 +278,7 @@ const Vehicle = () => {
           }),
 
         nextDue:
-          getNextDue(
-            loan
-          ),
+          getNextDue(loan),
 
         customerRouteId:
           customer?.id ||
@@ -306,9 +287,7 @@ const Vehicle = () => {
       };
 
       const previous =
-        unique.get(
-          vehicleKey
-        );
+        unique.get(vehicleKey);
 
       if (
         !previous ||
@@ -321,8 +300,7 @@ const Vehicle = () => {
           vehicleKey,
           {
             ...vehicleRecord,
-            __sourceLoan:
-              loan,
+            __sourceLoan: loan,
           }
         );
       }
@@ -342,188 +320,166 @@ const Vehicle = () => {
      FILTER OPTIONS
   ======================================================= */
 
-  const vehicleTypes =
-    useMemo(() => {
-      return uniqueSortedValues(
-        vehicles.map(
-          (item) =>
-            item.vehicleType
-        )
-      );
-    }, [vehicles]);
+  const vehicleTypes = useMemo(() => {
+    return uniqueSortedValues(
+      vehicles.map(
+        (item) => item.vehicleType
+      )
+    );
+  }, [vehicles]);
 
-  const fuelTypes =
-    useMemo(() => {
-      return uniqueSortedValues(
-        vehicles.map(
-          (item) =>
-            item.fuelType
-        )
-      );
-    }, [vehicles]);
+  const fuelTypes = useMemo(() => {
+    return uniqueSortedValues(
+      vehicles.map(
+        (item) => item.fuelType
+      )
+    );
+  }, [vehicles]);
 
-  const loanStatuses =
-    useMemo(() => {
-      return uniqueSortedValues(
-        vehicles.map(
-          (item) =>
-            item.loanStatus
-        )
-      );
-    }, [vehicles]);
+  const loanStatuses = useMemo(() => {
+    return uniqueSortedValues(
+      vehicles.map(
+        (item) => item.loanStatus
+      )
+    );
+  }, [vehicles]);
 
   /* =======================================================
      KPI
   ======================================================= */
 
-  const stats =
-    useMemo(() => {
-      const total =
-        vehicles.length;
+  const stats = useMemo(() => {
+    const total =
+      vehicles.length;
 
-      const financed =
-        vehicles.filter(
-          (vehicle) =>
-            Number(
-              vehicle.loanAmount
-            ) > 0 ||
-            Boolean(
-              vehicle.loanNumber
-            )
-        ).length;
+    const financed =
+      vehicles.filter(
+        (vehicle) =>
+          Number(vehicle.loanAmount) > 0 ||
+          Boolean(vehicle.loanNumber)
+      ).length;
 
-      const active =
-        vehicles.filter(
-          (vehicle) =>
-            isActiveVehicle(
-              vehicle
-            )
-        ).length;
+    const active =
+      vehicles.filter(
+        (vehicle) =>
+          isActiveVehicle(vehicle)
+      ).length;
 
-      const seized =
-        vehicles.filter(
-          (vehicle) =>
-            normalize(
-              vehicle.vehicleStatus
-            ) ===
-            "seized"
-        ).length;
+    const seized =
+      vehicles.filter(
+        (vehicle) =>
+          normalize(
+            vehicle.vehicleStatus
+          ) === "seized"
+      ).length;
 
-      const released =
-        vehicles.filter(
-          (vehicle) =>
-            normalize(
-              vehicle.vehicleStatus
-            ) ===
-            "released"
-        ).length;
+    const released =
+      vehicles.filter(
+        (vehicle) =>
+          normalize(
+            vehicle.vehicleStatus
+          ) === "released"
+      ).length;
 
-      return {
-        total,
-        financed,
-        active,
-        seized,
-        released,
-      };
-    }, [vehicles]);
+    return {
+      total,
+      financed,
+      active,
+      seized,
+      released,
+    };
+  }, [vehicles]);
 
   /* =======================================================
      FILTER
   ======================================================= */
 
-  const filteredVehicles =
-    useMemo(() => {
-      const query =
-        search
-          .trim()
+  const filteredVehicles = useMemo(() => {
+    const query =
+      search.trim().toLowerCase();
+
+    return vehicles.filter(
+      (vehicle) => {
+        const searchable = [
+          vehicle.vehicleId,
+          vehicle.registrationNumber,
+          vehicle.customerName,
+          vehicle.customerId,
+          vehicle.mobile,
+          vehicle.brand,
+          vehicle.model,
+          vehicle.variant,
+          vehicle.loanNumber,
+        ]
+          .filter(Boolean)
+          .join(" ")
           .toLowerCase();
 
-      return vehicles.filter(
-        (vehicle) => {
-          const searchable =
-            [
-              vehicle.vehicleId,
-              vehicle.registrationNumber,
-              vehicle.customerName,
-              vehicle.customerId,
-              vehicle.mobile,
-              vehicle.brand,
-              vehicle.model,
-              vehicle.variant,
-              vehicle.loanNumber,
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase();
+        const matchesSearch =
+          !query ||
+          searchable.includes(query);
 
-          const matchesSearch =
-            !query ||
-            searchable.includes(
-              query
+        const matchesVehicleStatus =
+          vehicleStatusFilter ===
+            "All Status" ||
+          normalize(
+            vehicle.vehicleStatus
+          ) ===
+            normalize(
+              vehicleStatusFilter
             );
 
-          const matchesVehicleStatus =
-            vehicleStatusFilter ===
-              "All Status" ||
+        const matchesVehicleType =
+          vehicleTypeFilter ===
+            "All Types" ||
+          vehicle.vehicleType ===
+            vehicleTypeFilter;
+
+        const matchesFuel =
+          fuelTypeFilter ===
+            "All Fuel" ||
+          vehicle.fuelType ===
+            fuelTypeFilter;
+
+        const matchesLoanStatus =
+          loanStatusFilter ===
+            "All Loan Status" ||
+          normalize(
+            vehicle.loanStatus
+          ) ===
             normalize(
-              vehicle.vehicleStatus
-            ) ===
-              normalize(
-                vehicleStatusFilter
-              );
+              loanStatusFilter
+            );
 
-          const matchesVehicleType =
-            vehicleTypeFilter ===
-              "All Types" ||
-            vehicle.vehicleType ===
-              vehicleTypeFilter;
-
-          const matchesFuel =
-            fuelTypeFilter ===
-              "All Fuel" ||
-            vehicle.fuelType ===
-              fuelTypeFilter;
-
-          const matchesLoanStatus =
-            loanStatusFilter ===
-              "All Loan Status" ||
-            normalize(
-              vehicle.loanStatus
-            ) ===
-              normalize(
-                loanStatusFilter
-              );
-
-          return (
-            matchesSearch &&
-            matchesVehicleStatus &&
-            matchesVehicleType &&
-            matchesFuel &&
-            matchesLoanStatus
-          );
-        }
-      );
-    }, [
-      vehicles,
-      search,
-      vehicleStatusFilter,
-      vehicleTypeFilter,
-      fuelTypeFilter,
-      loanStatusFilter,
-    ]);
+        return (
+          matchesSearch &&
+          matchesVehicleStatus &&
+          matchesVehicleType &&
+          matchesFuel &&
+          matchesLoanStatus
+        );
+      }
+    );
+  }, [
+    vehicles,
+    search,
+    vehicleStatusFilter,
+    vehicleTypeFilter,
+    fuelTypeFilter,
+    loanStatusFilter,
+  ]);
 
   /* =======================================================
      PAGINATION
   ======================================================= */
 
-  const totalPages =
-    Math.max(
-      1,
-      Math.ceil(
-        filteredVehicles.length /
-          rowsPerPage
-      )
-    );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      filteredVehicles.length /
+        rowsPerPage
+    )
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -538,9 +494,7 @@ const Vehicle = () => {
 
   useEffect(() => {
     setOpenActionVehicleKey(null);
-  }, [
-    currentPage,
-  ]);
+  }, [currentPage]);
 
   useEffect(() => {
     if (
@@ -557,21 +511,15 @@ const Vehicle = () => {
   ]);
 
   const startIndex =
-    filteredVehicles.length ===
-    0
+    filteredVehicles.length === 0
       ? 0
-      : (
-          currentPage -
-          1
-        ) *
+      : (currentPage - 1) *
         rowsPerPage;
 
-  const endIndex =
-    Math.min(
-      startIndex +
-        rowsPerPage,
-      filteredVehicles.length
-    );
+  const endIndex = Math.min(
+    startIndex + rowsPerPage,
+    filteredVehicles.length
+  );
 
   const paginatedVehicles =
     filteredVehicles.slice(
@@ -611,116 +559,34 @@ const Vehicle = () => {
 
   const handleSeizeComplete = () => {
     setSeizeVehicle(null);
+    setOpenActionVehicleKey(null);
 
-    setOpenActionVehicleKey(
-      null
-    );
+    const updatedCustomers =
+      safeGetCustomers();
 
     setCustomers(
-      safeGetCustomers()
+      updatedCustomers
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "auto-finance:data-updated"
+      )
+    );
+
+    /*
+     * IMPORTANT FLOW:
+     *
+     * Vehicles
+     *    ↓
+     * Seize
+     *    ↓
+     * Seized Vehicles page
+     */
+    navigate(
+      "/vehicles/seized"
     );
   };
-
-  /* =======================================================
-     MOVE TO PENDING SALE
-  ======================================================= */
-
-  const handleMoveToPendingSale =
-    (vehicle) => {
-      try {
-        const seizure =
-          getVehicleSeizureByVehicleId(
-            vehicle?.vehicleId,
-            vehicle?.loanId,
-            vehicle?.loanNumber
-          );
-
-        if (!seizure) {
-          window.alert(
-            "Vehicle seizure record was not found. Please seize the vehicle first."
-          );
-
-          return;
-        }
-
-        const result =
-          markVehicleForSale(
-            seizure.id,
-            {
-              vehicleId:
-                vehicle.vehicleId,
-
-              registrationNumber:
-                vehicle.registrationNumber,
-
-              vehicleName:
-                [
-                  vehicle.brand,
-                  vehicle.model,
-                  vehicle.variant,
-                ]
-                  .filter(Boolean)
-                  .join(" "),
-
-              vehicleType:
-                vehicle.vehicleType,
-
-              customerId:
-                vehicle.customerId,
-
-              customerName:
-                vehicle.customerName,
-
-              loanId:
-                vehicle.loanId,
-
-              loanNumber:
-                vehicle.loanNumber,
-
-              loanAmount:
-                vehicle.loanAmount,
-
-              outstandingAmount:
-                vehicle.outstanding,
-
-              startedBy:
-                "Admin",
-            }
-          );
-
-        if (!result) {
-          window.alert(
-            "Failed to move vehicle to Pending Sale. Only a Seized vehicle can enter Pending Sale."
-          );
-
-          return;
-        }
-
-        setSellVehicle(null);
-
-        setOpenActionVehicleKey(
-          null
-        );
-
-        setCustomers(
-          safeGetCustomers()
-        );
-
-        navigate(
-          "/vehicles/sold"
-        );
-      } catch (error) {
-        console.error(
-          "Failed to move vehicle to Pending Sale:",
-          error
-        );
-
-        window.alert(
-          error?.message ||
-            "Failed to move vehicle to Pending Sale."
-        );
-      }
-    };
 
   /* =======================================================
      RENDER
@@ -1048,8 +914,8 @@ const Vehicle = () => {
                 text-slate-400
               "
             >
-              Active, seized, released and
-              sale lifecycle status.
+              Vehicle records and
+              lifecycle status.
             </p>
           </div>
 
@@ -1068,7 +934,8 @@ const Vehicle = () => {
           </span>
         </div>
 
-        {paginatedVehicles.length === 0 ? (
+        {paginatedVehicles.length ===
+        0 ? (
           <EmptyState />
         ) : (
           <div className="overflow-x-auto overflow-y-visible">
@@ -1182,15 +1049,6 @@ const Vehicle = () => {
                           vehicle
                         );
                       }}
-                      onRequestSell={() => {
-                        setOpenActionVehicleKey(
-                          null
-                        );
-
-                        setSellVehicle(
-                          vehicle
-                        );
-                      }}
                     />
                   )
                 )}
@@ -1282,9 +1140,7 @@ const Vehicle = () => {
             ).map(
               (page) => (
                 <button
-                  key={
-                    page
-                  }
+                  key={page}
                   type="button"
                   onClick={() =>
                     setCurrentPage(
@@ -1360,26 +1216,6 @@ const Vehicle = () => {
           }
         />
       )}
-
-      {/* PENDING SALE MODAL */}
-
-      {sellVehicle && (
-        <SellVehicleConfirmationModal
-          vehicle={
-            sellVehicle
-          }
-          onCancel={() =>
-            setSellVehicle(
-              null
-            )
-          }
-          onConfirm={() =>
-            handleMoveToPendingSale(
-              sellVehicle
-            )
-          }
-        />
-      )}
     </div>
   );
 };
@@ -1394,7 +1230,6 @@ const VehicleRow = ({
   onToggleActions,
   onView,
   onRequestSeize,
-  onRequestSell,
 }) => {
   const vehicleName =
     [
@@ -1565,9 +1400,6 @@ const VehicleRow = ({
           onRequestSeize={
             onRequestSeize
           }
-          onRequestSell={
-            onRequestSell
-          }
         />
       </td>
     </tr>
@@ -1584,7 +1416,6 @@ const VehicleActionsMenu = ({
   onToggleActions,
   onViewCustomer,
   onRequestSeize,
-  onRequestSell,
 }) => {
   const navigate =
     useNavigate();
@@ -1607,56 +1438,36 @@ const VehicleActionsMenu = ({
     );
 
   const isSeized =
-    status ===
-    "seized";
-
-  const isPendingSale =
-    status ===
-    "pending sale";
-
-  const isSold =
-    status ===
-    "sold";
-
-  const isReleased =
-    status ===
-    "released";
+    status === "seized";
 
   /*
-   * IMPORTANT:
+   * On Vehicles page:
    *
-   * Released vehicles CAN be seized again.
+   * - Active/Overdue/etc. -> Seize available
+   * - Seized -> no second seizure
    *
-   * Only these lifecycle stages block seizure:
-   * Seized
-   * Pending Sale
-   * Sold
+   * Release and Sell are handled
+   * in Seized Vehicles page.
    */
   const canSeize =
     !isSeized &&
-    !isPendingSale &&
-    !isSold;
-
-  const canSell =
-    isSeized;
+    status !== "pending sale" &&
+    status !== "sold";
 
   const updatePosition = () => {
-    if (
-      !buttonRef.current
-    ) {
+    if (!buttonRef.current) {
       return;
     }
 
     const rect =
       buttonRef.current.getBoundingClientRect();
 
-    const menuWidth =
-      220;
+    const menuWidth = 220;
 
     const menuHeight =
-      isSeized
-        ? 340
-        : 290;
+      canSeize
+        ? 235
+        : 205;
 
     const gap = 6;
     const edgeGap = 8;
@@ -1779,8 +1590,9 @@ const VehicleActionsMenu = ({
     };
   }, [
     actionOpen,
-    onToggleActions,
     isSeized,
+    canSeize,
+    onToggleActions,
   ]);
 
   const handleSeize = () => {
@@ -1788,14 +1600,6 @@ const VehicleActionsMenu = ({
 
     requestAnimationFrame(() => {
       onRequestSeize?.();
-    });
-  };
-
-  const handleSell = () => {
-    onToggleActions?.();
-
-    requestAnimationFrame(() => {
-      onRequestSell?.();
     });
   };
 
@@ -1811,9 +1615,7 @@ const VehicleActionsMenu = ({
       vehicle?.loanId ||
       vehicle?.loanNumber
     ) {
-      navigate(
-        "/loan"
-      );
+      navigate("/loan");
     }
   };
 
@@ -1828,9 +1630,7 @@ const VehicleActionsMenu = ({
           onClick={(event) => {
             event.stopPropagation();
 
-            if (
-              !actionOpen
-            ) {
+            if (!actionOpen) {
               requestAnimationFrame(
                 updatePosition
               );
@@ -1897,9 +1697,7 @@ const VehicleActionsMenu = ({
           >
             <ActionMenuItem
               label="View Vehicle"
-              icon={
-                CarFront
-              }
+              icon={CarFront}
               onClick={() => {
                 onToggleActions?.();
               }}
@@ -1907,9 +1705,7 @@ const VehicleActionsMenu = ({
 
             <ActionMenuItem
               label="View Customer"
-              icon={
-                UserRound
-              }
+              icon={UserRound}
               onClick={
                 handleViewCustomer
               }
@@ -1917,9 +1713,7 @@ const VehicleActionsMenu = ({
 
             <ActionMenuItem
               label="View Loan"
-              icon={
-                WalletCards
-              }
+              icon={WalletCards}
               onClick={
                 handleViewLoan
               }
@@ -1927,9 +1721,7 @@ const VehicleActionsMenu = ({
 
             <ActionMenuItem
               label="View Documents"
-              icon={
-                FileText
-              }
+              icon={FileText}
               onClick={() => {
                 onToggleActions?.();
               }}
@@ -1937,9 +1729,7 @@ const VehicleActionsMenu = ({
 
             <ActionMenuItem
               label="Generate Statement"
-              icon={
-                FileText
-              }
+              icon={FileText}
               onClick={() => {
                 onToggleActions?.();
 
@@ -1947,105 +1737,46 @@ const VehicleActionsMenu = ({
                   vehicle?.loanId ||
                   vehicle?.loanNumber
                 ) {
-                  navigate(
-                    "/loan"
-                  );
+                  navigate("/loan");
                 }
               }}
             />
 
             <div className="my-1 border-t border-slate-100" />
 
-            {/* SEIZE VEHICLE */}
-
-            {canSeize && (
+            {canSeize ? (
               <ActionMenuItem
-                label={
-                  isReleased
-                    ? "Seize Vehicle Again"
-                    : "Seize Vehicle"
-                }
-                icon={
-                  AlertTriangle
-                }
+                label="Seize Vehicle"
+                icon={AlertTriangle}
                 danger
                 onClick={
                   handleSeize
                 }
               />
-            )}
-
-            {/* RELEASE */}
-
-            {isSeized && (
+            ) : isSeized ? (
               <ActionMenuItem
-                label="Release Vehicle"
-                icon={
-                  RotateCcw
-                }
-                blue
+                label="View Seized Vehicle"
+                icon={AlertTriangle}
+                danger
                 onClick={() => {
                   onToggleActions?.();
 
                   /*
-                   * Release is handled from
-                   * the seizure/release workflow.
+                   * Seized Vehicles page is
+                   * responsible for Release
+                   * and Sell.
                    */
                   navigate(
-                    "/vehicles"
+                    "/vehicles/seized"
                   );
                 }}
               />
-            )}
-
-            {/* SELL */}
-
-            {canSell && (
+            ) : (
               <ActionMenuItem
-                label="Sell Vehicle"
-                icon={
-                  CarFront
-                }
-                orange
-                onClick={
-                  handleSell
-                }
-              />
-            )}
-
-            {/* PENDING SALE */}
-
-            {isPendingSale && (
-              <ActionMenuItem
-                label="Pending Sale"
-                icon={
-                  CarFront
-                }
-                orange
+                label="View Vehicle Status"
+                icon={ShieldCheck}
                 onClick={() => {
                   onToggleActions?.();
-
-                  navigate(
-                    "/vehicles/sold"
-                  );
-                }}
-              />
-            )}
-
-            {/* SOLD */}
-
-            {isSold && (
-              <ActionMenuItem
-                label="Sold Vehicle"
-                icon={
-                  ShieldCheck
-                }
-                onClick={() => {
-                  onToggleActions?.();
-
-                  navigate(
-                    "/vehicles/sold"
-                  );
                 }}
               />
             )}
@@ -2101,9 +1832,7 @@ const ActionMenuItem = ({
   return (
     <button
       type="button"
-      onClick={
-        onClick
-      }
+      onClick={onClick}
       className={`
         flex
         w-full
@@ -2129,35 +1858,6 @@ const ActionMenuItem = ({
       </span>
     </button>
   );
-};
-
-/* =========================================================
-   ACTION MENU STATUS RULE
-========================================================= */
-
-const getActionAvailability = (
-  status
-) => {
-  const normalized =
-    normalize(status);
-
-  return {
-    canSeize:
-      normalized !==
-        "seized" &&
-      normalized !==
-        "pending sale" &&
-      normalized !==
-        "sold",
-
-    canRelease:
-      normalized ===
-      "seized",
-
-    canSell:
-      normalized ===
-      "seized",
-  };
 };
 
 /* =========================================================
@@ -2321,9 +2021,7 @@ const FilterSelect = ({
 }) => {
   return (
     <select
-      value={
-        value
-      }
+      value={value}
       onChange={(event) =>
         onChange(
           event.target.value
@@ -2349,12 +2047,8 @@ const FilterSelect = ({
       {options.map(
         (option) => (
           <option
-            key={
-              option
-            }
-            value={
-              option
-            }
+            key={option}
+            value={option}
           >
             {option}
           </option>
@@ -2384,11 +2078,9 @@ const TableHeader = ({
         tracking-[0.04em]
         text-slate-400
         ${
-          align ===
-          "right"
+          align === "right"
             ? "text-right"
-            : align ===
-                "center"
+            : align === "center"
               ? "text-center"
               : "text-left"
         }
@@ -2417,77 +2109,59 @@ const VehicleStatusBadge = ({
     "Unknown";
 
   if (
-    normalized ===
-    "active"
+    normalized === "active"
   ) {
     classes =
       "bg-[#EAF5EF] text-[#0B5D3B]";
-    label =
-      "Active";
+    label = "Active";
   } else if (
-    normalized ===
-    "overdue"
+    normalized === "overdue"
   ) {
     classes =
       "bg-red-50 text-red-700";
-    label =
-      "Overdue";
+    label = "Overdue";
   } else if (
-    normalized ===
-    "pending"
+    normalized === "pending"
   ) {
     classes =
       "bg-amber-50 text-amber-700";
-    label =
-      "Pending";
+    label = "Pending";
   } else if (
-    normalized ===
-    "closed"
+    normalized === "closed"
   ) {
     classes =
       "bg-slate-100 text-slate-600";
-    label =
-      "Closed";
+    label = "Closed";
   } else if (
-    normalized ===
-    "seized"
+    normalized === "seized"
   ) {
     classes =
       "bg-orange-50 text-orange-700";
-    label =
-      "Seized";
+    label = "Seized";
   } else if (
-    normalized ===
-    "released"
+    normalized === "released"
   ) {
     classes =
       "bg-blue-50 text-blue-700";
-    label =
-      "Released";
+    label = "Released";
   } else if (
-    normalized ===
-    "pending sale"
+    normalized === "pending sale"
   ) {
     classes =
       "bg-orange-50 text-orange-700";
-    label =
-      "Pending Sale";
+    label = "Pending Sale";
   } else if (
-    normalized ===
-    "sold"
+    normalized === "sold"
   ) {
     classes =
       "bg-slate-100 text-slate-700";
-    label =
-      "Sold";
+    label = "Sold";
   } else if (
-    normalized ===
-    "written off"
+    normalized === "written off"
   ) {
     classes =
       "bg-red-50 text-red-700";
-    label =
-      "Written Off";
+    label = "Written Off";
   }
 
   return (
@@ -2533,34 +2207,28 @@ const SimpleStatusBadge = ({
     "bg-slate-100 text-slate-600";
 
   if (
-    normalized ===
-      "verified" ||
-    normalized ===
-      "active"
+    normalized === "verified" ||
+    normalized === "active"
   ) {
     classes =
       "bg-[#EAF5EF] text-[#0B5D3B]";
   } else if (
-    normalized ===
-    "pending"
+    normalized === "pending"
   ) {
     classes =
       "bg-amber-50 text-amber-700";
   } else if (
-    normalized ===
-    "expired"
+    normalized === "expired"
   ) {
     classes =
       "bg-red-50 text-red-700";
   } else if (
-    normalized ===
-    "expiring soon"
+    normalized === "expiring soon"
   ) {
     classes =
       "bg-orange-50 text-orange-700";
   } else if (
-    normalized ===
-    "rejected"
+    normalized === "rejected"
   ) {
     classes =
       "bg-red-50 text-red-700";
@@ -2639,212 +2307,6 @@ const EmptyState = () => {
 };
 
 /* =========================================================
-   SELL VEHICLE CONFIRMATION
-========================================================= */
-
-const SellVehicleConfirmationModal = ({
-  vehicle,
-  onCancel,
-  onConfirm,
-}) => {
-  const vehicleName =
-    [
-      vehicle?.brand,
-      vehicle?.model,
-      vehicle?.variant,
-    ]
-      .filter(Boolean)
-      .join(" ") ||
-    "Vehicle";
-
-  return (
-    <div
-      className="
-        fixed
-        inset-0
-        z-[2147483647]
-        flex
-        items-center
-        justify-center
-        bg-slate-950/50
-        p-4
-        backdrop-blur-[3px]
-      "
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onCancel?.();
-        }
-      }}
-    >
-      <div
-        className="
-          w-full
-          max-w-[420px]
-          overflow-hidden
-          rounded-2xl
-          border
-          border-slate-200
-          bg-white
-          shadow-2xl
-        "
-      >
-        <div
-          className="
-            flex
-            items-start
-            gap-3
-            border-b
-            border-slate-100
-            px-5
-            py-4
-          "
-        >
-          <div
-            className="
-              flex
-              h-10
-              w-10
-              shrink-0
-              items-center
-              justify-center
-              rounded-xl
-              bg-orange-50
-              text-orange-600
-            "
-          >
-            <AlertTriangle
-              size={19}
-              strokeWidth={2.1}
-            />
-          </div>
-
-          <div className="min-w-0">
-            <h2 className="text-[13px] font-bold text-[#17221D]">
-              Sell Vehicle?
-            </h2>
-
-            <p className="mt-1 text-[9px] leading-4 text-slate-500">
-              Move this seized vehicle
-              into the Pending Sale
-              workflow?
-            </p>
-          </div>
-        </div>
-
-        <div className="px-5 py-4">
-          <div
-            className="
-              rounded-xl
-              border
-              border-orange-100
-              bg-orange-50/70
-              px-3.5
-              py-3
-            "
-          >
-            <p className="text-[8px] font-semibold uppercase tracking-wide text-orange-600">
-              Vehicle
-            </p>
-
-            <p className="mt-1 text-[11px] font-bold text-[#17221D]">
-              {vehicleName}
-            </p>
-
-            <p className="mt-0.5 text-[9px] text-slate-500">
-              {vehicle?.registrationNumber ||
-                "No registration number"}
-
-              {vehicle?.loanNumber
-                ? ` • ${vehicle.loanNumber}`
-                : ""}
-            </p>
-          </div>
-
-          <div
-            className="
-              mt-3
-              rounded-lg
-              bg-slate-50
-              px-3
-              py-2.5
-              text-[9px]
-              leading-4
-              text-slate-500
-            "
-          >
-            The vehicle will become{" "}
-            <span className="font-semibold text-[#17221D]">
-              Pending Sale
-            </span>
-            . It will remain unsold until
-            the final sale form is completed
-            from the Vehicle Sales page.
-          </div>
-        </div>
-
-        <div
-          className="
-            flex
-            justify-end
-            gap-2
-            border-t
-            border-slate-100
-            px-5
-            py-3.5
-          "
-        >
-          <button
-            type="button"
-            onClick={
-              onCancel
-            }
-            className="
-              h-9
-              rounded-lg
-              border
-              border-slate-200
-              bg-white
-              px-4
-              text-[9px]
-              font-semibold
-              text-slate-600
-              transition
-              hover:bg-slate-50
-            "
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onConfirm
-            }
-            className="
-              h-9
-              rounded-lg
-              bg-orange-500
-              px-4
-              text-[9px]
-              font-bold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-orange-600
-            "
-          >
-            Move to Pending Sale
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* =========================================================
    SEIZE VEHICLE CONFIRMATION
 ========================================================= */
 
@@ -2875,15 +2337,9 @@ const SeizeVehicleModal = ({
   if (showForm) {
     return (
       <SeizureForm
-        vehicle={
-          vehicle
-        }
-        onCancel={
-          onCancel
-        }
-        onComplete={
-          onComplete
-        }
+        vehicle={vehicle}
+        onCancel={onCancel}
+        onComplete={onComplete}
       />
     );
   }
@@ -3007,9 +2463,7 @@ const SeizeVehicleModal = ({
         >
           <button
             type="button"
-            onClick={
-              onCancel
-            }
+            onClick={onCancel}
             className="
               h-9
               rounded-lg
@@ -3029,9 +2483,7 @@ const SeizeVehicleModal = ({
           <button
             type="button"
             onClick={() =>
-              setShowForm(
-                true
-              )
+              setShowForm(true)
             }
             className="
               h-9
@@ -3072,17 +2524,13 @@ const SeizureForm = ({
       .join(" ") ||
     "Vehicle";
 
-  const loanAmount =
-    Number(
-      vehicle?.loanAmount ||
-        0
-    );
+  const loanAmount = Number(
+    vehicle?.loanAmount || 0
+  );
 
-  const outstanding =
-    Number(
-      vehicle?.outstanding ||
-        0
-    );
+  const outstanding = Number(
+    vehicle?.outstanding || 0
+  );
 
   const principalOutstanding =
     Number(
@@ -3098,20 +2546,30 @@ const SeizureForm = ({
       0
     );
 
-  const [reason, setReason] =
-    useState("");
+  const [
+    reason,
+    setReason,
+  ] = useState("");
 
-  const [remarks, setRemarks] =
-    useState("");
+  const [
+    remarks,
+    setRemarks,
+  ] = useState("");
 
-  const [attachment, setAttachment] =
-    useState(null);
+  const [
+    attachment,
+    setAttachment,
+  ] = useState(null);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
   const handleSubmit = (
     event
@@ -3290,9 +2748,7 @@ const SeizureForm = ({
 
           <button
             type="button"
-            onClick={
-              onCancel
-            }
+            onClick={onCancel}
             disabled={saving}
             className="
               flex
@@ -3311,9 +2767,7 @@ const SeizureForm = ({
         </div>
 
         <form
-          onSubmit={
-            handleSubmit
-          }
+          onSubmit={handleSubmit}
           className="
             min-h-0
             overflow-y-auto
@@ -3358,9 +2812,7 @@ const SeizureForm = ({
             >
               <SeizureField
                 label="Vehicle"
-                value={
-                  vehicleName
-                }
+                value={vehicleName}
               />
 
               <SeizureField
@@ -3456,9 +2908,7 @@ const SeizureForm = ({
             </label>
 
             <textarea
-              value={
-                reason
-              }
+              value={reason}
               onChange={(event) =>
                 setReason(
                   event.target.value
@@ -3489,9 +2939,7 @@ const SeizureForm = ({
             </label>
 
             <textarea
-              value={
-                remarks
-              }
+              value={remarks}
               onChange={(event) =>
                 setRemarks(
                   event.target.value
@@ -3611,9 +3059,7 @@ const SeizureForm = ({
           >
             <button
               type="button"
-              onClick={
-                onCancel
-              }
+              onClick={onCancel}
               disabled={saving}
               className="
                 h-9
@@ -3632,9 +3078,7 @@ const SeizureForm = ({
 
             <button
               type="submit"
-              disabled={
-                saving
-              }
+              disabled={saving}
               className="
                 inline-flex
                 h-9
@@ -3683,7 +3127,13 @@ const SeizureField = ({
       </p>
 
       <p
-        className={`mt-1 truncate text-[10px] font-semibold ${valueClass}`}
+        className={`
+          mt-1
+          truncate
+          text-[10px]
+          font-semibold
+          ${valueClass}
+        `}
       >
         {value}
       </p>
@@ -3700,9 +3150,7 @@ const safeGetCustomers = () => {
     const result =
       getCustomers();
 
-    return Array.isArray(
-      result
-    )
+    return Array.isArray(result)
       ? result
       : [];
   } catch (error) {
@@ -3715,48 +3163,64 @@ const safeGetCustomers = () => {
   }
 };
 
+/* =========================================================
+   LIFECYCLE RESOLUTION
+========================================================= */
+
 const getLifecycleFromStorage = ({
   vehicleId,
-  loanId,
-  loanNumber,
   vehicleStatus,
-  customerId,
 }) => {
-  let record = null;
-
   try {
-    record =
-      getVehicleSeizureByVehicleId(
-        vehicleId,
-        loanId,
-        loanNumber
+    const vehicle =
+      getVehicleById(
+        vehicleId
       );
+
+    if (vehicle) {
+      return {
+        status:
+          normalizeLifecycleStatus(
+            vehicle?.status ||
+              vehicleStatus ||
+              "Active"
+          ),
+
+        /*
+         * Keep the master lifecycle
+         * record available to this page.
+         */
+        record:
+          vehicle ||
+          null,
+      };
+    }
+
+    return {
+      status:
+        normalizeLifecycleStatus(
+          vehicleStatus ||
+            "Active"
+        ),
+
+      record: null,
+    };
   } catch (error) {
     console.error(
       "Failed to read vehicle lifecycle:",
       error
     );
-  }
 
-  if (record) {
     return {
       status:
         normalizeLifecycleStatus(
-          record?.status
+          vehicleStatus ||
+            "Active"
         ),
-      record,
+
+      record: null,
     };
   }
-
-  return {
-    status:
-      normalizeLifecycleStatus(
-        vehicleStatus ||
-          "Active"
-      ),
-    record:
-      null,
-  };
 };
 
 const normalizeLifecycleStatus = (
@@ -3766,64 +3230,55 @@ const normalizeLifecycleStatus = (
     normalize(value);
 
   if (
-    raw ===
-    "pending sale"
+    raw === "pending sale"
   ) {
     return "Pending Sale";
   }
 
   if (
-    raw ===
-    "sold"
+    raw === "sold"
   ) {
     return "Sold";
   }
 
   if (
-    raw ===
-    "seized"
+    raw === "seized"
   ) {
     return "Seized";
   }
 
   if (
-    raw ===
-    "released"
+    raw === "released"
   ) {
     return "Released";
   }
 
   if (
-    raw ===
-    "active"
+    raw === "active"
   ) {
     return "Active";
   }
 
   if (
-    raw ===
-    "overdue"
+    raw === "overdue"
   ) {
     return "Overdue";
   }
 
   if (
-    raw ===
-    "pending"
+    raw === "pending"
   ) {
     return "Pending";
   }
 
   if (
-    raw ===
-    "closed"
+    raw === "closed"
   ) {
     return "Closed";
   }
 
   if (
-    raw ===
-    "written off"
+    raw === "written off"
   ) {
     return "Written Off";
   }
@@ -3853,16 +3308,11 @@ const isActiveVehicle = (
     );
 
   return (
-    status !==
-      "closed" &&
-    status !==
-      "seized" &&
-    status !==
-      "pending sale" &&
-    status !==
-      "sold" &&
-    status !==
-      "written off"
+    status !== "closed" &&
+    status !== "seized" &&
+    status !== "pending sale" &&
+    status !== "sold" &&
+    status !== "written off"
   );
 };
 
@@ -4058,43 +3508,42 @@ const formatStatus = (
     normalize(value);
 
   if (
-    raw ===
-    "verified"
+    raw === "verified"
   ) {
     return "Verified";
   }
 
   if (
-    raw ===
-    "pending"
+    raw === "pending"
   ) {
     return "Pending";
   }
 
   if (
-    raw ===
-    "active"
+    raw === "active"
   ) {
     return "Active";
   }
 
   if (
-    raw ===
-    "expired"
+    raw === "expired"
   ) {
     return "Expired";
   }
 
   if (
-    raw ===
-    "rejected"
+    raw === "rejected"
   ) {
     return "Rejected";
   }
 
-  return String(
-    value
-  );
+  if (
+    raw === "expiring soon"
+  ) {
+    return "Expiring Soon";
+  }
+
+  return String(value);
 };
 
 const parseLocalDate = (
@@ -4146,12 +3595,8 @@ const uniqueSortedValues = (
     )
   ).sort(
     (a, b) =>
-      String(
-        a
-      ).localeCompare(
-        String(
-          b
-        )
+      String(a).localeCompare(
+        String(b)
       )
   );
 };
@@ -4179,9 +3624,7 @@ const formatDate = (
   const date =
     value instanceof Date
       ? value
-      : parseLocalDate(
-          value
-        );
+      : parseLocalDate(value);
 
   if (!date) {
     return "—";

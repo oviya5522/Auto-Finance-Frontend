@@ -21,9 +21,7 @@ import {
 } from "../../../services/loanCalculator";
 
 import SummaryCard from "./SummaryCard";
-import {
-  getInvestmentPoolSummary,
-} from "../../../services/investorStorage";
+
 
 /* =========================================================
    TABS
@@ -87,8 +85,7 @@ const LoanDetailsStep = ({
   const collection =
     loan?.collection || {};
 
-  const fundingSummary =
-    getInvestmentPoolSummary();
+
 
   /*
    * New customer-specific overdue rule.
@@ -564,164 +561,103 @@ const LoanDetailsStep = ({
      LOAN TAB
   ========================================================= */
 
-  const renderLoanTab = () => {
-    return (
-      <CompactSection
-        icon={
-          IndianRupee
-        }
-        title="Loan Details"
-        subtitle="Vehicle finance amount and initial due date"
+const renderLoanTab = () => {
+  return (
+    <CompactSection
+      icon={IndianRupee}
+      title="Loan Details"
+      subtitle="Vehicle finance amount and initial due date"
+    >
+      <div
+        className="
+          grid
+          grid-cols-1
+          gap-x-4
+          gap-y-3
+          sm:grid-cols-2
+          lg:grid-cols-4
+        "
       >
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-x-4
-            gap-y-3
-            sm:grid-cols-2
-            lg:grid-cols-4
-          "
-        >
-          <FormField label="Vehicle Amount">
-            <MoneyInput
-              value={
-                loan?.vehicleAmount
-              }
-              placeholder="Vehicle amount"
-              onChange={(value) =>
-                updateLoan(
-                  "vehicleAmount",
-                  value
-                )
-              }
-            />
-          </FormField>
+        <FormField label="Vehicle Amount">
+          <MoneyInput
+            value={loan?.vehicleAmount}
+            placeholder="Vehicle amount"
+            onChange={(value) =>
+              updateLoan(
+                "vehicleAmount",
+                value
+              )
+            }
+          />
+        </FormField>
 
-          <FormField label="Loan Amount">
-            <MoneyInput
-              value={
-                loan?.loanAmount
-              }
-              placeholder="Loan amount"
-              onChange={(value) =>
-                updateLoan(
-                  "loanAmount",
-                  value
-                )
-              }
-            />
-          </FormField>
+        <FormField label="Loan Amount">
+          <MoneyInput
+            value={loan?.loanAmount}
+            placeholder="Loan amount"
+            onChange={(value) =>
+              updateLoan(
+                "loanAmount",
+                value
+              )
+            }
+          />
+        </FormField>
 
-          <FormField label="Down Payment">
-            <div className="relative">
-              <span
-                className="
-                  absolute
-                  left-3
-                  top-1/2
-                  -translate-y-1/2
-                  text-xs
-                  text-slate-400
-                "
-              >
-                ₹
-              </span>
+        <FormField label="Down Payment">
+          <div className="relative">
+            <span
+              className="
+                absolute
+                left-3
+                top-1/2
+                -translate-y-1/2
+                text-xs
+                text-slate-400
+              "
+            >
+              ₹
+            </span>
 
-              <input
-                type="text"
-                readOnly
-                value={money(
-                  downPayment
-                )}
-                className="
-                  h-[38px]
-                  w-full
-                  rounded-md
-                  border
-                  border-slate-200
-                  bg-slate-50
-                  px-3
-                  pl-7
-                  text-xs
-                  font-medium
-                  text-slate-500
-                  outline-none
-                "
-              />
-            </div>
-          </FormField>
-
-          <FormField label="First Due Date">
             <input
-              type="date"
-              value={
-                loan?.firstDueDate ||
-                ""
-              }
-              onChange={(event) =>
-                updateLoan(
-                  "firstDueDate",
-                  event.target.value
-                )
-              }
-              className={
-                inputClass
-              }
+              type="text"
+              readOnly
+              value={money(downPayment)}
+              className="
+                h-[38px]
+                w-full
+                rounded-md
+                border
+                border-slate-200
+                bg-slate-50
+                px-3
+                pl-7
+                text-xs
+                font-medium
+                text-slate-500
+                outline-none
+              "
             />
-          </FormField>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-[#D8E9DF] bg-[#F6FBF8] p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-wide text-[#0B6B43]">
-                Investment Pool
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                New loans use the combined balance from all investor investments.
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                Available Balance
-              </p>
-              <p className={`text-sm font-extrabold ${Number(loan.loanAmount || 0) > fundingSummary.availableInvestmentBalance ? "text-red-600" : "text-[#0B6B43]"}`}>
-                ₹{money(fundingSummary.availableInvestmentBalance)}
-              </p>
-            </div>
           </div>
+        </FormField>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <FormField label="Total Investment">
-              <input readOnly value={`₹${money(fundingSummary.totalInvestment)}`} className={`${inputClass} bg-slate-50 text-slate-500`} />
-            </FormField>
-            <FormField label="Distributed to Loans">
-              <input readOnly value={`₹${money(fundingSummary.distributedToLoans)}`} className={`${inputClass} bg-slate-50 text-slate-500`} />
-            </FormField>
-            <FormField label="Balance After Funding">
-              <input
-                readOnly
-                value={`₹${money(fundingSummary.availableInvestmentBalance - Number(loan.loanAmount || 0))}`}
-                className={`${inputClass} bg-slate-50 text-slate-500`}
-              />
-            </FormField>
-          </div>
-
-          {Number(loan.loanAmount || 0) > fundingSummary.availableInvestmentBalance && (
-            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[10px] font-bold text-red-700">
-              Insufficient investment balance. Available funding: ₹{money(fundingSummary.availableInvestmentBalance)}.
-            </p>
-          )}
-          {fundingSummary.totalInvestment <= 0 && (
-            <p className="mt-2 text-[10px] font-semibold text-amber-700">
-              Add an investment before creating a loan disbursement.
-            </p>
-          )}
-        </div>
-      </CompactSection>
-    );
-  };
+        <FormField label="First Due Date">
+          <input
+            type="date"
+            value={loan?.firstDueDate || ""}
+            onChange={(event) =>
+              updateLoan(
+                "firstDueDate",
+                event.target.value
+              )
+            }
+            className={inputClass}
+          />
+        </FormField>
+      </div>
+    </CompactSection>
+  );
+};
 
   /* =========================================================
      REPAYMENT TAB

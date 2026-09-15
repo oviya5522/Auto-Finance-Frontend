@@ -413,34 +413,39 @@ const handleNext = useCallback(() => {
 const updateVehicleData = useCallback(
   (data) => {
     setFormData((previous) => {
-      const previousVehicle =
-        previous.vehicle || {};
-
       const incomingVehicle =
-        data.vehicle || {};
+        data?.vehicle || {};
+
+      const existingVehicleId =
+        previous?.vehicle?.vehicleId ||
+        previous?.vehicle?.id ||
+        "";
 
       const vehicleId =
-        previousVehicle.vehicleId ||
-        previousVehicle.id ||
+        existingVehicleId ||
         generateVehicleId();
 
       return {
         ...previous,
 
         vehicle: {
-          ...previousVehicle,
+          ...(previous?.vehicle || {}),
           ...incomingVehicle,
 
           id:
-            previousVehicle.id ||
+            incomingVehicle?.id ||
+            incomingVehicle?.vehicleId ||
             vehicleId,
 
-          vehicleId,
+          vehicleId:
+            incomingVehicle?.vehicleId ||
+            incomingVehicle?.id ||
+            vehicleId,
         },
 
         rc: {
-          ...previous.rc,
-          ...(data.rc || {}),
+          ...(previous?.rc || {}),
+          ...(data?.rc || {}),
         },
       };
     });
@@ -552,9 +557,13 @@ const updateVehicleData = useCallback(
       const fundingTransactionId =
         getNextInvestorTransactionId();
            const vehicleId =
-  formData.vehicle?.vehicleId ||
-  formData.vehicle?.id ||
-  generateVehicleId();
+  reLoanParams.isReLoan
+    ? (
+        formData.vehicle?.vehicleId ||
+        formData.vehicle?.id ||
+        generateVehicleId()
+      )
+    : generateVehicleId();
 
       const repaymentSchedule =
         generateRepaymentSchedule({

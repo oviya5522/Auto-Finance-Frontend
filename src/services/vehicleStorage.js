@@ -460,7 +460,7 @@ export const syncVehiclesFromCustomers =
 export const getVehicles = () => {
   const records = getVehicleRecords();
 
-  if (records.length) {
+  if (records.length > 0) {
     return records;
   }
 
@@ -470,26 +470,89 @@ export const getVehicles = () => {
 /* =========================================================
    GET ONE VEHICLE
 ========================================================= */
+export const getVehicleById = (vehicleId) => {
+  const normalizedId = String(
+    vehicleId || ""
+  ).trim();
 
-export const getVehicleById = (
-  vehicleId
-) => {
-  const records =
-    getVehicles();
+  if (!normalizedId) {
+    return null;
+  }
 
-  return (
-    records.find(
-      (vehicle) =>
+  /*
+   * First check master vehicle storage.
+   */
+  const records = getVehicleRecords();
+
+  const masterVehicle =
+    records.find((vehicle) => {
+      const currentId = String(
+        vehicle?.vehicleId ||
+          vehicle?.id ||
+          ""
+      ).trim();
+
+      return (
+        currentId === normalizedId
+      );
+    }) || null;
+
+  if (masterVehicle) {
+    return masterVehicle;
+  }
+
+  /*
+   * IMPORTANT:
+   *
+   * If the master record does not exist yet,
+   * build the vehicle from customer storage.
+   *
+   * This prevents the "Vehicle record could not
+   * be found" problem.
+   */
+  const customers = getCustomers();
+
+  const customerRecord =
+    customers.find((record) => {
+      const vehicle =
+        record?.vehicle ||
+        record?.loan?.vehicle ||
+        {};
+
+      const loan =
+        record?.loan ||
+        {};
+
+      const currentVehicleId =
         String(
           vehicle?.vehicleId ||
             vehicle?.id ||
+            loan?.vehicleId ||
+            loan?.vehicle?.vehicleId ||
+            loan?.vehicle?.id ||
             ""
-        ) ===
-        String(
-          vehicleId || ""
-        )
-    ) || null
-  );
+        ).trim();
+
+      return (
+        currentVehicleId ===
+        normalizedId
+      );
+    }) || null;
+
+  if (!customerRecord) {
+    return null;
+  }
+
+  const base =
+    buildVehicleRecord(
+      customerRecord
+    );
+
+  if (!base) {
+    return null;
+  }
+
+  return base;
 };
 
 /* =========================================================
@@ -512,63 +575,69 @@ export const getVehicleByIdentifiers = (
   const normalizedLoanNumber =
     String(loanNumber || "").trim();
 
-  /* =====================================================
-     FIRST: MASTER VEHICLE STORAGE
-  ====================================================== */
+  // 1. Vehicle ID has highest priority
+  if (normalizedVehicleId) {
+    const vehicleById =
+      records.find((vehicle) => {
+        const currentVehicleId =
+          String(
+            vehicle?.vehicleId ||
+              vehicle?.id ||
+              ""
+          ).trim();
 
-  const masterVehicle =
-    records.find((vehicle) => {
-      const currentVehicleId =
-        String(
-          vehicle?.vehicleId ||
-            vehicle?.id ||
-            ""
-        ).trim();
-
-      const currentLoanId =
-        String(
-          vehicle?.loanId ||
-            ""
-        ).trim();
-
-      const currentLoanNumber =
-        String(
-          vehicle?.loanNumber ||
-            ""
-        ).trim();
-
-      return (
-        (
-          normalizedVehicleId &&
+        return (
           currentVehicleId ===
-            normalizedVehicleId
-        ) ||
-        (
-          normalizedLoanId &&
-          currentLoanId ===
-            normalizedLoanId
-        ) ||
-        (
-          normalizedLoanNumber &&
-          currentLoanNumber ===
-            normalizedLoanNumber
-        )
-      );
-    }) || null;
+          normalizedVehicleId
+        );
+      });
 
-  if (masterVehicle) {
-    return masterVehicle;
+    if (vehicleById) {
+      return vehicleById;
+    }
   }
 
-  /* =====================================================
-     FALLBACK: CUSTOMER STORAGE
-     
-     IMPORTANT:
-     Do NOT call syncVehiclesFromCustomers()
-     here. That would dispatch another update event
-     and can cause React render loops.
-  ====================================================== */
+  // 2. Then try Loan ID
+  if (normalizedLoanId) {
+    const vehicleByLoanId =
+      records.find((vehicle) => {
+        const currentLoanId =
+          String(
+            vehicle?.loanId || ""
+          ).trim();
 
+        return (
+          currentLoanId ===
+          normalizedLoanId
+        );
+      });
+
+    if (vehicleByLoanId) {
+      return vehicleByLoanId;
+    }
+  }
+
+  // 3. Finally try Loan Number
+  if (normalizedLoanNumber) {
+    const vehicleByLoanNumber =
+      records.find((vehicle) => {
+        const currentLoanNumber =
+          String(
+            vehicle?.loanNumber || ""
+          ).trim();
+
+        return (
+          currentLoanNumber ===
+          normalizedLoanNumber
+        );
+      });
+
+    if (vehicleByLoanNumber) {
+      return vehicleByLoanNumber;
+    }
+  }
+
+  // Fallback to customer storage
   const customers =
     getCustomers();
 
@@ -593,14 +662,12 @@ export const getVehicleByIdentifiers = (
 
       const currentLoanId =
         String(
-          loan?.id ||
-            ""
+          loan?.id || ""
         ).trim();
 
       const currentLoanNumber =
         String(
-          loan?.loanNumber ||
-            ""
+          loan?.loanNumber || ""
         ).trim();
 
       return (
@@ -610,11 +677,14 @@ export const getVehicleByIdentifiers = (
             normalizedVehicleId
         ) ||
         (
+          !normalizedVehicleId &&
           normalizedLoanId &&
           currentLoanId ===
             normalizedLoanId
         ) ||
         (
+          !normalizedVehicleId &&
+          !normalizedLoanId &&
           normalizedLoanNumber &&
           currentLoanNumber ===
             normalizedLoanNumber
@@ -625,10 +695,6 @@ export const getVehicleByIdentifiers = (
   if (!customerRecord) {
     return null;
   }
-
-  /* =====================================================
-     BUILD VEHICLE OBJECT FROM CUSTOMER STORAGE
-  ====================================================== */
 
   const vehicle =
     customerRecord?.vehicle ||
@@ -699,14 +765,9 @@ export const getVehicleByIdentifiers = (
       vehicle?.status ||
       VEHICLE_LIFECYCLE_STATUS.ACTIVE,
 
-    seizure:
-      null,
-
-    sale:
-      null,
-
-    release:
-      null,
+    seizure: null,
+    sale: null,
+    release: null,
   };
 };
 /* =========================================================
@@ -1125,12 +1186,22 @@ const syncStatusToCustomer = (
 export const addVehicleSeizure = (
   seizure = {}
 ) => {
-  const vehicle =
-    getVehicleByIdentifiers(
-      seizure?.vehicleId,
-      seizure?.loanId,
-      seizure?.loanNumber
+  /*
+   * Resolve the vehicle from ALL available sources.
+   */
+  let vehicle =
+    getVehicleById(
+      seizure?.vehicleId
     );
+
+  if (!vehicle) {
+    vehicle =
+      getVehicleByIdentifiers(
+        seizure?.vehicleId,
+        seizure?.loanId,
+        seizure?.loanNumber
+      );
+  }
 
   if (!vehicle) {
     throw new Error(
@@ -1140,7 +1211,7 @@ export const addVehicleSeizure = (
 
   const currentStatus =
     normalize(
-      vehicle.status
+      vehicle?.status
     );
 
   if (
@@ -1173,166 +1244,295 @@ export const addVehicleSeizure = (
   const now =
     nowIso();
 
+  /*
+   * Read existing master records.
+   */
   const records =
-    getVehicles();
+    getVehicleRecords();
 
+  /*
+   * Make sure the vehicle exists inside
+   * master vehicle storage.
+   *
+   * THIS fixes the original bug.
+   */
+  const masterVehicle = {
+    ...vehicle,
+
+    id:
+      vehicle?.vehicleId ||
+      vehicle?.id,
+
+    vehicleId:
+      vehicle?.vehicleId ||
+      vehicle?.id,
+
+    customerId:
+      vehicle?.customerId ||
+      seizure?.customerId ||
+      "",
+
+    customerName:
+      vehicle?.customerName ||
+      seizure?.customerName ||
+      "",
+
+    loanId:
+      vehicle?.loanId ||
+      seizure?.loanId ||
+      "",
+
+    loanNumber:
+      vehicle?.loanNumber ||
+      seizure?.loanNumber ||
+      "",
+
+    registrationNumber:
+      vehicle?.registrationNumber ||
+      seizure?.registrationNumber ||
+      "",
+
+    loanAmount:
+      Number(
+        vehicle?.loanAmount ??
+          seizure?.loanAmount ??
+          0
+      ),
+
+    outstandingAmount:
+      Number(
+        vehicle?.outstandingAmount ??
+          seizure?.outstandingAmount ??
+          0
+      ),
+  };
+
+  /*
+   * Generate seizure ID.
+   */
   const seizureId =
     seizure?.id ||
     generateId(
       "SEIZE",
-      records.map(
-        (item) => ({
+      records
+        .map((item) => ({
           id:
-            item?.seizure
-              ?.id,
-        })
-      )
+            item?.seizure?.id ||
+            "",
+        }))
+        .filter(
+          (item) =>
+            Boolean(item.id)
+        )
     );
 
-  const seizureRecord =
-    {
-      id:
-        seizureId,
+  /*
+   * Create complete seizure record.
+   */
+  const seizureRecord = {
+    id:
+      seizureId,
 
-      vehicleId:
-        vehicle.vehicleId,
+    vehicleId:
+      masterVehicle.vehicleId,
 
-      registrationNumber:
-        vehicle.registrationNumber,
+    registrationNumber:
+      masterVehicle.registrationNumber ||
+      "",
 
-      vehicleName:
-        seizure?.vehicleName ||
-        [
-          vehicle.brand,
-          vehicle.model,
-          vehicle.variant,
-        ]
-          .filter(Boolean)
-          .join(" ") ||
-        "Vehicle",
+    vehicleName:
+      seizure?.vehicleName ||
+      [
+        masterVehicle.brand,
+        masterVehicle.model,
+        masterVehicle.variant,
+      ]
+        .filter(Boolean)
+        .join(" ") ||
+      "Vehicle",
 
-      vehicleType:
-        seizure?.vehicleType ||
-        vehicle.vehicleType ||
-        "",
+    vehicleType:
+      seizure?.vehicleType ||
+      masterVehicle.vehicleType ||
+      "",
 
-      customerId:
-        vehicle.customerId,
+    customerId:
+      seizure?.customerId ||
+      masterVehicle.customerId ||
+      "",
 
-      customerName:
-        vehicle.customerName,
+    customerName:
+      seizure?.customerName ||
+      masterVehicle.customerName ||
+      "",
 
-      loanId:
-        vehicle.loanId,
+    loanId:
+      seizure?.loanId ||
+      masterVehicle.loanId ||
+      "",
 
-      loanNumber:
-        vehicle.loanNumber,
+    loanNumber:
+      seizure?.loanNumber ||
+      masterVehicle.loanNumber ||
+      "",
 
-      loanAmount:
-        Number(
-          seizure?.loanAmount ??
-            vehicle.loanAmount ??
-            0
-        ),
+    loanAmount:
+      Number(
+        seizure?.loanAmount ??
+          masterVehicle.loanAmount ??
+          0
+      ),
 
-      outstandingAmount:
-        Number(
-          seizure?.outstandingAmount ??
-            vehicle.outstandingAmount ??
-            0
-        ),
+    outstandingAmount:
+      Number(
+        seizure?.outstandingAmount ??
+          masterVehicle.outstandingAmount ??
+          0
+      ),
 
-      principalOutstanding:
-        Number(
-          seizure?.principalOutstanding ??
-            0
-        ),
+    principalOutstanding:
+      Number(
+        seizure?.principalOutstanding ??
+          0
+      ),
 
-      interestOutstanding:
-        Number(
-          seizure?.interestOutstanding ??
-            0
-        ),
+    interestOutstanding:
+      Number(
+        seizure?.interestOutstanding ??
+          0
+      ),
 
-      reason:
-        seizure?.reason || "",
+    reason:
+      seizure?.reason ||
+      "",
 
-      remarks:
-        seizure?.remarks || "",
+    remarks:
+      seizure?.remarks ||
+      "",
 
-      attachment:
-        seizure?.attachment ||
-        null,
+    attachment:
+      seizure?.attachment ||
+      null,
 
-      seizedAt:
-        seizure?.seizedAt ||
-        now,
+    seizedAt:
+      seizure?.seizedAt ||
+      now,
 
-      seizedBy:
-        seizure?.seizedBy ||
-        seizure?.createdBy ||
-        "Admin",
+    seizedBy:
+      seizure?.seizedBy ||
+      seizure?.createdBy ||
+      "Admin",
 
-      createdAt:
-        seizure?.createdAt ||
-        now,
+    createdAt:
+      seizure?.createdAt ||
+      now,
 
-      updatedAt:
-        now,
-    };
+    updatedAt:
+      now,
+  };
 
-  const updated =
-    records.map(
-      (item) => {
-        const currentId =
+  /*
+   * Create/update master vehicle.
+   */
+  const existingIndex =
+    records.findIndex(
+      (item) =>
+        String(
           item?.vehicleId ||
-          item?.id ||
-          "";
-
-        if (
-          String(
-            currentId
-          ) !==
-          String(
-            vehicle.vehicleId
-          )
-        ) {
-          return item;
-        }
-
-        return {
-          ...item,
-
-          status:
-            VEHICLE_LIFECYCLE_STATUS.SEIZED,
-
-          seizure:
-            seizureRecord,
-
-          /*
-           * New seizure starts a new cycle.
-           */
-          release:
-            null,
-
-          sale:
-            null,
-
-          updatedAt:
-            now,
-        };
-      }
+            item?.id ||
+            ""
+        ) ===
+        String(
+          masterVehicle.vehicleId
+        )
     );
 
+  let updatedRecords;
+
+  if (existingIndex >= 0) {
+    /*
+     * Vehicle already exists.
+     */
+    updatedRecords =
+      records.map(
+        (item, index) => {
+          if (
+            index !==
+            existingIndex
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+
+            status:
+              VEHICLE_LIFECYCLE_STATUS.SEIZED,
+
+            seizure:
+              seizureRecord,
+
+            release:
+              null,
+
+            sale:
+              null,
+
+            updatedAt:
+              now,
+          };
+        }
+      );
+  } else {
+    /*
+     * Vehicle did NOT exist in master storage.
+     *
+     * Add it now.
+     */
+    updatedRecords = [
+      ...records,
+
+      {
+        ...masterVehicle,
+
+        status:
+          VEHICLE_LIFECYCLE_STATUS.SEIZED,
+
+        seizure:
+          seizureRecord,
+
+        release:
+          null,
+
+        sale:
+          null,
+
+        createdAt:
+          masterVehicle?.createdAt ||
+          now,
+
+        updatedAt:
+          now,
+      },
+    ];
+  }
+
+  /*
+   * Save master vehicle storage.
+   */
   saveVehicleRecords(
-    updated
+    updatedRecords
   );
 
   /*
-   * Mirror status to customer/loan.
+   * Synchronize customer storage.
    */
   syncStatusToCustomer(
-    vehicle,
+    {
+      ...masterVehicle,
+      status:
+        VEHICLE_LIFECYCLE_STATUS.SEIZED,
+    },
     VEHICLE_LIFECYCLE_STATUS.SEIZED,
     {
       seizedAt:
@@ -1362,126 +1562,117 @@ export const addVehicleSeizure = (
  * to remain visible in their respective pages.
  */
 
-export const getVehicleSeizures =
-  () => {
-    return getVehicles()
-      .filter(
-        (vehicle) =>
-          Boolean(
-            vehicle?.seizure
-          )
-      )
-      .map(
-        (vehicle) => ({
-          ...(vehicle?.seizure ||
-            {}),
+export const getVehicleSeizures = () => {
+  return getVehicleRecords()
+    .filter(
+      (vehicle) =>
+        Boolean(
+          vehicle?.seizure?.id
+        )
+    )
+    .map((vehicle) => ({
+      ...(vehicle.seizure || {}),
 
-          /*
-           * Always expose current identifiers.
-           */
-          vehicleId:
-            vehicle.vehicleId,
+      id:
+        vehicle.seizure.id,
 
-          registrationNumber:
-            vehicle.registrationNumber,
+      vehicleId:
+        vehicle.vehicleId ||
+        vehicle.id ||
+        "",
 
-          customerId:
-            vehicle.customerId,
+      registrationNumber:
+        vehicle.registrationNumber ||
+        vehicle.seizure?.registrationNumber ||
+        "",
 
-          customerName:
-            vehicle.customerName,
+      customerId:
+        vehicle.customerId ||
+        vehicle.seizure?.customerId ||
+        "",
 
-          loanId:
-            vehicle.loanId,
+      customerName:
+        vehicle.customerName ||
+        vehicle.seizure?.customerName ||
+        "",
 
-          loanNumber:
-            vehicle.loanNumber,
+      loanId:
+        vehicle.loanId ||
+        vehicle.seizure?.loanId ||
+        "",
 
-          vehicleName:
-            vehicle.seizure
-              ?.vehicleName ||
-            [
-              vehicle.brand,
-              vehicle.model,
-              vehicle.variant,
-            ]
-              .filter(Boolean)
-              .join(" ") ||
-            "Vehicle",
+      loanNumber:
+        vehicle.loanNumber ||
+        vehicle.seizure?.loanNumber ||
+        "",
 
-          vehicleType:
-            vehicle.seizure
-              ?.vehicleType ||
-            vehicle.vehicleType ||
-            "",
+      vehicleName:
+        vehicle.seizure?.vehicleName ||
+        [
+          vehicle.brand,
+          vehicle.model,
+          vehicle.variant,
+        ]
+          .filter(Boolean)
+          .join(" ") ||
+        "Vehicle",
 
-          loanAmount:
-            Number(
-              vehicle.seizure
-                ?.loanAmount ??
-                vehicle.loanAmount ??
-                0
-            ),
+      vehicleType:
+        vehicle.seizure?.vehicleType ||
+        vehicle.vehicleType ||
+        "",
 
-          outstandingAmount:
-            Number(
-              vehicle.seizure
-                ?.outstandingAmount ??
-                vehicle.outstandingAmount ??
-                0
-            ),
+      loanAmount:
+        Number(
+          vehicle.seizure?.loanAmount ??
+            vehicle.loanAmount ??
+            0
+        ),
 
-          seizedAt:
-            vehicle.seizure
-              ?.seizedAt ||
-            "",
+      outstandingAmount:
+        Number(
+          vehicle.seizure?.outstandingAmount ??
+            vehicle.outstandingAmount ??
+            0
+        ),
 
-          seizedBy:
-            vehicle.seizure
-              ?.seizedBy ||
-            "Admin",
+      seizedAt:
+        vehicle.seizure?.seizedAt ||
+        "",
 
-          reason:
-            vehicle.seizure
-              ?.reason ||
-            "",
+      seizedBy:
+        vehicle.seizure?.seizedBy ||
+        "Admin",
 
-          remarks:
-            vehicle.seizure
-              ?.remarks ||
-            "",
+      reason:
+        vehicle.seizure?.reason ||
+        "",
 
-          attachment:
-            vehicle.seizure
-              ?.attachment ||
-            null,
+      remarks:
+        vehicle.seizure?.remarks ||
+        "",
 
-          /*
-           * Current lifecycle status.
-           */
-          status:
-            vehicle.status,
+      attachment:
+        vehicle.seizure?.attachment ||
+        null,
 
-          /*
-           * Lifecycle containers.
-           */
-          seizure:
-            vehicle.seizure ||
-            null,
+      status:
+        vehicle.status,
 
-          release:
-            vehicle.release ||
-            null,
+      seizure:
+        vehicle.seizure,
 
-          sale:
-            vehicle.sale ||
-            null,
+      release:
+        vehicle.release ||
+        null,
 
-          vehicle:
-            vehicle,
-        })
-      );
-  };
+      sale:
+        vehicle.sale ||
+        null,
+
+      vehicle,
+    }));
+};
 
 /* =========================================================
    GET SEIZURE BY ID
@@ -1515,59 +1706,153 @@ export const getVehicleSeizureById = (
    GET LIFECYCLE BY VEHICLE ID
 ========================================================= */
 
-export const getVehicleSeizureByVehicleId =
-  (
-    vehicleId,
-    loanId,
-    loanNumber
-  ) => {
-    return (
-      getVehicleSeizures().find(
-        (record) => {
-          if (
-            vehicleId &&
-            String(
-              record?.vehicleId ||
-                ""
-            ) ===
-              String(
-                vehicleId
-              )
-          ) {
-            return true;
-          }
+/* =========================================================
+   GET LIFECYCLE / SEIZURE BY IDENTIFIERS
+========================================================= */
 
-          if (
-            loanId &&
-            String(
-              record?.loanId ||
-                ""
-            ) ===
-              String(
-                loanId
-              )
-          ) {
-            return true;
-          }
+/* =========================================================
+   GET LIFECYCLE / SEIZURE BY IDENTIFIERS
+========================================================= */
 
-          if (
-            loanNumber &&
-            String(
-              record?.loanNumber ||
-                ""
-            ) ===
-              String(
-                loanNumber
-              )
-          ) {
-            return true;
-          }
+/* =========================================================
+   GET SEIZURE / LIFECYCLE BY VEHICLE
+   Robust lookup:
+   - vehicle ID
+   - loan ID
+   - loan number
+   - customer ID
+   - existing seizure object
+   - master vehicle status
+========================================================= */
 
-          return false;
-        }
-      ) || null
-    );
+export const getVehicleSeizureByVehicleId = (
+  vehicleId,
+  loanId,
+  loanNumber,
+  customerId
+) => {
+  const records = getVehicleRecords();
+
+  const normalizedVehicleId =
+    String(vehicleId || "").trim();
+
+  const normalizedLoanId =
+    String(loanId || "").trim();
+
+  const normalizedLoanNumber =
+    String(loanNumber || "").trim();
+
+  const normalizedCustomerId =
+    String(customerId || "").trim();
+
+  /*
+   * Find the master vehicle record.
+   */
+  const vehicle =
+    records.find((item) => {
+      const currentVehicleId =
+        String(
+          item?.vehicleId ||
+            item?.id ||
+            ""
+        ).trim();
+
+      const currentLoanId =
+        String(
+          item?.loanId ||
+            ""
+        ).trim();
+
+      const currentLoanNumber =
+        String(
+          item?.loanNumber ||
+            ""
+        ).trim();
+
+      const currentCustomerId =
+        String(
+          item?.customerId ||
+            ""
+        ).trim();
+
+      return (
+        (
+          normalizedVehicleId &&
+          currentVehicleId ===
+            normalizedVehicleId
+        ) ||
+        (
+          normalizedLoanId &&
+          currentLoanId ===
+            normalizedLoanId
+        ) ||
+        (
+          normalizedLoanNumber &&
+          currentLoanNumber ===
+            normalizedLoanNumber
+        ) ||
+        (
+          normalizedCustomerId &&
+          currentCustomerId ===
+            normalizedCustomerId
+        )
+      );
+    }) || null;
+
+  /*
+   * No master record.
+   */
+  if (!vehicle) {
+    return null;
+  }
+
+  /*
+   * No seizure record.
+   *
+   * Do NOT return a fake object.
+   */
+  if (!vehicle.seizure) {
+    return null;
+  }
+
+  /*
+   * Return the actual stored seizure record.
+   */
+  return {
+    ...vehicle.seizure,
+
+    id:
+      vehicle.seizure.id,
+
+    vehicleId:
+      vehicle.vehicleId ||
+      vehicle.id ||
+      normalizedVehicleId,
+
+    customerId:
+      vehicle.customerId ||
+      normalizedCustomerId ||
+      "",
+
+    customerName:
+      vehicle.customerName ||
+      "",
+
+    loanId:
+      vehicle.loanId ||
+      normalizedLoanId ||
+      "",
+
+    loanNumber:
+      vehicle.loanNumber ||
+      normalizedLoanNumber ||
+      "",
+
+    status:
+      vehicle.status ||
+      "",
   };
+};
 
 /* =========================================================
    RELEASE VEHICLE
@@ -1732,110 +2017,362 @@ export const releaseVehicleSeizure =
  * SEIZED -> PENDING SALE
  */
 
-export const markVehicleForSale =
-  (
-    seizureId,
-    saleData = {}
-  ) => {
-    const seizure =
-      getVehicleSeizureById(
-        seizureId
+/* =========================================================
+   MOVE VEHICLE TO PENDING SALE
+   Accepts:
+   - seizure ID
+   - vehicle ID
+   - loan ID
+   - loan number
+========================================================= */
+
+export const markVehicleForSale = (
+  identifier,
+  saleData = {}
+) => {
+  const records =
+    getVehicles();
+
+  /*
+   * Resolve the vehicle directly first.
+   */
+  let vehicle =
+    records.find((item) => {
+      const vehicleId =
+        String(
+          item?.vehicleId ||
+            item?.id ||
+            ""
+        );
+
+      const loanId =
+        String(
+          item?.loanId ||
+            ""
+        );
+
+      const loanNumber =
+        String(
+          item?.loanNumber ||
+            ""
+        );
+
+      return (
+        vehicleId ===
+          String(identifier) ||
+        loanId ===
+          String(identifier) ||
+        loanNumber ===
+          String(identifier)
       );
+    }) || null;
 
-    if (!seizure) {
-      console.error(
-        "Seizure record not found."
-      );
+  /*
+   * If not found by normal vehicle identifiers,
+   * try the seizure ID.
+   */
+  if (!vehicle) {
+    vehicle =
+      records.find(
+        (item) =>
+          String(
+            item?.seizure?.id ||
+              ""
+          ) ===
+          String(identifier)
+      ) || null;
+  }
 
-      return null;
-    }
+  /*
+   * If the caller supplied saleData identifiers,
+   * use those as a second resolution path.
+   */
+  if (!vehicle) {
+    vehicle =
+      records.find((item) => {
+        return (
+          (
+            saleData?.vehicleId &&
+            String(
+              item?.vehicleId ||
+                item?.id ||
+                ""
+            ) ===
+            String(
+              saleData.vehicleId
+            )
+          ) ||
+          (
+            saleData?.loanId &&
+            String(
+              item?.loanId ||
+                ""
+            ) ===
+            String(
+              saleData.loanId
+            )
+          ) ||
+          (
+            saleData?.loanNumber &&
+            String(
+              item?.loanNumber ||
+                ""
+            ) ===
+            String(
+              saleData.loanNumber
+            )
+          )
+        );
+      }) || null;
+  }
 
-    const vehicle =
-      getVehicleById(
-        seizure.vehicleId
-      );
+  if (!vehicle) {
+    throw new Error(
+      "Vehicle record not found for Pending Sale."
+    );
+  }
 
-    if (!vehicle) {
-      console.error(
-        "Vehicle record not found."
-      );
+  /*
+   * Only Seized vehicles can move to Pending Sale.
+   */
+  if (
+    normalize(
+      vehicle.status
+    ) !== "seized"
+  ) {
+    throw new Error(
+      `Only Seized vehicles can move to Pending Sale. Current status: ${
+        vehicle.status ||
+        "Unknown"
+      }`
+    );
+  }
 
-      return null;
-    }
+  const now =
+    nowIso();
 
-    if (
-      normalize(
-        vehicle.status
-      ) !== "seized"
-    ) {
-      console.error(
-        "Only seized vehicles can move to Pending Sale."
-      );
+  /*
+   * Existing lifecycle data is preserved.
+   */
+  const seizure =
+    vehicle?.seizure ||
+    null;
 
-      return null;
-    }
+  const sale = {
+    ...(vehicle?.sale ||
+      {}),
 
-    const now =
-      nowIso();
+    ...(saleData ||
+      {}),
 
-    const sale = {
-      ...(vehicle.sale ||
-        {}),
+    saleStatus:
+      VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
 
-      ...(saleData || {}),
+    initiatedAt:
+      saleData?.initiatedAt ||
+      now,
 
-      saleStatus:
-        VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
+    updatedAt:
+      now,
+  };
 
-      initiatedAt:
-        saleData?.initiatedAt ||
+  /*
+   * Preserve the lifecycle/seizure information.
+   *
+   * If the old record did not contain a seizure
+   * object, create a minimal one so future pages
+   * have a consistent lifecycle reference.
+   */
+  const lifecycleSeizure =
+    seizure ||
+    {
+      id:
+        generateId(
+          "SEIZE",
+          records.flatMap(
+            (item) =>
+              item?.seizure?.id
+                ? [
+                    {
+                      id:
+                        item.seizure.id,
+                    },
+                  ]
+                : []
+          )
+        ),
+
+      vehicleId:
+        vehicle.vehicleId,
+
+      registrationNumber:
+        vehicle.registrationNumber ||
+        saleData?.registrationNumber ||
+        "",
+
+      vehicleName:
+        saleData?.vehicleName ||
+        [
+          vehicle.brand,
+          vehicle.model,
+          vehicle.variant,
+        ]
+          .filter(Boolean)
+          .join(" ") ||
+        "Vehicle",
+
+      vehicleType:
+        vehicle.vehicleType ||
+        saleData?.vehicleType ||
+        "",
+
+      customerId:
+        vehicle.customerId ||
+        saleData?.customerId ||
+        "",
+
+      customerName:
+        vehicle.customerName ||
+        saleData?.customerName ||
+        "",
+
+      loanId:
+        vehicle.loanId ||
+        saleData?.loanId ||
+        "",
+
+      loanNumber:
+        vehicle.loanNumber ||
+        saleData?.loanNumber ||
+        "",
+
+      loanAmount:
+        Number(
+          vehicle.loanAmount ??
+            saleData?.loanAmount ??
+            0
+        ),
+
+      outstandingAmount:
+        Number(
+          vehicle.outstandingAmount ??
+            saleData?.outstandingAmount ??
+            0
+        ),
+
+      seizedAt:
+        vehicle?.seizedAt ||
+        vehicle?.updatedAt ||
+        now,
+
+      seizedBy:
+        vehicle?.seizedBy ||
+        "Admin",
+
+      reason:
+        "Vehicle seizure lifecycle.",
+
+      remarks:
+        "",
+
+      createdAt:
+        vehicle?.createdAt ||
         now,
 
       updatedAt:
         now,
     };
 
-    const updated =
-      updateVehicle(
-        vehicle.vehicleId,
-        {
+  /*
+   * PENDING SALE
+   */
+  const updatedRecords =
+    records.map(
+      (item) => {
+        const itemVehicleId =
+          String(
+            item?.vehicleId ||
+              item?.id ||
+              ""
+          );
+
+        const targetVehicleId =
+          String(
+            vehicle?.vehicleId ||
+              vehicle?.id ||
+              ""
+          );
+
+        if (
+          itemVehicleId !==
+          targetVehicleId
+        ) {
+          return item;
+        }
+
+        return {
+          ...item,
+
           status:
             VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
 
+          seizure:
+            lifecycleSeizure,
+
           sale,
 
-          /*
-           * Preserve original seizure.
-           */
-          seizure:
-            vehicle.seizure ||
-            seizure,
-        }
-      );
+          updatedAt:
+            now,
+        };
+      }
+    );
 
-    if (!updated) {
-      return null;
-    }
+  saveVehicleRecords(
+    updatedRecords
+  );
 
+  /*
+   * Keep customer/loan lifecycle synchronized.
+   */
+  const updatedVehicle =
+    updatedRecords.find(
+      (item) =>
+        String(
+          item?.vehicleId ||
+            item?.id ||
+            ""
+        ) ===
+        String(
+          vehicle?.vehicleId ||
+            vehicle?.id ||
+            ""
+        )
+    );
+
+  if (updatedVehicle) {
     syncStatusToCustomer(
-      updated,
+      updatedVehicle,
       VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
       {
         saleStartedAt:
           sale.initiatedAt,
       }
     );
+  }
 
-    return {
-      ...updated,
+  return {
+    ...(updatedVehicle ||
+      vehicle),
 
-      seizure:
-        updated.seizure ||
-        seizure,
+    status:
+      VEHICLE_LIFECYCLE_STATUS.PENDING_SALE,
 
-      sale,
-    };
+    seizure:
+      lifecycleSeizure,
+
+    sale,
   };
+};
 
 /* =========================================================
    DIRECT MOVE TO PENDING SALE

@@ -25,6 +25,7 @@ import Settings from "./pages/settings/Settings";
 import LoanManagement from "./pages/loan/LoanManagement";
 import ExpenseControl from "./pages/expense/ExpenseControl";
 import Investor from "./pages/investor/Investor";
+import Ledger from "./pages/ledger/Ledger";
 
 import ReLoanEligibility from "./pages/reloan/ReLoanEligibility";
 import ReLoan from "./pages/reloan/ReLoan";
@@ -593,6 +594,15 @@ const AppLayout = () => {
             element={
               <ProtectedRoute role="admin">
                 <Investor />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/ledger"
+            element={
+              <ProtectedRoute role="admin">
+                <Ledger />
               </ProtectedRoute>
             }
           />
