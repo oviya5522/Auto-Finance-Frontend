@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 /* =========================================================
-   NAVIGATION
+   MAIN NAVIGATION
 ========================================================= */
 
 const NAV_ITEMS = [
@@ -71,32 +71,32 @@ const NAV_ITEMS = [
     ],
   },
 
-  /* =======================================================
-     3. OPERATIONS & ACCOUNTS
-  ======================================================= */
+ /* =======================================================
+   3. OPERATIONS & ACCOUNTS
+======================================================= */
 
-  {
-    id: "operations-accounts",
-    label: "Operations & Accounts",
-    icon: WalletCards,
+{
+  id: "operations-accounts",
+  label: "Operations & Accounts",
+  icon: WalletCards,
 
-    children: [
-      {
-        id: "investor",
-        label: "Investor",
-      },
+  children: [
+    {
+      id: "ledger",
+      label: "Ledger",
+    },
 
-      {
-        id: "expense-control",
-        label: "Expense",
-      },
+    {
+      id: "investor",
+      label: "Investor",
+    },
 
-      {
-        id: "ledger",
-        label: "Ledger",
-      },
-    ],
-  },
+    {
+      id: "expense-control",
+      label: "Expense",
+    },
+  ],
+},
 
   /* =======================================================
      4. CUSTOMERS
@@ -139,30 +139,25 @@ const NAV_ITEMS = [
       },
     ],
   },
+];
 
-  /* =======================================================
-     6. ALERTS
-  ======================================================= */
+/* =========================================================
+   BOTTOM NAVIGATION
+   These appear directly above Settings.
+========================================================= */
 
+const BOTTOM_NAV_ITEMS = [
   {
     id: "alerts",
     label: "Alerts",
     icon: Bell,
   },
 
-  /* =======================================================
-     7. REMINDERS
-  ======================================================= */
-
   {
     id: "reminders",
     label: "Reminders",
     icon: Receipt,
   },
-
-  /* =======================================================
-     8. CONTROL CENTER
-  ======================================================= */
 
   {
     id: "control-center",
@@ -185,64 +180,39 @@ const SETTINGS_ITEM = {
    SIDEBAR
 ========================================================= */
 
-const SideBar = ({
-  activeItem,
-  onNavigate,
-}) => {
-  const [
-    collapsed,
-    setCollapsed,
-  ] = useState(false);
+const SideBar = ({ activeItem, onNavigate }) => {
+  const [collapsed, setCollapsed] = useState(false);
 
-  const [
-    mobileOpen,
-    setMobileOpen,
-  ] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [
-    openMenu,
-    setOpenMenu,
-  ] = useState(
+  const [openMenu, setOpenMenu] = useState(
     activeItem === "loans-all" ||
-    activeItem === "loans-new" ||
-    activeItem === "loan-management" ||
-    activeItem === "reloan" ||
-    activeItem === "collections"
+      activeItem === "loans-new" ||
+      activeItem === "loan-management" ||
+      activeItem === "reloan" ||
+      activeItem === "collections"
       ? "loans"
       : activeItem === "investor" ||
-        activeItem === "expense-control" ||
-        activeItem === "ledger"
-      ? "operations-accounts"
-      : activeItem?.startsWith?.(
-          "vehicles-"
-        )
-      ? "vehicles"
-      : null
+          activeItem === "expense-control" ||
+          activeItem === "ledger"
+        ? "operations-accounts"
+        : activeItem?.startsWith?.("vehicles-")
+          ? "vehicles"
+          : null,
   );
 
   /* =====================================================
      NAVIGATION
   ====================================================== */
 
-  const handleItemClick = (
-    item
-  ) => {
-    if (
-      item.children?.length
-    ) {
-      setOpenMenu(
-        (previous) =>
-          previous === item.id
-            ? null
-            : item.id
-      );
+  const handleItemClick = (item) => {
+    if (item.children?.length) {
+      setOpenMenu((previous) => (previous === item.id ? null : item.id));
 
       return;
     }
 
-    onNavigate(
-      item.id
-    );
+    onNavigate(item.id);
 
     setMobileOpen(false);
   };
@@ -251,12 +221,8 @@ const SideBar = ({
      CHILD NAVIGATION
   ====================================================== */
 
-  const handleChildClick = (
-    child
-  ) => {
-    onNavigate(
-      child.id
-    );
+  const handleChildClick = (child) => {
+    onNavigate(child.id);
 
     setMobileOpen(false);
   };
@@ -265,60 +231,30 @@ const SideBar = ({
      NAV BUTTON
   ====================================================== */
 
-  const renderNavButton = (
-    item
-  ) => {
-    const Icon =
-      item.icon;
+  const renderNavButton = (item) => {
+    const Icon = item.icon;
 
     const hasChildren =
-      Array.isArray(
-        item.children
-      ) &&
-      item.children.length >
-        0;
+      Array.isArray(item.children) && item.children.length > 0;
 
-    const childActive =
-      hasChildren
-        ? item.children.some(
-            (child) =>
-              activeItem ===
-              child.id
-          )
-        : false;
+    const childActive = hasChildren
+      ? item.children.some((child) => activeItem === child.id)
+      : false;
 
-    const isActive =
-      activeItem ===
-        item.id ||
-      childActive;
+    const isActive = activeItem === item.id || childActive;
 
-    const isOpen =
-      openMenu ===
-      item.id;
+    const isOpen = openMenu === item.id;
 
     return (
-      <div
-        key={
-          item.id
-        }
-        className="w-full"
-      >
+      <div key={item.id} className="w-full">
         {/* =================================================
             PARENT BUTTON
         ================================================== */}
 
         <button
           type="button"
-          title={
-            collapsed
-              ? item.label
-              : undefined
-          }
-          onClick={() =>
-            handleItemClick(
-              item
-            )
-          }
+          title={collapsed ? item.label : undefined}
+          onClick={() => handleItemClick(item)}
           className={`
             group
             relative
@@ -331,11 +267,7 @@ const SideBar = ({
             duration-200
             ease-out
 
-            ${
-              collapsed
-                ? "justify-center px-2.5"
-                : "justify-start px-3"
-            }
+            ${collapsed ? "justify-center px-2.5" : "justify-start px-3"}
 
             py-2.5
 
@@ -378,11 +310,7 @@ const SideBar = ({
             <Icon
               size={19}
               strokeWidth={2}
-              className={
-                isActive
-                  ? "text-white"
-                  : "text-[#A8C2B3]"
-              }
+              className={isActive ? "text-white" : "text-[#A8C2B3]"}
             />
           </span>
 
@@ -422,15 +350,9 @@ const SideBar = ({
                   "
                 >
                   {isOpen ? (
-                    <ChevronDown
-                      size={15}
-                      strokeWidth={2}
-                    />
+                    <ChevronDown size={15} strokeWidth={2} />
                   ) : (
-                    <ChevronRight
-                      size={15}
-                      strokeWidth={2}
-                    />
+                    <ChevronRight size={15} strokeWidth={2} />
                   )}
                 </span>
               )}
@@ -442,11 +364,9 @@ const SideBar = ({
             CHILDREN
         ================================================== */}
 
-        {!collapsed &&
-          hasChildren &&
-          isOpen && (
-            <div
-              className="
+        {!collapsed && hasChildren && isOpen && (
+          <div
+            className="
                 relative
                 ml-4
                 mt-1
@@ -455,25 +375,16 @@ const SideBar = ({
                 border-[#2A5A47]
                 pl-2.5
               "
-            >
-              {item.children.map(
-                (child) => {
-                  const childIsActive =
-                    activeItem ===
-                    child.id;
+          >
+            {item.children.map((child) => {
+              const childIsActive = activeItem === child.id;
 
-                  return (
-                    <button
-                      key={
-                        child.id
-                      }
-                      type="button"
-                      onClick={() =>
-                        handleChildClick(
-                          child
-                        )
-                      }
-                      className={`
+              return (
+                <button
+                  key={child.id}
+                  type="button"
+                  onClick={() => handleChildClick(child)}
+                  className={`
                         relative
                         flex
                         w-full
@@ -493,12 +404,12 @@ const SideBar = ({
                             : "text-[#A8C2B3] hover:bg-[#174D38] hover:text-white"
                         }
                       `}
-                    >
-                      {/* CHILD ACTIVE LINE */}
+                >
+                  {/* CHILD ACTIVE LINE */}
 
-                      {childIsActive && (
-                        <span
-                          className="
+                  {childIsActive && (
+                    <span
+                      className="
                             absolute
                             -left-[13px]
                             top-1/2
@@ -508,20 +419,15 @@ const SideBar = ({
                             rounded-full
                             bg-[#72D3A2]
                           "
-                        />
-                      )}
+                    />
+                  )}
 
-                      <span className="truncate">
-                        {
-                          child.label
-                        }
-                      </span>
-                    </button>
-                  );
-                }
-              )}
-            </div>
-          )}
+                  <span className="truncate">{child.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -556,12 +462,7 @@ const SideBar = ({
       >
         <button
           type="button"
-          onClick={() =>
-            setMobileOpen(
-              (previous) =>
-                !previous
-            )
-          }
+          onClick={() => setMobileOpen((previous) => !previous)}
           aria-label="Open menu"
           className="
             flex
@@ -576,10 +477,7 @@ const SideBar = ({
             hover:text-white
           "
         >
-          <Menu
-            size={20}
-            strokeWidth={2}
-          />
+          <Menu size={20} strokeWidth={2} />
         </button>
 
         <div className="flex items-center">
@@ -615,9 +513,7 @@ const SideBar = ({
             "
           >
             Moto
-            <span className="text-[#78D6A4]">
-              Lend
-            </span>
+            <span className="text-[#78D6A4]">Lend</span>
           </p>
         </div>
 
@@ -630,9 +526,7 @@ const SideBar = ({
 
       {mobileOpen && (
         <div
-          onClick={() =>
-            setMobileOpen(false)
-          }
+          onClick={() => setMobileOpen(false)}
           className="
             fixed
             inset-0
@@ -666,22 +560,14 @@ const SideBar = ({
           duration-300
           ease-out
 
-          ${
-            mobileOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-          }
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
 
           lg:static
           lg:translate-x-0
           lg:transition-[width]
           lg:duration-200
 
-          ${
-            collapsed
-              ? "lg:w-[68px]"
-              : "lg:w-[220px]"
-          }
+          ${collapsed ? "lg:w-[68px]" : "lg:w-[220px]"}
         `}
       >
         {/* =================================================
@@ -696,11 +582,7 @@ const SideBar = ({
             border-[#174D38]
             lg:block
 
-            ${
-              collapsed
-                ? "px-2 py-3"
-                : "px-3.5 py-3"
-            }
+            ${collapsed ? "px-2 py-3" : "px-3.5 py-3"}
           `}
         >
           <div
@@ -709,11 +591,7 @@ const SideBar = ({
               min-w-0
               items-center
 
-              ${
-                collapsed
-                  ? "justify-center"
-                  : "justify-start"
-              }
+              ${collapsed ? "justify-center" : "justify-start"}
             `}
           >
             <div
@@ -761,9 +639,7 @@ const SideBar = ({
                   "
                 >
                   Moto
-                  <span className="text-[#78D6A4]">
-                    Lend
-                  </span>
+                  <span className="text-[#78D6A4]">Lend</span>
                 </p>
 
                 <p
@@ -775,10 +651,7 @@ const SideBar = ({
                     text-white
                   "
                 >
-                  POWERING{" "}
-                  <span className="text-[#78D6A4]">
-                    SMARTER
-                  </span>{" "}
+                  POWERING <span className="text-[#78D6A4]">SMARTER</span>{" "}
                   FINANCE
                 </p>
               </div>
@@ -836,17 +709,13 @@ const SideBar = ({
               "
             >
               Moto
-              <span className="text-[#78D6A4]">
-                Lend
-              </span>
+              <span className="text-[#78D6A4]">Lend</span>
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              setMobileOpen(false)
-            }
+            onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
             className="
               flex
@@ -862,10 +731,7 @@ const SideBar = ({
               hover:text-white
             "
           >
-            <X
-              size={18}
-              strokeWidth={2}
-            />
+            <X size={18} strokeWidth={2} />
           </button>
         </div>
 
@@ -883,11 +749,7 @@ const SideBar = ({
             py-3
           "
         >
-          <div className="space-y-1">
-            {NAV_ITEMS.map(
-              renderNavButton
-            )}
-          </div>
+          <div className="space-y-1">{NAV_ITEMS.map(renderNavButton)}</div>
         </nav>
 
         {/* =================================================
@@ -903,27 +765,22 @@ const SideBar = ({
             py-2.5
           "
         >
+          {/* ALERTS / REMINDERS / CONTROL CENTER */}
+
+          <div className="space-y-1">
+            {BOTTOM_NAV_ITEMS.map(renderNavButton)}
+          </div>
+
           {/* SETTINGS */}
 
-          {renderNavButton(
-            SETTINGS_ITEM
-          )}
+          <div className="mt-1">{renderNavButton(SETTINGS_ITEM)}</div>
 
           {/* COLLAPSE */}
 
           <button
             type="button"
-            onClick={() =>
-              setCollapsed(
-                (previous) =>
-                  !previous
-              )
-            }
-            title={
-              collapsed
-                ? "Expand sidebar"
-                : "Collapse sidebar"
-            }
+            onClick={() => setCollapsed((previous) => !previous)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="
               mt-1
               hidden
@@ -943,20 +800,12 @@ const SideBar = ({
             "
           >
             {collapsed ? (
-              <ChevronRight
-                size={18}
-                strokeWidth={2}
-              />
+              <ChevronRight size={18} strokeWidth={2} />
             ) : (
               <>
-                <ChevronLeft
-                  size={18}
-                  strokeWidth={2}
-                />
+                <ChevronLeft size={18} strokeWidth={2} />
 
-                <span className="text-[12px] font-medium">
-                  Collapse
-                </span>
+                <span className="text-[12px] font-medium">Collapse</span>
               </>
             )}
           </button>
