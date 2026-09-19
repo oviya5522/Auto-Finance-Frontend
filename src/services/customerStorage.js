@@ -184,7 +184,279 @@ export const getCustomerById = (customerId) => {
     ) || null
   );
 };
+/* =========================================================
+   CUSTOMER SEARCH
+========================================================= */
 
+/**
+ * Normalize a search value.
+ *
+ * Examples:
+ * 1234 5678 9012 -> 123456789012
+ * Ravi Kumar      -> ravikumar
+ * cus-001         -> cus-001
+ */
+const normalizeSearchValue = (value) => {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+};
+
+/**
+ * Mask Aadhaar for display.
+ *
+ * 123456789012
+ * -> XXXX XXXX 9012
+ */
+const maskAadhaar = (aadhaarNumber) => {
+  const digits = String(
+    aadhaarNumber || ""
+  ).replace(/\D/g, "");
+
+  if (digits.length < 4) {
+    return "XXXX XXXX XXXX";
+  }
+
+  const lastFour =
+    digits.slice(-4);
+
+  return `XXXX XXXX ${lastFour}`;
+};
+
+/**
+ * Get all loans belonging to a customer record.
+ *
+ * Supports:
+ * - record.loan
+ * - record.loans[]
+ */
+const getCustomerLoansForSearch = (
+  record
+) => {
+  const loans = Array.isArray(
+    record?.loans
+  )
+    ? record.loans
+    : [];
+
+  return [
+    ...(record?.loan
+      ? [record.loan]
+      : []),
+    ...loans,
+  ].filter(Boolean);
+};
+
+/**
+ * Search existing customers by:
+ *
+ * - Full Aadhaar number
+ * - Last 4 Aadhaar digits
+ * - Customer name
+ * - Customer number
+ * - Customer ID
+ * - Loan number
+ * - Loan ID
+ *
+ * READ ONLY.
+ *
+ * This function does NOT:
+ * - create customers
+ * - update customers
+ * - delete customers
+ * - modify localStorage
+ */
+export const searchCustomers = (
+  query
+) => {
+  const searchValue =
+    String(query || "").trim();
+
+  if (!searchValue) {
+    return [];
+  }
+
+  const normalizedQuery =
+    normalizeSearchValue(
+      searchValue
+    );
+
+  const customers =
+    getCustomers();
+
+  return customers
+    .map((record) => {
+      const customer =
+        record?.customer || {};
+
+      const customerId =
+        customer?.id || "";
+
+      const customerNumber =
+        customer?.customerNumber || "";
+
+      const customerName =
+        customer?.personal?.name || "";
+
+      const aadhaarNumber =
+        customer?.kyc?.aadhaarNumber ||
+        "";
+
+      const normalizedAadhaar =
+        normalizeSearchValue(
+          aadhaarNumber
+        );
+
+      /* -----------------------------------------------------
+         AADHAAR MATCHING
+      ----------------------------------------------------- */
+
+      const matchesFullAadhaar =
+        normalizedQuery.length === 12 &&
+        normalizedAadhaar ===
+          normalizedQuery;
+
+      const matchesAadhaarLastFour =
+        normalizedQuery.length === 4 &&
+        /^\d{4}$/.test(
+          normalizedQuery
+        ) &&
+        normalizedAadhaar.endsWith(
+          normalizedQuery
+        );
+
+      const matchesAadhaar =
+        matchesFullAadhaar ||
+        matchesAadhaarLastFour;
+
+      /* -----------------------------------------------------
+         CUSTOMER MATCHING
+      ----------------------------------------------------- */
+
+      const matchesCustomerId =
+        normalizeSearchValue(
+          customerId
+        ).includes(
+          normalizedQuery
+        );
+
+      const matchesCustomerNumber =
+        normalizeSearchValue(
+          customerNumber
+        ).includes(
+          normalizedQuery
+        );
+
+      const matchesCustomerName =
+        normalizeSearchValue(
+          customerName
+        ).includes(
+          normalizedQuery
+        );
+
+      /* -----------------------------------------------------
+         LOAN MATCHING
+      ----------------------------------------------------- */
+
+      const loans =
+        getCustomerLoansForSearch(
+          record
+        );
+
+      const matchingLoans =
+        loans.filter((loan) => {
+          const loanId =
+            loan?.id || "";
+
+          const loanNumber =
+            loan?.loanNumber || "";
+
+          const matchesLoanId =
+            normalizeSearchValue(
+              loanId
+            ).includes(
+              normalizedQuery
+            );
+
+          const matchesLoanNumber =
+            normalizeSearchValue(
+              loanNumber
+            ).includes(
+              normalizedQuery
+            );
+
+          return (
+            matchesLoanId ||
+            matchesLoanNumber
+          );
+        });
+
+      /* -----------------------------------------------------
+         FINAL MATCH
+      ----------------------------------------------------- */
+
+      const isMatch =
+        matchesFullAadhaar ||
+        matchesAadhaarLastFour ||
+        matchesCustomerId ||
+        matchesCustomerNumber ||
+        matchesCustomerName ||
+        matchingLoans.length > 0;
+
+      if (!isMatch) {
+        return null;
+      }
+
+      /* -----------------------------------------------------
+         RETURN SAFE SEARCH RESULT
+         
+         IMPORTANT:
+         Do not return the full Aadhaar here.
+         Only return the masked version.
+      ----------------------------------------------------- */
+
+      return {
+        customerId,
+
+        customerNumber,
+
+        customerName,
+
+        maskedAadhaar:
+          maskAadhaar(
+            aadhaarNumber
+          ),
+
+        record,
+
+        loans,
+
+        matchingLoans,
+
+        matchedBy: {
+          customerId:
+            matchesCustomerId,
+
+          customerNumber:
+            matchesCustomerNumber,
+
+          customerName:
+            matchesCustomerName,
+
+          aadhaarFull:
+            matchesFullAadhaar,
+
+          aadhaarLastFour:
+            matchesAadhaarLastFour,
+
+          loan:
+            matchingLoans.length > 0,
+        },
+      };
+    })
+    .filter(Boolean);
+};
 /* =========================================================
    LOANS
 ========================================================= */

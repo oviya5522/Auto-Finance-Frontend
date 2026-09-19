@@ -1,6 +1,9 @@
 // src/SideBar.jsx
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   LayoutDashboard,
@@ -17,29 +20,26 @@ import {
   Menu,
   X,
   Bell,
+  Search,
+  UserRound,
 } from "lucide-react";
+
+import { useNavigate } from "react-router-dom";
+
+import {
+  searchCustomers,
+} from "./services/customerStorage";
 
 /* =========================================================
    MAIN NAVIGATION
 ========================================================= */
 
 const NAV_ITEMS = [
-  /* =======================================================
-     1. DASHBOARD
-  ======================================================= */
-
   {
     id: "dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
   },
-
-  /* =======================================================
-     2. LOANS
-     
-     Loan Management removed.
-     "All Loans" now points to the new Loan page.
-  ======================================================= */
 
   {
     id: "loans",
@@ -69,10 +69,6 @@ const NAV_ITEMS = [
     ],
   },
 
-  /* =======================================================
-     3. OPERATIONS & ACCOUNTS
-  ======================================================= */
-
   {
     id: "operations-accounts",
     label: "Operations & Accounts",
@@ -96,19 +92,11 @@ const NAV_ITEMS = [
     ],
   },
 
-  /* =======================================================
-     4. CUSTOMERS
-  ======================================================= */
-
   {
     id: "customers",
     label: "Customers",
     icon: Users,
   },
-
-  /* =======================================================
-     5. VEHICLES
-  ======================================================= */
 
   {
     id: "vehicles",
@@ -181,6 +169,8 @@ const SideBar = ({
   activeItem,
   onNavigate,
 }) => {
+  const navigate = useNavigate();
+
   const [
     collapsed,
     setCollapsed,
@@ -192,11 +182,31 @@ const SideBar = ({
   ] = useState(false);
 
   /* =======================================================
+     CUSTOMER SEARCH STATE
+  ====================================================== */
+
+  const [
+    searchModalOpen,
+    setSearchModalOpen,
+  ] = useState(false);
+
+  const [
+    searchQuery,
+    setSearchQuery,
+  ] = useState("");
+
+  const [
+    searchResults,
+    setSearchResults,
+  ] = useState([]);
+
+  const [
+    searchPerformed,
+    setSearchPerformed,
+  ] = useState(false);
+
+  /* =======================================================
      DETERMINE OPEN PARENT
-     
-     Loan Management has been removed, so the Loans group
-     now contains only:
-     All Loans / New Loan / Re-loan / Collections
   ====================================================== */
 
   const [
@@ -209,8 +219,7 @@ const SideBar = ({
       activeItem === "collections"
       ? "loans"
       : activeItem === "investor" ||
-          activeItem ===
-            "expense-control" ||
+          activeItem === "expense-control" ||
           activeItem === "ledger"
         ? "operations-accounts"
         : activeItem?.startsWith?.(
@@ -219,6 +228,100 @@ const SideBar = ({
           ? "vehicles"
           : null
   );
+
+  /* =======================================================
+     ESCAPE KEY
+  ====================================================== */
+
+  useEffect(() => {
+    if (!searchModalOpen) {
+      return;
+    }
+
+    const handleEscape = (
+      event
+    ) => {
+      if (event.key === "Escape") {
+        setSearchModalOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, [searchModalOpen]);
+
+  /* =======================================================
+     SEARCH MODAL
+  ====================================================== */
+
+  const openSearchModal = () => {
+    setSearchModalOpen(true);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPerformed(false);
+    setMobileOpen(false);
+  };
+
+  const closeSearchModal = () => {
+    setSearchModalOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPerformed(false);
+  };
+
+  const handleCustomerSearch = () => {
+    const query =
+      searchQuery.trim();
+
+    if (!query) {
+      setSearchResults([]);
+      setSearchPerformed(false);
+      return;
+    }
+
+    const results =
+      searchCustomers(query);
+
+    setSearchResults(results);
+    setSearchPerformed(true);
+  };
+
+  const handleSearchKeyDown = (
+    event
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleCustomerSearch();
+    }
+  };
+
+  const handleCustomerResultClick = (
+    customer
+  ) => {
+    const customerId =
+      customer?.customerId;
+
+    if (!customerId) {
+      return;
+    }
+
+    closeSearchModal();
+
+    navigate(
+      `/customers/${encodeURIComponent(
+        customerId
+      )}`
+    );
+  };
 
   /* =======================================================
      NAVIGATION
@@ -274,8 +377,7 @@ const SideBar = ({
       hasChildren
         ? item.children.some(
             (child) =>
-              activeItem ===
-              child.id
+              activeItem === child.id
           )
         : false;
 
@@ -291,10 +393,6 @@ const SideBar = ({
         key={item.id}
         className="w-full"
       >
-        {/* =================================================
-            PARENT BUTTON
-        ================================================== */}
-
         <button
           type="button"
           title={
@@ -303,9 +401,7 @@ const SideBar = ({
               : undefined
           }
           onClick={() =>
-            handleItemClick(
-              item
-            )
+            handleItemClick(item)
           }
           className={`
             group
@@ -334,8 +430,6 @@ const SideBar = ({
             }
           `}
         >
-          {/* ACTIVE INDICATOR */}
-
           {isActive && (
             <span
               className="
@@ -350,8 +444,6 @@ const SideBar = ({
               "
             />
           )}
-
-          {/* ICON */}
 
           <span
             className="
@@ -374,8 +466,6 @@ const SideBar = ({
             />
           </span>
 
-          {/* LABEL */}
-
           {!collapsed && (
             <>
               <span
@@ -393,8 +483,6 @@ const SideBar = ({
               >
                 {item.label}
               </span>
-
-              {/* CHEVRON */}
 
               {hasChildren && (
                 <span
@@ -425,10 +513,6 @@ const SideBar = ({
             </>
           )}
         </button>
-
-        {/* =================================================
-            CHILDREN
-        ================================================== */}
 
         {!collapsed &&
           hasChildren &&
@@ -480,8 +564,6 @@ const SideBar = ({
                         }
                       `}
                     >
-                      {/* CHILD ACTIVE LINE */}
-
                       {childIsActive && (
                         <span
                           className="
@@ -498,9 +580,7 @@ const SideBar = ({
                       )}
 
                       <span className="truncate">
-                        {
-                          child.label
-                        }
+                        {child.label}
                       </span>
                     </button>
                   );
@@ -511,6 +591,45 @@ const SideBar = ({
       </div>
     );
   };
+
+/* =======================================================
+   SEARCH CUSTOMER BUTTON
+======================================================= */
+
+const renderSearchButton = () => {
+  return (
+    <button
+      type="button"
+      onClick={openSearchModal}
+      title={collapsed ? "Search Customer" : undefined}
+      className={`
+        group relative flex w-full items-center rounded-lg
+        border border-[#367C5D]
+        bg-[#1A4F3A]
+        py-2.5 text-left text-white shadow-sm
+        transition-all duration-200 ease-out
+        hover:border-[#4B9672]
+        hover:bg-[#226247]
+        hover:shadow-md
+        ${collapsed ? "justify-center px-2.5" : "justify-start px-3"}
+      `}
+    >
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+        <Search
+          size={18}
+          strokeWidth={2.2}
+          className="text-[#9BE2BA] transition-colors group-hover:text-white"
+        />
+      </span>
+
+      {!collapsed && (
+        <span className="ml-3 min-w-0 flex-1 text-[13px] font-semibold leading-5 text-white">
+          Search Customer
+        </span>
+      )}
+    </button>
+  );
+};
 
   /* =======================================================
      SIDEBAR
@@ -615,7 +734,7 @@ const SideBar = ({
       </div>
 
       {/* =================================================
-          OVERLAY
+          MOBILE OVERLAY
       ================================================== */}
 
       {mobileOpen && (
@@ -631,6 +750,502 @@ const SideBar = ({
             lg:hidden
           "
         />
+      )}
+
+      {/* =================================================
+          CUSTOMER SEARCH MODAL
+      ================================================== */}
+
+      {searchModalOpen && (
+        <div
+          className="
+            fixed
+            inset-0
+            z-[100]
+            flex
+            items-center
+            justify-center
+            bg-black/50
+            px-4
+            py-6
+            backdrop-blur-[2px]
+          "
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeSearchModal();
+            }
+          }}
+        >
+          <div
+            className="
+              w-full
+              max-w-[560px]
+              overflow-hidden
+              rounded-2xl
+              border
+              border-[#D8E8DE]
+              bg-white
+              shadow-[0_24px_80px_rgba(0,0,0,0.28)]
+            "
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            {/* HEADER */}
+
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                border-b
+                border-[#E4EEE8]
+                bg-[#F6FAF8]
+                px-5
+                py-4
+              "
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-[#E5F4EB]
+                    text-[#0B5D3B]
+                  "
+                >
+                  <Search
+                    size={20}
+                    strokeWidth={2}
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <h2
+                    className="
+                      text-[16px]
+                      font-bold
+                      text-[#173226]
+                    "
+                  >
+                    Search Customer
+                  </h2>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-[11px]
+                      text-[#789086]
+                    "
+                  >
+                    Aadhaar, customer name,
+                    customer number or loan number
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeSearchModal
+                }
+                aria-label="Close search"
+                className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-lg
+                  text-[#71877C]
+                  transition-colors
+                  hover:bg-[#E6F1EB]
+                  hover:text-[#173226]
+                "
+              >
+                <X
+                  size={18}
+                  strokeWidth={2}
+                />
+              </button>
+            </div>
+
+            {/* SEARCH INPUT */}
+
+            <div className="p-5">
+              <div
+                className="
+                  flex
+                  items-center
+                  overflow-hidden
+                  rounded-xl
+                  border
+                  border-[#CFE0D7]
+                  bg-white
+                  transition
+                  focus-within:border-[#4C9B73]
+                  focus-within:ring-4
+                  focus-within:ring-[#DFF1E7]
+                "
+              >
+                <Search
+                  size={19}
+                  strokeWidth={2}
+                  className="
+                    ml-3.5
+                    shrink-0
+                    text-[#7C9588]
+                  "
+                />
+
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) =>
+                    setSearchQuery(
+                      event.target.value
+                    )
+                  }
+                  onKeyDown={
+                    handleSearchKeyDown
+                  }
+                  placeholder="Enter Aadhaar / Name / Customer No. / Loan No."
+                  className="
+                    min-w-0
+                    flex-1
+                    border-0
+                    bg-transparent
+                    px-3
+                    py-3.5
+                    text-[13px]
+                    text-[#173226]
+                    outline-none
+                    placeholder:text-[#9AAFA4]
+                  "
+                />
+
+                <button
+                  type="button"
+                  onClick={
+                    handleCustomerSearch
+                  }
+                  disabled={
+                    !searchQuery.trim()
+                  }
+                  aria-label="Search customer"
+                  className="
+                    m-1
+                    flex
+                    h-10
+                    w-10
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-[#0B5D3B]
+                    text-white
+                    transition
+                    hover:bg-[#084A30]
+                    disabled:cursor-not-allowed
+                    disabled:bg-[#C7D5CE]
+                  "
+                >
+                  <Search
+                    size={18}
+                    strokeWidth={2}
+                  />
+                </button>
+              </div>
+
+              {/* RESULTS */}
+
+              {searchPerformed && (
+                <div
+                  className="
+                    mt-4
+                    border-t
+                    border-[#E7EFEA]
+                    pt-4
+                  "
+                >
+                  {searchResults.length ===
+                  0 ? (
+                    <div
+                      className="
+                        rounded-xl
+                        border
+                        border-dashed
+                        border-[#D6E5DC]
+                        bg-[#F8FCFA]
+                        px-4
+                        py-8
+                        text-center
+                      "
+                    >
+                      <div
+                        className="
+                          mx-auto
+                          flex
+                          h-11
+                          w-11
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-[#EAF5EF]
+                          text-[#648777]
+                        "
+                      >
+                        <Users
+                          size={20}
+                          strokeWidth={2}
+                        />
+                      </div>
+
+                      <p
+                        className="
+                          mt-3
+                          text-[13px]
+                          font-semibold
+                          text-[#30483D]
+                        "
+                      >
+                        No customer found
+                      </p>
+
+                      <p
+                        className="
+                          mt-1
+                          text-[11px]
+                          text-[#82988D]
+                        "
+                      >
+                        Try another Aadhaar,
+                        name, customer number or
+                        loan number.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <p
+                          className="
+                            text-[11px]
+                            font-semibold
+                            uppercase
+                            tracking-[0.06em]
+                            text-[#6D877A]
+                          "
+                        >
+                          Matching Customers
+                        </p>
+
+                        <span
+                          className="
+                            rounded-full
+                            bg-[#EAF5EF]
+                            px-2
+                            py-1
+                            text-[10px]
+                            font-semibold
+                            text-[#0B5D3B]
+                          "
+                        >
+                          {
+                            searchResults.length
+                          }{" "}
+                          result
+                          {searchResults.length !==
+                          1
+                            ? "s"
+                            : ""}
+                        </span>
+                      </div>
+
+                      <div
+                        className="
+                          max-h-[320px]
+                          space-y-2
+                          overflow-y-auto
+                          pr-1
+                        "
+                      >
+                        {searchResults.map(
+                          (customer) => (
+                            <button
+                              key={
+                                customer.customerId
+                              }
+                              type="button"
+                              onClick={() =>
+                                handleCustomerResultClick(
+                                  customer
+                                )
+                              }
+                              className="
+                                group
+                                flex
+                                w-full
+                                items-start
+                                gap-3
+                                rounded-xl
+                                border
+                                border-[#E1ECE6]
+                                bg-white
+                                p-3.5
+                                text-left
+                                transition
+                                hover:border-[#A9CFBB]
+                                hover:bg-[#F7FBF9]
+                                hover:shadow-sm
+                              "
+                            >
+                              <div
+                                className="
+                                  flex
+                                  h-10
+                                  w-10
+                                  shrink-0
+                                  items-center
+                                  justify-center
+                                  rounded-xl
+                                  bg-[#E9F5EF]
+                                  text-[#0B5D3B]
+                                "
+                              >
+                                <UserRound
+                                  size={19}
+                                  strokeWidth={2}
+                                />
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className="
+                                    truncate
+                                    text-[13px]
+                                    font-semibold
+                                    text-[#203B30]
+                                  "
+                                >
+                                  {customer.customerName ||
+                                    "Unnamed Customer"}
+                                </p>
+
+                                <div
+                                  className="
+                                    mt-1
+                                    grid
+                                    grid-cols-1
+                                    gap-1
+                                    text-[10px]
+                                    text-[#71877C]
+                                    sm:grid-cols-2
+                                  "
+                                >
+                                  <span className="truncate">
+                                    Customer No:{" "}
+                                    <span className="font-medium text-[#40584C]">
+                                      {customer.customerNumber ||
+                                        "—"}
+                                    </span>
+                                  </span>
+
+                                  <span className="truncate">
+                                    Customer ID:{" "}
+                                    <span className="font-medium text-[#40584C]">
+                                      {customer.customerId ||
+                                        "—"}
+                                    </span>
+                                  </span>
+
+                                  <span className="truncate sm:col-span-2">
+                                    Aadhaar:{" "}
+                                    <span className="font-medium text-[#40584C]">
+                                      {customer.maskedAadhaar ||
+                                        "XXXX XXXX XXXX"}
+                                    </span>
+                                  </span>
+                                </div>
+
+                                {customer.matchingLoans
+                                  ?.length >
+                                  0 && (
+                                  <p
+                                    className="
+                                      mt-1
+                                      truncate
+                                      text-[10px]
+                                      text-[#7B9185]
+                                    "
+                                  >
+                                    Loan:{" "}
+                                    <span className="font-medium text-[#40584C]">
+                                      {customer.matchingLoans
+                                        .slice(
+                                          0,
+                                          3
+                                        )
+                                        .map(
+                                          (loan) =>
+                                            loan?.loanNumber ||
+                                            loan?.id ||
+                                            "—"
+                                        )
+                                        .join(
+                                          ", "
+                                        )}
+                                    </span>
+                                  </p>
+                                )}
+                              </div>
+
+                              <ChevronRight
+                                size={16}
+                                strokeWidth={2}
+                                className="
+                                  mt-2
+                                  shrink-0
+                                  text-[#9AB1A5]
+                                  transition
+                                  group-hover:translate-x-0.5
+                                  group-hover:text-[#0B5D3B]
+                                "
+                              />
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!searchPerformed && (
+                <p
+                  className="
+                    mt-3
+                    text-center
+                    text-[10px]
+                    text-[#91A69B]
+                  "
+                >
+                  Press Enter or click the search
+                  icon to find an existing customer.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* =================================================
@@ -877,10 +1492,18 @@ const SideBar = ({
             py-3
           "
         >
-          <div className="space-y-1">
-            {NAV_ITEMS.map(
-              renderNavButton
-            )}
+          <div className="flex min-h-full flex-col">
+            <div className="space-y-1">
+              {NAV_ITEMS.map(
+                renderNavButton
+              )}
+            </div>
+
+            {/* SEARCH CUSTOMER */}
+
+            <div className="mt-auto pt-4">
+              {renderSearchButton()}
+            </div>
           </div>
         </nav>
 
@@ -897,23 +1520,17 @@ const SideBar = ({
             py-2.5
           "
         >
-          {/* ALERTS / REMINDERS / CONTROL CENTER */}
-
           <div className="space-y-1">
             {BOTTOM_NAV_ITEMS.map(
               renderNavButton
             )}
           </div>
 
-          {/* SETTINGS */}
-
           <div className="mt-1">
             {renderNavButton(
               SETTINGS_ITEM
             )}
           </div>
-
-          {/* COLLAPSE */}
 
           <button
             type="button"
