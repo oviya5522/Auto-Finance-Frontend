@@ -95,7 +95,7 @@ const STEP_DESCRIPTIONS = {
   1: "Basic customer and contact details",
   2: "Verify identity and required documents",
   3: "Vehicle, RC and compliance information",
- 4: "Choose whether this customer has a guarantor",
+  4: "Choose whether this customer has a guarantor",
   5: "Loan amount, interest and repayment details",
   6: "Review all information before creating the customer",
 };
@@ -108,23 +108,29 @@ const CustomerOnboarding = () => {
     const params = new URLSearchParams(
       location.search
     );
+
     return {
       isReLoan:
         params.get("source") === "reloan" ||
         params.get("type") === "reloan",
+
       customerId:
         params.get("customerId") || "",
+
       previousLoanId:
         params.get("previousLoanId") || "",
     };
   }, [location.search]);
 
   const [currentStep, setCurrentStep] = useState(1);
-const [showRepaymentSchedule, setShowRepaymentSchedule] =
-  useState(false);
 
-const [createdLoan, setCreatedLoan] =
-  useState(null);
+  const [
+    showRepaymentSchedule,
+    setShowRepaymentSchedule,
+  ] = useState(false);
+
+  const [createdLoan, setCreatedLoan] =
+    useState(null);
 
   const [formData, setFormData] = useState(() => {
     const customer = createEmptyCustomer();
@@ -133,6 +139,7 @@ const [createdLoan, setCreatedLoan] =
       const existing = getCustomerById(
         reLoanParams.customerId
       );
+
       const previous = findCustomerAndLoan(
         reLoanParams.previousLoanId
       );
@@ -140,18 +147,23 @@ const [createdLoan, setCreatedLoan] =
       if (existing && previous) {
         const next = {
           ...customer,
+
           ...existing,
+
           loan: {
             ...customer.loan,
+
             ...createReLoanContext({
               customer: existing,
               loan: previous.loan,
             }),
           },
-          reLoanContext: createReLoanContext({
-            customer: existing,
-            loan: previous.loan,
-          }),
+
+          reLoanContext:
+            createReLoanContext({
+              customer: existing,
+              loan: previous.loan,
+            }),
         };
 
         return next;
@@ -162,19 +174,21 @@ const [createdLoan, setCreatedLoan] =
       .toISOString()
       .split("T")[0];
 
-    customer.customer.personal.date = today;
+    customer.customer.personal.date =
+      today;
 
     return customer;
   });
 
-  const [stepValidity, setStepValidity] = useState({
-    1: true,
-    2: false,
-    3: true,
-    4: true,
-    5: true,
-    6: true,
-  });
+  const [stepValidity, setStepValidity] =
+    useState({
+      1: true,
+      2: false,
+      3: true,
+      4: true,
+      5: true,
+      6: true,
+    });
 
   /*
    * --------------------------------------------------------
@@ -199,60 +213,59 @@ const [createdLoan, setCreatedLoan] =
    * --------------------------------------------------------
    */
 
-  const repaymentSchedulePreview = useMemo(() => {
-    const loan = formData.loan || {};
+  const repaymentSchedulePreview =
+    useMemo(() => {
+      const loan = formData.loan || {};
 
-    if (
-      !loan.loanAmount ||
-      !loan.repayment?.tenure
-    ) {
-      return [];
-    }
+      if (
+        !loan.loanAmount ||
+        !loan.repayment?.tenure
+      ) {
+        return [];
+      }
 
-    try {
-      return generateRepaymentSchedule({
-        principal: Number(
-          loan.loanAmount || 0
-        ),
+      try {
+        return generateRepaymentSchedule({
+          principal: Number(
+            loan.loanAmount || 0
+          ),
 
-        rate: Number(
-          loan.interest?.rate || 0
-        ),
+          rate: Number(
+            loan.interest?.rate || 0
+          ),
 
-        tenure: Number(
-          loan.repayment?.tenure || 0
-        ),
+          tenure: Number(
+            loan.repayment?.tenure || 0
+          ),
 
-        tenureUnit:
-          loan.repayment?.tenureUnit ||
-          "Months",
+          tenureUnit:
+            loan.repayment?.tenureUnit ||
+            "Months",
 
-        interestType:
-          loan.interest?.type ||
-          "Flat",
+          interestType:
+            loan.interest?.type ||
+            "Flat",
 
-        repaymentMethod:
-          loan.repayment?.method ||
-          "EMI",
+          repaymentMethod:
+            loan.repayment?.method ||
+            "EMI",
 
-        frequency:
-          loan.repayment?.frequency ||
-          "Monthly",
+          frequency:
+            loan.repayment?.frequency ||
+            "Monthly",
 
-        firstDueDate:
-          loan.firstDueDate || "",
-      });
-    } catch (error) {
-      console.error(
-        "Repayment preview failed:",
-        error
-      );
+          firstDueDate:
+            loan.firstDueDate || "",
+        });
+      } catch (error) {
+        console.error(
+          "Repayment preview failed:",
+          error
+        );
 
-      return [];
-    }
-  }, [
-    formData.loan,
-  ]);
+        return [];
+      }
+    }, [formData.loan]);
 
   /*
    * --------------------------------------------------------
@@ -286,12 +299,13 @@ const [createdLoan, setCreatedLoan] =
     []
   );
 
-  const handleKycValidation = useCallback(
-    (valid) => {
-      updateStepValidity(2, valid);
-    },
-    [updateStepValidity]
-  );
+  const handleKycValidation =
+    useCallback(
+      (valid) => {
+        updateStepValidity(2, valid);
+      },
+      [updateStepValidity]
+    );
 
   /*
    * --------------------------------------------------------
@@ -299,32 +313,36 @@ const [createdLoan, setCreatedLoan] =
    * --------------------------------------------------------
    */
 
-const handleNext = useCallback(() => {
-  const currentStepIsValid =
-    stepValidity[currentStep] === true;
+  const handleNext = useCallback(() => {
+    const currentStepIsValid =
+      stepValidity[currentStep] === true;
 
-  if (!currentStepIsValid) {
-    return;
-  }
+    if (!currentStepIsValid) {
+      return;
+    }
 
-  // Step 4: No guarantor -> directly go to Loan
-  if (
-    currentStep === 4 &&
-    formData.guarantor?.hasGuarantor === false
-  ) {
-    setCurrentStep(5);
-    return;
-  }
+    // Step 4: No guarantor -> directly go to Loan
+    if (
+      currentStep === 4 &&
+      formData.guarantor?.hasGuarantor ===
+        false
+    ) {
+      setCurrentStep(5);
+      return;
+    }
 
-  // Normal next step
-  if (currentStep < steps.length) {
-    setCurrentStep((previous) => previous + 1);
-  }
-}, [
-  currentStep,
-  stepValidity,
-  formData.guarantor?.hasGuarantor,
-]);
+    // Normal next step
+    if (currentStep < steps.length) {
+      setCurrentStep(
+        (previous) => previous + 1
+      );
+    }
+  }, [
+    currentStep,
+    stepValidity,
+    formData.guarantor?.hasGuarantor,
+  ]);
+
   /*
    * --------------------------------------------------------
    * BACK
@@ -366,8 +384,8 @@ const handleNext = useCallback(() => {
    * --------------------------------------------------------
    */
 
-  const updateCustomerPersonal = useCallback(
-    (data) => {
+  const updateCustomerPersonal =
+    useCallback((data) => {
       setFormData((previous) => ({
         ...previous,
 
@@ -380,9 +398,30 @@ const handleNext = useCallback(() => {
           },
         },
       }));
-    },
-    []
-  );
+    }, []);
+
+  /*
+   * --------------------------------------------------------
+   * CUSTOMER PHOTO
+   * --------------------------------------------------------
+   */
+
+  const updateCustomerPhoto =
+    useCallback((photo) => {
+      setFormData((previous) => ({
+        ...previous,
+
+        customer: {
+          ...previous.customer,
+
+          photo: {
+            ...(previous.customer?.photo ||
+              {}),
+            ...(photo || {}),
+          },
+        },
+      }));
+    }, []);
 
   /*
    * --------------------------------------------------------
@@ -390,8 +429,8 @@ const handleNext = useCallback(() => {
    * --------------------------------------------------------
    */
 
-  const updateCustomerKyc = useCallback(
-    (data) => {
+  const updateCustomerKyc =
+    useCallback((data) => {
       setFormData((previous) => ({
         ...previous,
 
@@ -400,9 +439,7 @@ const handleNext = useCallback(() => {
           ...data,
         },
       }));
-    },
-    []
-  );
+    }, []);
 
   /*
    * --------------------------------------------------------
@@ -410,56 +447,55 @@ const handleNext = useCallback(() => {
    * --------------------------------------------------------
    */
 
-const updateVehicleData = useCallback(
-  (data) => {
-    setFormData((previous) => {
-      const incomingVehicle =
-        data?.vehicle || {};
+  const updateVehicleData =
+    useCallback((data) => {
+      setFormData((previous) => {
+        const incomingVehicle =
+          data?.vehicle || {};
 
-      const existingVehicleId =
-        previous?.vehicle?.vehicleId ||
-        previous?.vehicle?.id ||
-        "";
+        const existingVehicleId =
+          previous?.vehicle?.vehicleId ||
+          previous?.vehicle?.id ||
+          "";
 
-      const vehicleId =
-        existingVehicleId ||
-        generateVehicleId();
+        const vehicleId =
+          existingVehicleId ||
+          generateVehicleId();
 
-      return {
-        ...previous,
+        return {
+          ...previous,
 
-        vehicle: {
-          ...(previous?.vehicle || {}),
-          ...incomingVehicle,
+          vehicle: {
+            ...(previous?.vehicle || {}),
+            ...incomingVehicle,
 
-          id:
-            incomingVehicle?.id ||
-            incomingVehicle?.vehicleId ||
-            vehicleId,
+            id:
+              incomingVehicle?.id ||
+              incomingVehicle?.vehicleId ||
+              vehicleId,
 
-          vehicleId:
-            incomingVehicle?.vehicleId ||
-            incomingVehicle?.id ||
-            vehicleId,
-        },
+            vehicleId:
+              incomingVehicle?.vehicleId ||
+              incomingVehicle?.id ||
+              vehicleId,
+          },
 
-        rc: {
-          ...(previous?.rc || {}),
-          ...(data?.rc || {}),
-        },
-      };
-    });
-  },
-  []
-);
+          rc: {
+            ...(previous?.rc || {}),
+            ...(data?.rc || {}),
+          },
+        };
+      });
+    }, []);
+
   /*
    * --------------------------------------------------------
    * GUARANTOR
    * --------------------------------------------------------
    */
 
-  const updateGuarantorData = useCallback(
-    (data) => {
+  const updateGuarantorData =
+    useCallback((data) => {
       setFormData((previous) => ({
         ...previous,
 
@@ -468,9 +504,7 @@ const updateVehicleData = useCallback(
           ...(data.guarantor || {}),
         },
       }));
-    },
-    []
-  );
+    }, []);
 
   /*
    * --------------------------------------------------------
@@ -478,8 +512,8 @@ const updateVehicleData = useCallback(
    * --------------------------------------------------------
    */
 
-  const updateLoanData = useCallback(
-    (data) => {
+  const updateLoanData =
+    useCallback((data) => {
       setFormData((previous) => ({
         ...previous,
 
@@ -488,9 +522,7 @@ const updateVehicleData = useCallback(
           ...(data.loan || {}),
         },
       }));
-    },
-    []
-  );
+    }, []);
 
   /*
    * --------------------------------------------------------
@@ -504,271 +536,305 @@ const updateVehicleData = useCallback(
    * --------------------------------------------------------
    */
 
-  const handleCreateCustomer = useCallback(() => {
-    let customerPersisted = false;
-    const customerSnapshot = getCustomers();
+  const handleCreateCustomer =
+    useCallback(() => {
+      let customerPersisted = false;
 
-    try {
-      const now =
-        new Date().toISOString();
+      const customerSnapshot =
+        getCustomers();
 
-      const timestamp =
-        Date.now();
+      try {
+        const now =
+          new Date().toISOString();
 
-      const customerId =
-        reLoanParams.isReLoan
-          ? reLoanParams.customerId
-          : `CUS-${timestamp}`;
+        const timestamp =
+          Date.now();
 
-      const loanId =
-        `LOAN-${timestamp}`;
+        const customerId =
+          reLoanParams.isReLoan
+            ? reLoanParams.customerId
+            : `CUS-${timestamp}`;
 
-      const customerNumber =
-        `CUST-${String(timestamp).slice(-6)}`;
+        const loanId =
+          `LOAN-${timestamp}`;
 
-      const loanNumber =
-        `LN-${String(timestamp).slice(-6)}`;
+        const customerNumber =
+          `CUST-${String(
+            timestamp
+          ).slice(-6)}`;
 
-      const loan =
-        formData.loan || {};
-      const loanAmount = Number(
-        loan.loanAmount || 0
-      );
-      const fundingSummary = getInvestmentPoolSummary();
+        const loanNumber =
+          `LN-${String(
+            timestamp
+          ).slice(-6)}`;
 
-      if (
-        !Number.isFinite(loanAmount) ||
-        loanAmount <= 0
-      ) {
-        throw new Error(
-          "Loan amount must be greater than zero."
+        const loan =
+          formData.loan || {};
+
+        const loanAmount = Number(
+          loan.loanAmount || 0
         );
-      }
 
-      if (
-        loanAmount >
-        fundingSummary.availableInvestmentBalance
-      ) {
-        throw new Error(
-          `Insufficient investment balance. Available funding: ₹${fundingSummary.availableInvestmentBalance.toLocaleString("en-IN")}.`
-        );
-      }
+        const fundingSummary =
+          getInvestmentPoolSummary();
 
-      const fundingTransactionId =
-        getNextInvestorTransactionId();
-           const vehicleId =
-  reLoanParams.isReLoan
-    ? (
-        formData.vehicle?.vehicleId ||
-        formData.vehicle?.id ||
-        generateVehicleId()
-      )
-    : generateVehicleId();
-
-      const repaymentSchedule =
-        generateRepaymentSchedule({
-          principal: Number(
-            loan.loanAmount || 0
-          ),
-
-          rate: Number(
-            loan.interest?.rate || 0
-          ),
-
-          tenure: Number(
-            loan.repayment?.tenure || 0
-          ),
-
-          tenureUnit:
-            loan.repayment?.tenureUnit ||
-            "Months",
-
-          interestType:
-            loan.interest?.type ||
-            "Flat",
-
-          repaymentMethod:
-            loan.repayment?.method ||
-            "EMI",
-
-          frequency:
-            loan.repayment?.frequency ||
-            "Monthly",
-
-          firstDueDate:
-            loan.firstDueDate || "",
-        });
-
-    const finalCustomer = {
-  ...formData,
-
-  customer: {
-    ...formData.customer,
-
-    id: customerId,
-
-    customerNumber,
-
-    createdAt:
-      formData.customer?.createdAt ||
-      now,
-
-    updatedAt: now,
-
-    status: "Active",
-  },
-
-  vehicle: {
-    ...formData.vehicle,
-
-    id:
-      formData.vehicle?.id ||
-      formData.vehicle?.vehicleId ||
-      vehicleId,
-
-    vehicleId:
-      formData.vehicle?.vehicleId ||
-      formData.vehicle?.id ||
-      vehicleId,
-  },
-
-  loan: {
-    ...loan,
-
-    funding: {
-      source: "investment-pool",
-      fundedAmount: loanAmount,
-      allocationDate: now,
-      fundingTransactionId,
-    },
-
-    id: loanId,
-
-    ...(reLoanParams.isReLoan
-      ? {
-          previousLoanId:
-            loan?.previousLoanId ||
-            reLoanParams.previousLoanId,
-          previousLoanNumber:
-            loan?.previousLoanNumber ||
-            findCustomerAndLoan(
-              reLoanParams.previousLoanId
-            )?.loan?.loanNumber ||
-            "",
-          previousLoanReference:
-            loan?.previousLoanReference ||
-            reLoanParams.previousLoanId,
-          previousVehicleId:
-            loan?.previousVehicleId ||
-            findCustomerAndLoan(
-              reLoanParams.previousLoanId
-            )?.loan?.vehicleId ||
-            "",
-          collateralVehicleMode:
-            loan?.collateralVehicleMode ||
-            "same",
-        }
-      : {}),
-
-    loanNumber,
-
-    vehicleId:
-      formData.vehicle?.id ||
-      formData.vehicle?.vehicleId ||
-      vehicleId,
-
-    vehicle: {
-      ...loan?.vehicle,
-
-      id:
-        formData.vehicle?.id ||
-        formData.vehicle?.vehicleId ||
-        vehicleId,
-
-      vehicleId:
-        formData.vehicle?.vehicleId ||
-        formData.vehicle?.id ||
-        vehicleId,
-    },
-
-    repaymentSchedule,
-
-    status: "Active",
-
-      createdAt: now,
-      updatedAt: now,
-  },
-};
-
-      if (reLoanParams.isReLoan) {
-        const eligibility = checkReLoanEligibility({
-          customer: getCustomerById(
-            customerId
-          ),
-          loan: findCustomerAndLoan(
-            reLoanParams.previousLoanId
-          )?.loan,
-          vehicle:
-            formData.vehicle,
-          rules: getReLoanRules(),
-        });
-
-        if (!eligibility.eligible) {
+        if (
+          !Number.isFinite(
+            loanAmount
+          ) ||
+          loanAmount <= 0
+        ) {
           throw new Error(
-            "Re-loan eligibility has changed. Please review the updated result."
+            "Loan amount must be greater than zero."
           );
         }
 
-        appendLoanToCustomer(
-          customerId,
-          finalCustomer.loan
-        );
-        customerPersisted = true;
-      } else {
-        saveCustomer(
+        if (
+          loanAmount >
+          fundingSummary.availableInvestmentBalance
+        ) {
+          throw new Error(
+            `Insufficient investment balance. Available funding: ₹${fundingSummary.availableInvestmentBalance.toLocaleString("en-IN")}.`
+          );
+        }
+
+        const fundingTransactionId =
+          getNextInvestorTransactionId();
+
+        const vehicleId =
+          reLoanParams.isReLoan
+            ? formData.vehicle?.vehicleId ||
+              formData.vehicle?.id ||
+              generateVehicleId()
+            : generateVehicleId();
+
+        const repaymentSchedule =
+          generateRepaymentSchedule({
+            principal: Number(
+              loan.loanAmount || 0
+            ),
+
+            rate: Number(
+              loan.interest?.rate || 0
+            ),
+
+            tenure: Number(
+              loan.repayment?.tenure || 0
+            ),
+
+            tenureUnit:
+              loan.repayment?.tenureUnit ||
+              "Months",
+
+            interestType:
+              loan.interest?.type ||
+              "Flat",
+
+            repaymentMethod:
+              loan.repayment?.method ||
+              "EMI",
+
+            frequency:
+              loan.repayment?.frequency ||
+              "Monthly",
+
+            firstDueDate:
+              loan.firstDueDate || "",
+          });
+
+        const finalCustomer = {
+          ...formData,
+
+          customer: {
+            ...formData.customer,
+
+            id: customerId,
+
+            customerNumber,
+
+            createdAt:
+              formData.customer?.createdAt ||
+              now,
+
+            updatedAt: now,
+
+            status: "Active",
+          },
+
+          vehicle: {
+            ...formData.vehicle,
+
+            id:
+              formData.vehicle?.id ||
+              formData.vehicle?.vehicleId ||
+              vehicleId,
+
+            vehicleId:
+              formData.vehicle?.vehicleId ||
+              formData.vehicle?.id ||
+              vehicleId,
+          },
+
+          loan: {
+            ...loan,
+
+            funding: {
+              source:
+                "investment-pool",
+
+              fundedAmount:
+                loanAmount,
+
+              allocationDate: now,
+
+              fundingTransactionId,
+            },
+
+            id: loanId,
+
+            ...(reLoanParams.isReLoan
+              ? {
+                  previousLoanId:
+                    loan?.previousLoanId ||
+                    reLoanParams.previousLoanId,
+
+                  previousLoanNumber:
+                    loan?.previousLoanNumber ||
+                    findCustomerAndLoan(
+                      reLoanParams.previousLoanId
+                    )?.loan?.loanNumber ||
+                    "",
+
+                  previousLoanReference:
+                    loan?.previousLoanReference ||
+                    reLoanParams.previousLoanId,
+
+                  previousVehicleId:
+                    loan?.previousVehicleId ||
+                    findCustomerAndLoan(
+                      reLoanParams.previousLoanId
+                    )?.loan?.vehicleId ||
+                    "",
+
+                  collateralVehicleMode:
+                    loan?.collateralVehicleMode ||
+                    "same",
+                }
+              : {}),
+
+            loanNumber,
+
+            vehicleId:
+              formData.vehicle?.id ||
+              formData.vehicle?.vehicleId ||
+              vehicleId,
+
+            vehicle: {
+              ...loan?.vehicle,
+
+              id:
+                formData.vehicle?.id ||
+                formData.vehicle?.vehicleId ||
+                vehicleId,
+
+              vehicleId:
+                formData.vehicle?.vehicleId ||
+                formData.vehicle?.id ||
+                vehicleId,
+            },
+
+            repaymentSchedule,
+
+            status: "Active",
+
+            createdAt: now,
+            updatedAt: now,
+          },
+        };
+
+        if (reLoanParams.isReLoan) {
+          const eligibility =
+            checkReLoanEligibility({
+              customer:
+                getCustomerById(
+                  customerId
+                ),
+
+              loan:
+                findCustomerAndLoan(
+                  reLoanParams.previousLoanId
+                )?.loan,
+
+              vehicle:
+                formData.vehicle,
+
+              rules:
+                getReLoanRules(),
+            });
+
+          if (!eligibility.eligible) {
+            throw new Error(
+              "Re-loan eligibility has changed. Please review the updated result."
+            );
+          }
+
+          appendLoanToCustomer(
+            customerId,
+            finalCustomer.loan
+          );
+
+          customerPersisted = true;
+        } else {
+          saveCustomer(
+            finalCustomer
+          );
+
+          customerPersisted = true;
+        }
+
+        allocateInvestmentPoolToLoan({
+          amount: loanAmount,
+          loanId:
+            finalCustomer.loan.id,
+          loanNumber:
+            finalCustomer.loan.loanNumber,
+          date: now,
+          transactionId:
+            fundingTransactionId,
+        });
+
+        console.log(
+          "Customer created successfully:",
           finalCustomer
         );
-        customerPersisted = true;
+
+        navigate("/customers");
+      } catch (error) {
+        if (customerPersisted) {
+          saveCustomers(
+            customerSnapshot
+          );
+        }
+
+        console.error(
+          "Create Customer failed:",
+          error
+        );
+
+        window.alert(
+          `Unable to create customer.\n\n${
+            error?.message ||
+            "Unknown error"
+          }`
+        );
       }
-
-      allocateInvestmentPoolToLoan({
-        amount: loanAmount,
-        loanId: finalCustomer.loan.id,
-        loanNumber: finalCustomer.loan.loanNumber,
-        date: now,
-        transactionId: fundingTransactionId,
-      });
-
-      console.log(
-        "Customer created successfully:",
-        finalCustomer
-      );
-
-      navigate("/customers");
-    } catch (error) {
-      if (customerPersisted) {
-        saveCustomers(customerSnapshot);
-      }
-
-      console.error(
-        "Create Customer failed:",
-        error
-      );
-
-      window.alert(
-        `Unable to create customer.\n\n${
-          error?.message ||
-          "Unknown error"
-        }`
-      );
-    }
-  }, [
-    formData,
-    navigate,
-    reLoanParams.customerId,
-    reLoanParams.isReLoan,
-    reLoanParams.previousLoanId,
-  ]);
+    }, [
+      formData,
+      navigate,
+      reLoanParams.customerId,
+      reLoanParams.isReLoan,
+      reLoanParams.previousLoanId,
+    ]);
 
   /*
    * --------------------------------------------------------
@@ -784,8 +850,17 @@ const updateVehicleData = useCallback(
             data={
               formData.customer.personal
             }
+
+            photo={
+              formData.customer.photo
+            }
+
             onChange={
               updateCustomerPersonal
+            }
+
+            onPhotoChange={
+              updateCustomerPhoto
             }
           />
         );
@@ -820,18 +895,21 @@ const updateVehicleData = useCallback(
           />
         );
 
-    case 4:
-  return (
-    <GuarantorStep
-      data={{
-        guarantor: formData.guarantor,
-      }}
-      onChange={updateGuarantorData}
-      onNoGuarantor={() => {
-        setCurrentStep(5);
-      }}
-    />
-  );
+      case 4:
+        return (
+          <GuarantorStep
+            data={{
+              guarantor:
+                formData.guarantor,
+            }}
+            onChange={
+              updateGuarantorData
+            }
+            onNoGuarantor={() => {
+              setCurrentStep(5);
+            }}
+          />
+        );
 
       case 5:
         return (
@@ -845,39 +923,46 @@ const updateVehicleData = useCallback(
             }
           />
         );
-case 6:
-  return (
-    <ReviewStep
-      data={{
-        ...formData,
 
-        loan: {
-          ...formData.loan,
+      case 6:
+        return (
+          <ReviewStep
+            data={{
+              ...formData,
 
-          repaymentSchedule:
-            repaymentSchedulePreview,
-        },
-      }}
-      onEdit={setCurrentStep}
-      onViewSchedule={() => {
-        const loan = {
-          ...formData.loan,
-          repaymentSchedule:
-            repaymentSchedulePreview,
-        };
+              loan: {
+                ...formData.loan,
 
-        if (!repaymentSchedulePreview.length) {
-          window.alert(
-            "Please complete the loan amount, tenure and repayment details first."
-          );
-          return;
-        }
+                repaymentSchedule:
+                  repaymentSchedulePreview,
+              },
+            }}
+            onEdit={setCurrentStep}
+            onViewSchedule={() => {
+              const loan = {
+                ...formData.loan,
 
-        setCreatedLoan(loan);
-        setShowRepaymentSchedule(true);
-      }}
-    />
-  );
+                repaymentSchedule:
+                  repaymentSchedulePreview,
+              };
+
+              if (
+                !repaymentSchedulePreview.length
+              ) {
+                window.alert(
+                  "Please complete the loan amount, tenure and repayment details first."
+                );
+
+                return;
+              }
+
+              setCreatedLoan(loan);
+              setShowRepaymentSchedule(
+                true
+              );
+            }}
+          />
+        );
 
       default:
         return null;
@@ -887,10 +972,11 @@ case 6:
   const canContinue =
     stepValidity[currentStep] === true;
 
-  const collateralVehicles = useMemo(
-    () => getVehicles(),
-    []
-  );
+  const collateralVehicles =
+    useMemo(
+      () => getVehicles(),
+      []
+    );
 
   return (
     <div
@@ -956,6 +1042,7 @@ case 6:
                   size={18}
                   className="text-[#0B5D3B] sm:hidden"
                 />
+
                 <User
                   size={20}
                   className="hidden text-[#0B5D3B] sm:block"
@@ -975,7 +1062,8 @@ case 6:
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <span className="whitespace-nowrap rounded-full bg-[#EAF5EF] px-2.5 py-1 text-[10px] font-semibold text-[#0B5D3B] sm:px-3 sm:text-[11px]">
-                Step {currentStep} of {steps.length}
+                Step {currentStep} of{" "}
+                {steps.length}
               </span>
 
               <button
@@ -1004,60 +1092,146 @@ case 6:
           <section className="shrink-0 border-b border-[#D8E9DF] bg-[#F6FBF8] px-4 py-3 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-[9px] font-extrabold uppercase tracking-wide text-[#0B6B43]">Existing Customer · RE-LOAN</p>
+                <p className="text-[9px] font-extrabold uppercase tracking-wide text-[#0B6B43]">
+                  Existing Customer · RE-LOAN
+                </p>
+
                 <p className="mt-1 text-xs font-bold text-[#17221D]">
-                  Previous Loan: {formData.loan?.previousLoanNumber || reLoanParams.previousLoanId}
+                  Previous Loan:{" "}
+                  {formData.loan
+                    ?.previousLoanNumber ||
+                    reLoanParams.previousLoanId}
                 </p>
               </div>
+
               <label className="flex items-center gap-2 text-[10px] font-semibold text-slate-600">
                 Collateral Vehicle
+
                 <select
-                  value={formData.loan?.collateralVehicleMode || "same"}
+                  value={
+                    formData.loan
+                      ?.collateralVehicleMode ||
+                    "same"
+                  }
                   onChange={(event) => {
-                    const mode = event.target.value;
-                    const previous = findCustomerAndLoan(reLoanParams.previousLoanId);
-                    const selected = mode === "same"
-                      ? previous?.vehicle || formData.vehicle
-                      : formData.vehicle;
-                    setFormData((current) => ({
-                      ...current,
-                      vehicle: selected || current.vehicle,
-                      loan: {
-                        ...current.loan,
-                        collateralVehicleMode: mode,
-                        vehicleId: selected?.vehicleId || selected?.id || current.loan?.vehicleId || "",
-                      },
-                    }));
+                    const mode =
+                      event.target.value;
+
+                    const previous =
+                      findCustomerAndLoan(
+                        reLoanParams.previousLoanId
+                      );
+
+                    const selected =
+                      mode === "same"
+                        ? previous?.vehicle ||
+                          formData.vehicle
+                        : formData.vehicle;
+
+                    setFormData(
+                      (current) => ({
+                        ...current,
+
+                        vehicle:
+                          selected ||
+                          current.vehicle,
+
+                        loan: {
+                          ...current.loan,
+
+                          collateralVehicleMode:
+                            mode,
+
+                          vehicleId:
+                            selected?.vehicleId ||
+                            selected?.id ||
+                            current
+                              .loan
+                              ?.vehicleId ||
+                            "",
+                        },
+                      })
+                    );
                   }}
                   className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700"
                 >
-                  <option value="same">Same Vehicle</option>
-                  <option value="different">Different Vehicle</option>
+                  <option value="same">
+                    Same Vehicle
+                  </option>
+
+                  <option value="different">
+                    Different Vehicle
+                  </option>
                 </select>
               </label>
             </div>
-            {formData.loan?.collateralVehicleMode === "different" && (
+
+            {formData.loan
+              ?.collateralVehicleMode ===
+              "different" && (
               <select
-                value={formData.loan?.vehicleId || ""}
+                value={
+                  formData.loan?.vehicleId ||
+                  ""
+                }
                 onChange={(event) => {
-                  const selected = collateralVehicles.find(
-                    (vehicle) => String(vehicle?.vehicleId || vehicle?.id) === String(event.target.value)
+                  const selected =
+                    collateralVehicles.find(
+                      (vehicle) =>
+                        String(
+                          vehicle?.vehicleId ||
+                            vehicle?.id
+                        ) ===
+                        String(
+                          event.target.value
+                        )
+                    );
+
+                  if (!selected) {
+                    return;
+                  }
+
+                  setFormData(
+                    (current) => ({
+                      ...current,
+
+                      vehicle:
+                        selected,
+
+                      loan: {
+                        ...current.loan,
+
+                        vehicleId:
+                          selected.vehicleId ||
+                          selected.id,
+                      },
+                    })
                   );
-                  if (!selected) return;
-                  setFormData((current) => ({
-                    ...current,
-                    vehicle: selected,
-                    loan: { ...current.loan, vehicleId: selected.vehicleId || selected.id },
-                  }));
                 }}
                 className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-700 sm:max-w-sm"
               >
-                <option value="">Select Vehicle</option>
-                {collateralVehicles.map((vehicle) => (
-                  <option key={vehicle.vehicleId || vehicle.id} value={vehicle.vehicleId || vehicle.id}>
-                    {vehicle.registrationNumber || vehicle.vehicleId || vehicle.id}
-                  </option>
-                ))}
+                <option value="">
+                  Select Vehicle
+                </option>
+
+                {collateralVehicles.map(
+                  (vehicle) => (
+                    <option
+                      key={
+                        vehicle.vehicleId ||
+                        vehicle.id
+                      }
+                      value={
+                        vehicle.vehicleId ||
+                        vehicle.id
+                      }
+                    >
+                      {vehicle.registrationNumber ||
+                        vehicle.vehicleId ||
+                        vehicle.id}
+                    </option>
+                  )
+                )}
               </select>
             )}
           </section>
@@ -1075,123 +1249,125 @@ case 6:
           "
         >
           <div className="flex items-center overflow-x-auto">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
+            {steps.map(
+              (step, index) => {
+                const Icon = step.icon;
 
-              const completed =
-                step.id < currentStep;
+                const completed =
+                  step.id < currentStep;
 
-              const active =
-                step.id === currentStep;
+                const active =
+                  step.id === currentStep;
 
-              return (
-                <div
-                  key={step.id}
-                  className="
-                    flex
-                    min-w-[52px]
-                    shrink-0
-                    items-center
-                    sm:min-w-0
-                    sm:flex-1
-                    sm:shrink
-                  "
-                >
-                  <button
-                    type="button"
-                    disabled={
-                      step.id > currentStep
-                    }
-                    onClick={() =>
-                      handleStepClick(
-                        step.id
-                      )
-                    }
+                return (
+                  <div
+                    key={step.id}
                     className="
-                      group
                       flex
-                      min-w-0
-                      flex-col
+                      min-w-[52px]
+                      shrink-0
                       items-center
-                      gap-1
-                      disabled:cursor-default
+                      sm:min-w-0
+                      sm:flex-1
+                      sm:shrink
                     "
                   >
-                    <div
-                      className={`
+                    <button
+                      type="button"
+                      disabled={
+                        step.id > currentStep
+                      }
+                      onClick={() =>
+                        handleStepClick(
+                          step.id
+                        )
+                      }
+                      className="
+                        group
                         flex
-                        h-7
-                        w-7
-                        shrink-0
+                        min-w-0
+                        flex-col
                         items-center
-                        justify-center
-                        rounded-full
-                        border
-                        sm:h-8
-                        sm:w-8
-
-                        ${
-                          completed
-                            ? "border-[#0B5D3B] bg-[#0B5D3B] text-white"
-                            : active
-                            ? "border-[#0B5D3B] bg-white text-[#0B5D3B] ring-4 ring-[#EAF5EF]"
-                            : "border-slate-200 bg-white text-slate-400"
-                        }
-                      `}
+                        gap-1
+                        disabled:cursor-default
+                      "
                     >
-                      {completed ? (
-                        <Check
-                          size={14}
-                          strokeWidth={2.5}
-                        />
-                      ) : (
-                        <Icon size={14} />
-                      )}
-                    </div>
+                      <div
+                        className={`
+                          flex
+                          h-7
+                          w-7
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-full
+                          border
+                          sm:h-8
+                          sm:w-8
 
-                    <span
-                      className={`
-                        hidden
-                        truncate
-                        text-[10px]
-                        font-medium
-                        sm:block
-                        ${
-                          active ||
-                          completed
-                            ? "text-[#17221D]"
-                            : "text-slate-400"
-                        }
-                      `}
-                    >
-                      {step.shortTitle}
-                    </span>
-                  </button>
+                          ${
+                            completed
+                              ? "border-[#0B5D3B] bg-[#0B5D3B] text-white"
+                              : active
+                              ? "border-[#0B5D3B] bg-white text-[#0B5D3B] ring-4 ring-[#EAF5EF]"
+                              : "border-slate-200 bg-white text-slate-400"
+                          }
+                        `}
+                      >
+                        {completed ? (
+                          <Check
+                            size={14}
+                            strokeWidth={2.5}
+                          />
+                        ) : (
+                          <Icon size={14} />
+                        )}
+                      </div>
 
-                  {index <
-                    steps.length - 1 && (
-                    <div
-                      className={`
-                        mx-1.5
-                        h-px
-                        w-5
-                        shrink-0
-                        sm:mx-2
-                        sm:mt-[-15px]
-                        sm:w-auto
-                        sm:min-w-[10px]
-                        sm:flex-1
-                        ${
-                          completed
-                            ? "bg-[#0B5D3B]"
-                            : "bg-slate-200"
-                        }
-                      `}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                      <span
+                        className={`
+                          hidden
+                          truncate
+                          text-[10px]
+                          font-medium
+                          sm:block
+                          ${
+                            active ||
+                            completed
+                              ? "text-[#17221D]"
+                              : "text-slate-400"
+                          }
+                        `}
+                      >
+                        {step.shortTitle}
+                      </span>
+                    </button>
+
+                    {index <
+                      steps.length - 1 && (
+                      <div
+                        className={`
+                          mx-1.5
+                          h-px
+                          w-5
+                          shrink-0
+                          sm:mx-2
+                          sm:mt-[-15px]
+                          sm:w-auto
+                          sm:min-w-[10px]
+                          sm:flex-1
+                          ${
+                            completed
+                              ? "bg-[#0B5D3B]"
+                              : "bg-slate-200"
+                          }
+                        `}
+                      />
+                    )}
+                  </div>
+                );
+              }
+            )}
           </div>
         </div>
 
@@ -1210,7 +1386,11 @@ case 6:
           </h2>
 
           <p className="text-[11px] text-slate-400">
-            {STEP_DESCRIPTIONS[currentStep]}
+            {
+              STEP_DESCRIPTIONS[
+                currentStep
+              ]
+            }
           </p>
         </div>
 
@@ -1305,6 +1485,7 @@ case 6:
               `}
             >
               Continue
+
               <ArrowRight size={14} />
             </button>
           ) : (
@@ -1337,18 +1518,25 @@ case 6:
       </div>
 
       {/* REPAYMENT SCHEDULE PREVIEW MODAL */}
-      {showRepaymentSchedule && createdLoan && (
-        <RepaymentScheduleModal
-          loan={createdLoan}
-          customer={formData.customer.personal}
-          schedule={createdLoan.repaymentSchedule || []}
-          onClose={() => {
-            setShowRepaymentSchedule(false);
-          }}
-        />
-      )}
+      {showRepaymentSchedule &&
+        createdLoan && (
+          <RepaymentScheduleModal
+            loan={createdLoan}
+            customer={
+              formData.customer.personal
+            }
+            schedule={
+              createdLoan.repaymentSchedule ||
+              []
+            }
+            onClose={() => {
+              setShowRepaymentSchedule(
+                false
+              );
+            }}
+          />
+        )}
     </div>
-    
   );
 };
 

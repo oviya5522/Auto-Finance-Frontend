@@ -43,30 +43,47 @@ export const CUSTOMER_SCHEMA = {
       uploads: [],
     },
 
+    /**
+     * Customer photo
+     */
     photo: {
       fileName: "",
+      fileType: "",
+      fileSize: 0,
       fileData: "",
+      uploadedAt: "",
     },
   },
 
   /**
    * Vehicle information
    */
-vehicle: {
-  id: "",
-  vehicleId: "",
+  vehicle: {
+    id: "",
+    vehicleId: "",
 
-  vehicleType: "",
-  brand: "",
-  model: "",
-  variant: "",
-  colour: "",
+    vehicleType: "",
+    brand: "",
+    model: "",
+    variant: "",
+    colour: "",
 
-  manufacturingYear: "",
-  fuelType: "",
+    manufacturingYear: "",
+    fuelType: "",
 
-  vehicleValue: 0,
-},
+    vehicleValue: 0,
+
+    /**
+     * Vehicle / Bike photo
+     */
+    photo: {
+      fileName: "",
+      fileType: "",
+      fileSize: 0,
+      fileData: "",
+      uploadedAt: "",
+    },
+  },
 
   /**
    * RC / Registration / Insurance information
@@ -158,81 +175,80 @@ vehicle: {
    * 2. Reducing Balance + EMI
    * 3. Reducing Balance + Principal
    */
-loan: {
-  id: "",
-  loanNumber: "",
+  loan: {
+    id: "",
+    loanNumber: "",
 
-  funding: {
-    investorId: "",
-    investorName: "",
-    fundedAmount: 0,
-    allocationDate: "",
-    fundingTransactionId: "",
-  },
-
-  vehicleAmount: 0,
-  downPayment: 0,
-  loanAmount: 0,
-
-  interest: {
-    rate: 0,
-    type: "Flat",
-  },
-
-  repayment: {
-    method: "EMI",
-    frequency: "Monthly",
-    tenure: 0,
-    tenureUnit: "Months",
-  },
-
-  calculation: {
-    principal: 0,
-    interestAmount: 0,
-    totalDue: 0,
-    emiAmount: null,
-    numberOfPayments: 0,
-    principalPerPayment: 0,
-    interestPerPayment: 0,
-    firstPayment: 0,
-    lastPayment: 0,
-    paymentAmount: 0,
-  },
-
-  firstDueDate: "",
-
-  charges: {
-    defaultInterest: 0,
-
-    graceDays: 0,
-
-    penalty: {
-      enabled: true,
-      type: "Fixed",
-      amount: 0,
-      maxAmount: 0,
+    funding: {
+      investorId: "",
+      investorName: "",
+      fundedAmount: 0,
+      allocationDate: "",
+      fundingTransactionId: "",
     },
 
-    advanceEmi: 0,
-    documentCharge: 0,
-    differenceInitial: 0,
-    insuranceAmount: 0,
-    fineAmount: 0,
+    vehicleAmount: 0,
+    downPayment: 0,
+    loanAmount: 0,
+
+    interest: {
+      rate: 0,
+      type: "Flat",
+    },
+
+    repayment: {
+      method: "EMI",
+      frequency: "Monthly",
+      tenure: 0,
+      tenureUnit: "Months",
+    },
+
+    calculation: {
+      principal: 0,
+      interestAmount: 0,
+      totalDue: 0,
+      emiAmount: null,
+      numberOfPayments: 0,
+      principalPerPayment: 0,
+      interestPerPayment: 0,
+      firstPayment: 0,
+      lastPayment: 0,
+      paymentAmount: 0,
+    },
+
+    firstDueDate: "",
+
+    charges: {
+      defaultInterest: 0,
+
+      graceDays: 0,
+
+      penalty: {
+        enabled: true,
+        type: "Fixed",
+        amount: 0,
+        maxAmount: 0,
+      },
+
+      advanceEmi: 0,
+      documentCharge: 0,
+      differenceInitial: 0,
+      insuranceAmount: 0,
+      fineAmount: 0,
+    },
+
+    collection: {
+      payMode: "",
+      receiptAmount: 0,
+      receiptMode: "",
+    },
+
+    remarks: "",
+
+    status: "Draft",
+    createdAt: "",
   },
-
-  collection: {
-    payMode: "",
-    receiptAmount: 0,
-    receiptMode: "",
-  },
-
-  remarks: "",
-
-  status: "Draft",
-  createdAt: "",
-},
 };
-
 
 /**
  * Creates a completely fresh onboarding object.

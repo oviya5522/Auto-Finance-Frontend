@@ -38,6 +38,7 @@ import {
 import LoanRepaymentSchedule from "../../components/loans/LoanRepaymentSchedule";
 import CustomerPaymentHistoryModal from "../../components/customers/CustomerPaymentHistoryModal";
 import CustomerActivityHistoryModal from "../../components/customers/CustomerActivityHistoryModal";
+import CustomerPhotoViewer from "../../components/customers/CustomerPhotoViewer";
 
 
 import {
@@ -193,6 +194,8 @@ const [showActivityHistory, setShowActivityHistory] =
   const vehicle =
     customer?.vehicle ||
     {};
+  const customerPhoto =
+  customer?.customer?.photo?.fileData || "";
 
   const rc =
     customer?.rc ||
@@ -739,6 +742,7 @@ const handleActivity = () => {
             2xl:grid-cols-[minmax(0,3.2fr)_335px]
           "
         >
+          
           <div className="min-w-0 space-y-3">
 
             {/* CUSTOMER INFORMATION */}
@@ -752,6 +756,12 @@ const handleActivity = () => {
                 </CardLink>
               }
             >
+            {customerPhoto && (
+  <CustomerPhotoViewer
+    photo={customerPhoto}
+    name={personal?.name || "Customer"}
+  />
+)}
               <div
                 className="
                   grid
@@ -1528,21 +1538,16 @@ const VehicleTab = ({
               shadow-sm
             "
           >
-            <img
-              src="/assets/vehicle-placeholder.jpg"
-              alt="Vehicle"
-              className="
-                vehicle-image-placeholder
-                h-[120px]
-                w-full
-                object-cover
-              "
-              onError={(event) => {
-                event.currentTarget.src =
-                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect width='400' height='260' fill='%23eef6f1'/%3E%3Ctext x='200' y='135' text-anchor='middle' font-family='Arial' font-size='22' fill='%23718278'%3EVehicle%3C/text%3E%3C/svg%3E";
-              }}
-            />
-
+           <CustomerPhotoViewer
+  photo={
+    vehicle?.photo?.fileData ||
+    "/assets/vehicle-placeholder.jpg"
+  }
+  name={
+    vehicle?.photo?.fileName ||
+    "Vehicle"
+  }
+/>
             <div className="border-t border-slate-100 px-3 py-2">
               <p className="truncate text-[10px] font-bold text-[#253252]">
                 {[
@@ -2084,35 +2089,6 @@ const LoanTab = ({
           />
         </div>
 
-        {customerLoans.length > 1 && (
-          <div className="mt-5 border-t border-slate-100 pt-4">
-            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
-              Loan History
-            </p>
-            <div className="space-y-2">
-              {customerLoans.map((historyLoan) => (
-                <div key={historyLoan.id || historyLoan.loanNumber} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <div>
-                    <p className="text-[11px] font-bold text-[#17221D]">
-                      {historyLoan.loanNumber || "—"}
-                    </p>
-                    <p className="text-[9px] text-slate-500">
-                      {historyLoan.previousLoanId || historyLoan.previousLoanNumber ? "NEW LOAN · FROM RE-LOAN WORKFLOW" : "NORMAL"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-semibold text-[#17221D]">
-                      {historyLoan.status || "—"}
-                    </p>
-                    <p className="text-[9px] text-slate-500">
-                      ₹{money(getLoanOutstanding(historyLoan))} outstanding
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </DetailCard>
 
       {/* REPAYMENT SUMMARY */}

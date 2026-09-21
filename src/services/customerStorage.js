@@ -55,27 +55,25 @@ export const generateVehicleId = () => {
 const sanitizeCustomerForStorage = (customer) => {
   const safeCustomer = structuredClone(customer);
 
-  // Do not store customer photo
+  // Preserve customer photo
+  // Customer photo is required for Customer Details display.
   if (safeCustomer.customer?.photo) {
     safeCustomer.customer.photo = {
-      fileName: "",
-      fileData: "",
-    };
-  }
+      fileName:
+        safeCustomer.customer.photo.fileName || "",
 
-  // Do not store uploaded customer document files
-  if (safeCustomer.customer?.documents?.uploads) {
-    safeCustomer.customer.documents.uploads =
-      safeCustomer.customer.documents.uploads.map(
-        (upload) => ({
-          type: upload.type || "",
-          fileName: upload.fileName || "",
-          fileType: upload.fileType || "",
-          fileSize: upload.fileSize || 0,
-          uploadedAt: upload.uploadedAt || "",
-          fileData: "",
-        })
-      );
+      fileType:
+        safeCustomer.customer.photo.fileType || "",
+
+      fileSize:
+        safeCustomer.customer.photo.fileSize || 0,
+
+      fileData:
+        safeCustomer.customer.photo.fileData || "",
+
+      uploadedAt:
+        safeCustomer.customer.photo.uploadedAt || "",
+    };
   }
 
   // Do not store insurance document file
@@ -83,12 +81,16 @@ const sanitizeCustomerForStorage = (customer) => {
     safeCustomer.rc.insurance.document = {
       fileName:
         safeCustomer.rc.insurance.document.fileName || "",
+
       fileType:
         safeCustomer.rc.insurance.document.fileType || "",
+
       fileSize:
         safeCustomer.rc.insurance.document.fileSize || 0,
+
       uploadedAt:
         safeCustomer.rc.insurance.document.uploadedAt || "",
+
       fileData: "",
     };
   }
